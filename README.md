@@ -202,7 +202,7 @@ awesome-student-ai-skills/
 > 任选一个即可，推荐 WorkBuddy 或 Trae（零基础最友好，直接输出 Word）。
 
 ### 2. 安装这 32 个 skills
-在工具中搜索或安装 `cuic19053-hue/-skills-`，一键装全部 32 个赛道
+在工具中搜索或安装 `cuic19053-hue/awesome-student-ai-skills`，一键装全部 32 个赛道
 
 ### 3. 开始对话
 直接跟 AI 说：
@@ -229,20 +229,20 @@ AI 会自动：
 
 ### 备选：直接下载成品模板
 
-[examples/demos/](https://github.com/cuic19053-hue/-skills-/tree/main/examples/demos) 目录存放了 10 个排版好的 .docx 文档：
+[examples/demos/](https://github.com/cuic19053-hue/awesome-student-ai-skills/tree/main/examples/demos) 目录存放了 10 个排版好的 .docx 文档：
 
 | 下载 | 类型 |
 |---|---|
-| [📄 国家奖学金.docx](https://github.com/cuic19053-hue/-skills-/raw/main/examples/demos/demo_national_project_eval.docx) | 奖学金 |
-| [📄 申请材料.docx](https://github.com/cuic19053-hue/-skills-/raw/main/examples/demos/demo_youth_league_application.docx) | 政治身份 |
-| [📄 挑战杯.docx](https://github.com/cuic19053-hue/-skills-/raw/main/examples/demos/demo_challenge_cup.docx) | 竞赛 |
-| [📄 互联网+商业计划书.docx](https://github.com/cuic19053-hue/-skills-/raw/main/examples/demos/demo_internet_plus.docx) | 竞赛 |
-| [📄 大创创新训练.docx](https://github.com/cuic19053-hue/-skills-/raw/main/examples/demos/demo_innovation_research.docx) | 科研 |
-| [📄 优秀毕业生.docx](https://github.com/cuic19053-hue/-skills-/raw/main/examples/demos/demo_outstanding_graduate.docx) | 评优 |
-| [📄 院级科研立项.docx](https://github.com/cuic19053-hue/-skills-/raw/main/examples/demos/demo_college_research.docx) | 科研 |
-| [📄 应征入伍.docx](https://github.com/cuic19053-hue/-skills-/raw/main/examples/demos/demo_military_enlistment.docx) | 征兵 |
-| [📄 CSC 公派留学.docx](https://github.com/cuic19053-hue/-skills-/raw/main/examples/demos/demo_csc_scholarship.docx) | 公派留学 |
-| [📄 大创创业训练.docx](https://github.com/cuic19053-hue/-skills-/raw/main/examples/demos/demo_entrepreneurship_training.docx) | 科研 |
+| [📄 国家奖学金.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_national_project_eval.docx) | 奖学金 |
+| [📄 申请材料.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_youth_league_application.docx) | 政治身份 |
+| [📄 挑战杯.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_challenge_cup.docx) | 竞赛 |
+| [📄 互联网+商业计划书.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_internet_plus.docx) | 竞赛 |
+| [📄 大创创新训练.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_innovation_research.docx) | 科研 |
+| [📄 优秀毕业生.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_outstanding_graduate.docx) | 评优 |
+| [📄 院级科研立项.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_college_research.docx) | 科研 |
+| [📄 应征入伍.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_military_enlistment.docx) | 征兵 |
+| [📄 CSC 公派留学.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_csc_scholarship.docx) | 公派留学 |
+| [📄 大创创业训练.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_entrepreneurship_training.docx) | 科研 |
 
 点击链接 → 浏览器下载 → Word 打开 → 替换成自己的信息。
 
