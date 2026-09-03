@@ -21,7 +21,7 @@
 ---
 Task ID: T01
 Agent: general-purpose
-Task: 修复 national_scholarship build.py
+Task: 修复 national_project_eval build.py
 
 Work Log:
 - Read SKILL.md 找出新增字段 material_type/project_level/...
@@ -30,7 +30,7 @@ Work Log:
 - 验证语法通过
 
 Stage Summary:
-- 产出文件：subskills/national_scholarship/build.py（XXXX 行）
+- 产出文件：subskills/national_project_eval/build.py（XXXX 行）
 - 新增字段：material_type（A/B/A+B 分流）, project_level, ...
 - 兼容性：保留旧字段兼容
 ```
@@ -41,4 +41,4 @@ Stage Summary:
 - ❌ 禁止修改其他子智能体负责的目录
 - ❌ 禁止生成 README.md 等非任务要求文件
 - ✅ 所有路径用绝对路径
-- ✅ 所有文件存放在 `/home/z/my-project/skills/college-application-doc/` 下
+- ✅ 所有文件存放在 `/home/z/my-project/skills/awesome-student-ai-skills/` 下

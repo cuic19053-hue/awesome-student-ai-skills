@@ -712,7 +712,7 @@ class ApplicationDocBuilder:
             if "党员" in political:
                 thought_parts.append(f"作为{political}，认真学习习近平新时代中国特色社会主义思想")
             elif "积极分子" in political:
-                thought_parts.append("作为入党积极分子，认真学习党的创新理论")
+                thought_parts.append("作为优秀团员/积极分子，认真学习党的创新理论")
             else:
                 thought_parts.append(f"作为{political}，拥护中国共产党的领导")
         if party_history:
@@ -893,7 +893,7 @@ DEFAULT_DATA = {
     "research_reflection": "通过上述科研工作，我系统掌握了深度学习方法，"
                           "理解了从问题定义到论文撰写的完整科研流程，"
                           "为后续研究生阶段奠定基础。",
-    "party_history": "2023.09 提交入党申请书，2024.03 列为入党积极分子。",
+    "party_history": "2023.09 提交申请材料，2024.03 列为优秀团员/积极分子。",
     "party_activities": ["参加学院分党校第 8 期培训班（2024.09-2024.12）结业"],
     "lifestyle": "生活中勤俭节约，作息规律，与同学相处融洽",
     "dorm_role": "宿舍长", "dorm_honor": "宿舍连续两学期获评'文明宿舍'",

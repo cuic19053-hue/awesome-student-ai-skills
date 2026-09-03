@@ -1632,7 +1632,7 @@ python build.py --data data.json --out output.docx --level school     # 校级
 
 ## 十五、与其他 skill 的协作
 
-本 skill 在 college-application-doc 项目中与其他 skill 协作：
+本 skill 在 awesome-student-ai-skills 项目中与其他 skill 协作：
 
 - 与 `innovation_training` 共享技术章节规范（科学挑战/文献综述/算法对比/技术路线图/数学公式），但本 skill 强调商业落地，innovation_training 强调学术研究
 - 与 `entrepreneurship_practice` 共享商业部分规范（4P/3C/SWOT/5 年三表），但本 skill 不要求实际注册公司，entrepreneurship_practice 需要真实营收数据

@@ -1,14 +1,13 @@
 ---
-name: college-application-doc
-description: >-
-  大学生申报书/申请书制作 skill 集群 v2.0。当用户提到"大学生申报书""申请书""立项书""申报材料""申报模板"等模糊词时触发，先用 utils/dispatcher.py 5 级决策树分流到 35 个细分子 skill 之一。9 大类全覆盖：奖学金(6)/评优(6)/政治(4)/科研(5)/竞赛(3)/三下乡实践(5)/征兵入伍(1)/公派留学交流(2)/其他(3)。每个子 skill 含万字级 SKILL.md + 千行级 build.py，配套 utils 工程化能力（dispatcher 分流/docx_common 共享样式/school_template 学校适配/pdf_export PDF 导出/plagiarism_checker 查重预检/review_simulator 评审模拟）。即使用户只说"帮我写个申报书"也应当触发并先确认具体类型。
+name: awesome-student-ai-skills
+description: "35 个大学生竞赛与立项 AI Skill 集合 | 覆盖大创/挑战杯/互联网+/国家级项目/答辩模拟等 | 零门槛即用 | Agent Skills 标准"
 ---
 
-# 大学生申报书制作（路由 v2.0）
+# awesome-student-ai-skills（路由 v2.0）
 
-本 skill 是 **路由入口**，不直接生成申报书。它的职责是：识别用户要写哪一类申报书，然后分流到对应的 35 个子 skill 之一。
+本 skill 是 **路由入口**，不直接生成申报书。它的职责是：识别用户要写哪一类申报书，然后分流到对应的 32 个子 skill 之一。
 
-> **v2.0 升级**：从 v1.x 的 18 个子 skill 扩展到 35 个，覆盖 9 大类；新增 `utils/` 工程化能力（dispatcher 分流决策树 / docx_common 共享样式 / school_template 学校适配 / pdf_export PDF 导出 / plagiarism_checker 查重预检 / review_simulator 评审模拟）；新增 `index.json` 机器可读索引 + `version.json` 项目元数据；新增 `AGENT_PROMPT.md` 总调度 prompt。
+> **v2.0 升级**：从 v1.x 的 18 个子 skill 扩展到 32 个，覆盖 9 大类；新增 `utils/` 工程化能力（dispatcher 分流决策树 / docx_common 共享样式 / school_template 学校适配 / pdf_export PDF 导出 / plagiarism_checker 查重预检 / review_simulator 评审模拟）；新增 `index.json` 机器可读索引 + `version.json` 项目元数据；新增 `AGENT_PROMPT.md` 总调度 prompt。
 
 ---
 
@@ -37,17 +36,17 @@ python3 utils/dispatcher.py --query "用户原话"
 ```python
 from utils.dispatcher import Dispatcher
 d = Dispatcher()
-result = d.dispatch("帮我写个奖学金申请书")
-# result = {"candidates": [{"name": "national_scholarship", "score": 0.92}, ...], "path": [...]}
+result = d.dispatch("帮我做个立项逻辑评测")
+# result = {"candidates": [{"name": "national_project_eval", "score": 0.92}, ...], "path": [...]}
 ```
 
 ### 方式 3：手动对照下表
 
-见下方 §35 个子 skill 索引。
+见下方 §32 个子 skill 索引。
 
 ---
 
-## 35 个子 skill 索引（按 9 大类分组）
+## 32 个子 skill 索引（按 9 大类分组）
 
 > 机器可读索引：`index.json`（含 name / display_name / category / description / triggers / paths / version / line_count）
 
@@ -55,7 +54,7 @@ result = d.dispatch("帮我写个奖学金申请书")
 
 | 子 skill | 中文名 | 触发关键词 |
 |----------|--------|------------|
-| `subskills/national_scholarship/` | 国家奖学金 | "国奖""8000元""前10%" |
+| `subskills/national_project_eval/` | 国家级项目立项逻辑评测 | "立项逻辑评测""国家级项目评测" |
 | `subskills/motivation_scholarship/` | 国家励志奖学金 | "励志""5000元""家庭经济困难" |
 | `subskills/university_scholarship/` | 校级奖学金 | "校奖""一等奖学金" |
 | `subskills/enterprise_scholarship/` | 企业专项奖学金 | "企业奖""专项奖""华为奖" |
@@ -77,9 +76,6 @@ result = d.dispatch("帮我写个奖学金申请书")
 
 | 子 skill | 中文名 | 触发关键词 |
 |----------|--------|------------|
-| `subskills/party_application/` | 入党申请书 | "入党申请书""申请入党" |
-| `subskills/party_full_member/` | 转正申请书 | "转正""预备党员转正" |
-| `subskills/thought_report/` | 思想汇报 | "思想汇报""季度汇报" |
 | `subskills/youth_league_application/` | 入团申请书 | "入团""申请入团" |
 
 ### §4 科研类（5 个，7941 行）
@@ -131,7 +127,7 @@ result = d.dispatch("帮我写个奖学金申请书")
 | `subskills/selected_graduate/` | 选调生申请 | "选调生""基层选调" |
 | `subskills/major_transfer/` | 转专业申请 | "转专业""专业转换" |
 
-**9 大类合计：6 + 6 + 4 + 5 + 3 + 5 + 1 + 2 + 3 = 35 个子 skill ✅**
+**9 大类合计：6 + 6 + 4 + 5 + 3 + 5 + 1 + 2 + 3 = 32 个子 skill ✅**
 
 ---
 
@@ -155,7 +151,7 @@ result = d.dispatch("帮我写个奖学金申请书")
 │
 ├─ Q5：要荣誉？
 │   ├─ Q6：奖学金？
-│   │   ├─ 国家级 8000 元 → national_scholarship
+│   │   ├─ 国家级 8000 元 → national_project_eval
 │   │   ├─ 国家级 5000 元，家庭经济困难 → motivation_scholarship
 │   │   ├─ 校级（一二三等） → university_scholarship
 │   │   ├─ 企业/社会捐赠 → enterprise_scholarship
@@ -171,9 +167,9 @@ result = d.dispatch("帮我写个奖学金申请书")
 │   │   └─ 优秀毕业设计/论文 → outstanding_thesis
 │
 ├─ Q9：政治身份？
-│   ├─ 第一次递交入党申请 → party_application
-│   ├─ 预备党员预备期满转正 → party_full_member
-│   ├─ 已是积极分子，季度汇报 → thought_report
+│   ├─ 第一次递交申请 → youth_league_application
+│   ├─ 预备党员预备期满转正 → youth_league_application
+│   ├─ 已是积极分子，季度汇报 → summary_report
 │   └─ 申请入团 → youth_league_application
 │
 ├─ Q10：三下乡/社会实践？
@@ -279,7 +275,7 @@ result = d.dispatch("帮我写个奖学金申请书")
 ## 项目元数据
 
 - **版本**：v2.0（详见 `version.json`）
-- **总规模**：35 个子 skill · 51690 行 SKILL.md · 42198 行 build.py · 8228 行 utils · 总计 ~105000 行
+- **总规模**：32 个子 skill · 51690 行 SKILL.md · 42198 行 build.py · 8228 行 utils · 总计 ~105000 行
 - **机器可读索引**：`index.json`
 - **总调度 prompt**：`AGENT_PROMPT.md`
 - **项目说明**：`README.md`

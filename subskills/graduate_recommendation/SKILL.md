@@ -1,7 +1,7 @@
 ---
 name: graduate_recommendation
 version: 1.0.0
-category: college-application-doc/subskills
+category: awesome-student-ai-skills/subskills
 subcategory: 升学类
 target: 保研推免申请书 docx 生成器
 description: |

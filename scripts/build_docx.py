@@ -612,12 +612,12 @@ class ApplicationDocBuilder:
 
         self.save(output_path)
 
-    def build_party_application(self, data: Dict[str, Any], output_path: str):
-        """构建入党申请书"""
+    def build_youth_league_application(self, data: Dict[str, Any], output_path: str):
+        """构建申请材料"""
         # 标题
         add_paragraph_with_format(
             self.doc,
-            "入党申请书",
+            "申请材料",
             font_name=FONT_HEI,
             font_size=SIZE_ER,
             bold=True,
@@ -632,7 +632,7 @@ class ApplicationDocBuilder:
 
         # 正文 - 4 段结构
         sections = [
-            ("一、入党志愿表达", data.get("will_expression", [])),
+            ("一、入团志愿表达", data.get("will_expression", [])),
             ("二、对党的认识", data.get("party_understanding", [])),
             ("三、个人经历与思想变化", data.get("personal_journey", [])),
             ("四、个人不足与今后努力方向", data.get("shortcomings_plan", [])),
@@ -703,7 +703,7 @@ def main():
     elif args.type == "social_practice":
         builder.build_social_practice(data, args.out)
     elif args.type == "party":
-        builder.build_party_application(data, args.out)
+        builder.build_youth_league_application(data, args.out)
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-docx_common.py — college-application-doc 共享组件库
+docx_common.py — awesome-student-ai-skills 共享组件库
 ====================================================
 
 为 22+ 个子 skill 的 build.py 提供统一的 docx 生成基础能力，
@@ -11,8 +11,8 @@ docx_common.py — college-application-doc 共享组件库
 设计原则
 --------
 1. **零业务耦合**：本模块只提供 docx 基础构件，不包含任何具体材料
-   类型（奖学金/入党/三下乡/挑战杯…）的业务逻辑。
-2. **覆盖现有重复模式**：抽样 national_scholarship / motivation_scholarship
+   类型（奖学金/入团/三下乡/挑战杯…）的业务逻辑。
+2. **覆盖现有重复模式**：抽样 national_project_eval / motivation_scholarship
    build.py 后，提取 12 套字体常量、5 个工具函数、15 个段落/表格/页眉
    构件、1 个 DocxBuilder 基类，覆盖现有 build.py 中 95% 的重复样板。
 3. **不破坏向后兼容**：现有 build.py 不强制改造，本模块可被新增子 skill
@@ -278,7 +278,7 @@ def add_title(
 ):
     """添加标题（默认黑体二号居中，段前段后 12pt）
 
-    适用于 B 类书信体材料（国家奖学金 / 励志奖学金 / 入党申请书 等）。
+    适用于 B 类书信体材料（国家奖学金 / 励志奖学金 / 申请材料 等）。
     A 类审批表如需三号标题，传 size=SIZE_SAN。
     """
     return add_paragraph_with_format(

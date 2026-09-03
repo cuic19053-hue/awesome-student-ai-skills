@@ -1,7 +1,7 @@
 # PDF 输出共享模块使用说明
 
 > 模块路径：`utils/pdf_export.py`
-> 适用范围：college-application-doc 全部 22+ 子 skill
+> 适用范围：awesome-student-ai-skills 全部 22+ 子 skill
 > 版本：1.0.0（T36 引入）
 
 ## 1. 设计目标
@@ -67,8 +67,8 @@ from utils.pdf_export import merge_pdfs
 
 # 国家奖学金：A 类审批表 + B 类申请书合并
 merge_pdfs(
-    ["/tmp/国奖_A.pdf", "/tmp/国奖_B.pdf"],
-    "/tmp/国奖_合并提交.pdf",
+    ["/tmp/项目_A.pdf", "/tmp/项目_B.pdf"],
+    "/tmp/项目_合并提交.pdf",
 )
 ```
 
@@ -120,7 +120,7 @@ set_pdf_metadata(
     author="张三",
     subject="2024001 / 计算机学院",
     keywords="国家奖学金,2025",
-    creator="college-application-doc skill",
+    creator="awesome-student-ai-skills skill",
 )
 ```
 
@@ -160,8 +160,8 @@ python3 utils/pdf_export.py --merge A.pdf B.pdf -o 合并.pdf
 
 ```bash
 python3 utils/pdf_export.py \
-    -i 国奖.docx \
-    -o 国奖.pdf \
+    -i 项目.docx \
+    -o 项目.pdf \
     --page-number \
     --watermark "仅供提交" \
     --metadata title="国家奖学金申请书" author="张三" \
@@ -214,15 +214,15 @@ parser.add_argument("--pdf", action="store_true",
 
 ```python
 # 国家奖学金 A+B 类
-docx_a = build_docx(data_a, "国奖_A.docx")
-docx_b = build_docx(data_b, "国奖_B.docx")
+docx_a = build_docx(data_a, "项目_A.docx")
+docx_b = build_docx(data_b, "项目_B.docx")
 
 if args.pdf:
     pdf_a = docx_to_pdf(docx_a)
     pdf_b = docx_to_pdf(docx_b)
-    merge_pdfs([pdf_a, pdf_b], "国奖_提交.pdf")
-    add_page_number("国奖_提交.pdf")
-    print("✅ 合并 PDF 已生成：国奖_提交.pdf")
+    merge_pdfs([pdf_a, pdf_b], "项目_提交.pdf")
+    add_page_number("项目_提交.pdf")
+    print("✅ 合并 PDF 已生成：项目_提交.pdf")
 ```
 
 ## 7. 常见问题
@@ -267,7 +267,7 @@ T36 完成后，以下子 skill 可直接 `import` 使用（待后续 task 逐�
 - competition 类：challenge_cup / internet_plus
 - research 类：innovation_research / college_research / university_research
 - entrepreneurship 类：entrepreneurship_training / entrepreneurship_practice
-- party 类：party_application / party_full_member / thought_report
+- party 类：youth_league_application / youth_league_application / summary_report
 - honor 类：outstanding_student / outstanding_graduate / outstanding_cadre /
   civilized_student
 - others：grant_application / graduate_recommendation / selected_graduate /

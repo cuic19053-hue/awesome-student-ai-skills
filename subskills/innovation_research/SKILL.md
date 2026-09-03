@@ -1623,7 +1623,7 @@ MIT License
 
 ## 十八、联系与反馈
 
-- 项目根目录：`/home/z/my-project/skills/college-application-doc/`
+- 项目根目录：`/home/z/my-project/skills/awesome-student-ai-skills/`
 - 本 skill 目录：`subskills/innovation_research/`
 - 案例分析报告：`CASE_ANALYSIS.md`
 - 真实案例 1：`/tmp/pdf_analysis/case1.txt`（28 页科研立项申报书全文）

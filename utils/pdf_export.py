@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-PDF 输出共享模块（college-application-doc / utils / pdf_export.py）
+PDF 输出共享模块（awesome-student-ai-skills / utils / pdf_export.py）
 ====================================================================
 
-为 22+ 个子 skill（national_scholarship / motivation_scholarship /
+为 22+ 个子 skill（national_project_eval / motivation_scholarship /
 university_scholarship / enterprise_scholarship / single_scholarship /
 challenge_cup / internet_plus / innovation_research / college_research /
 university_research / entrepreneurship_training / entrepreneurship_practice /
-party_application / party_full_member / thought_report / youth_league_application
+youth_league_application / youth_league_application / summary_report / youth_league_application
 / outstanding_student / outstanding_graduate / outstanding_cadre /
 civilized_student / grant_application / graduate_recommendation /
 selected_graduate / social_survey / class_collective / major_transfer /
@@ -759,7 +759,7 @@ def set_pdf_metadata(
         "/Subject": subject,
         "/Keywords": keywords,
         "/Creator": creator,
-        "/Producer": "college-application-doc/utils/pdf_export.py",
+        "/Producer": "awesome-student-ai-skills/utils/pdf_export.py",
     }
     for key, value in meta_map.items():
         if value is not None:
@@ -848,7 +848,7 @@ def _build_argparser() -> argparse.ArgumentParser:
     """构建 CLI 参数解析器"""
     p = argparse.ArgumentParser(
         prog="pdf_export.py",
-        description="docx → PDF 转换 / PDF 合并 / 页码 / 水印 / 元数据 / 校验（college-application-doc 共享工具）",
+        description="docx → PDF 转换 / PDF 合并 / 页码 / 水印 / 元数据 / 校验（awesome-student-ai-skills 共享工具）",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例：

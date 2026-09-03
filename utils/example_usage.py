@@ -105,9 +105,9 @@ def build_scholarship_application(out_path: str) -> str:
         "撰写学习心得 12 篇，其中 3 篇被学院公众号推送。"
     )
 
-    builder.add_heading2("（二）思想汇报")
+    builder.add_heading2("（二）阶段汇报")
     builder.add_paragraph(
-        "本人每季度按时向党组织递交思想汇报，2024 年共递交 4 篇，"
+        "本人每季度按时向党组织递交阶段汇报，2024 年共递交 4 篇，"
         "全部通过党支部审核。"
     )
 

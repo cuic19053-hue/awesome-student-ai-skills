@@ -316,7 +316,7 @@ class ApplicationDocBuilder:
         self.add_para("".join(parts))
 
     def _add_ideology(self):
-        """思想品德（300~400 字）：政治面貌 + 入党轨迹 + 学生干部履职 + 思想觉悟 + 荣誉"""
+        """思想品德（300~400 字）：政治面貌 + 入团轨迹 + 学生干部履职 + 思想觉悟 + 荣誉"""
         self.add_heading("一、思想品德")
         ideology = self._get("ideology", default="")
         if ideology:
@@ -336,7 +336,7 @@ class ApplicationDocBuilder:
             elif "预备党员" in political:
                 parts.append("作为一名中共预备党员，我认真学习习近平新时代中国特色社会主义思想，深入学习党的二十大和二十届三中全会精神，时刻以正式党员标准要求自己。")
             elif "积极分子" in political:
-                parts.append("作为一名入党积极分子，我认真学习习近平新时代中国特色社会主义思想，时刻以党员标准要求自己。")
+                parts.append("作为一名优秀团员/积极分子，我认真学习习近平新时代中国特色社会主义思想，时刻以党员标准要求自己。")
             else:
                 parts.append(f"作为一名{political}，我拥护中国共产党的领导，认真学习党的创新理论。")
         if party_history:
@@ -845,11 +845,11 @@ DEFAULT_DATA = {
     "computer_level": "二级 C 语言（优秀）、三级数据库技术",
     "scholarship_summary": "4 年获国家奖学金 1 次（2024 学年）、校级一等奖学金 3 次（2022/2023/2025 学年）",
     "thesis": "毕业设计《基于对比学习的法律问答系统》已通过中期检查，导师为张教授",
-    "party_history": "2022.09 递交入党申请书，2023.03 列为入党积极分子，2024.06 转为中共预备党员。",
+    "party_history": "2022.09 递交申请材料，2023.03 列为优秀团员/积极分子，2024.06 转为中共预备党员。",
     "party_activities": [
         "参加学院分党校第 8 期培训班（2023.09-2023.12）结业",
         "2024.10 参与主题党日活动'红色教育基地走访'，撰写调研报告 1 份（约 3000 字）",
-        "提交思想汇报 6 篇",
+        "提交阶段汇报 6 篇",
     ],
     "ideology": "",
     "academics": "",

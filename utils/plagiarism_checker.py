@@ -11,7 +11,7 @@ plagiarism_checker.py — 大学生申报书查重预检模块
     2. ngram_similarity(text1, text2, n=3) — N-gram Jaccard 相似度
     3. find_longest_common_substring(text1, text2) — 最长公共子串
     4. highlight_plagiarism(text, threshold=0.3) — 高亮疑似抄袭段
-    5. CLI 接口：python plagiarism_checker.py --text "xxx" --skill national_scholarship
+    5. CLI 接口：python plagiarism_checker.py --text "xxx" --skill national_project_eval
 
 内置 30+ 网络模板特征句库（按子 skill 分类）+ 党政原文金句库。
 
@@ -68,7 +68,7 @@ def _split_sentences(text: str) -> List[str]:
 # 模板特征句库（按子 skill 分类，每类至少 3-5 条典型网络套话）
 # ---------------------------------------------------------------------------
 TEMPLATE_LIBRARY: Dict[str, List[str]] = {
-    "national_scholarship": [
+    "national_project_eval": [
         "本人自入学以来，始终把学习放在第一位，努力提升综合素质",
         "在思想品德方面，本人积极向党组织靠拢，认真学习党的理论知识",
         "经过不懈努力，本人在学业上取得了优异成绩，综合排名位于专业前茅",
@@ -155,7 +155,7 @@ TEMPLATE_LIBRARY: Dict[str, List[str]] = {
         "在社会实践方面，本人积极参加志愿服务和实习活动",
         "本人即将毕业，特此申请优秀毕业生称号",
     ],
-    "party_application": [
+    "youth_league_application": [
         "我志愿加入中国共产党，拥护党的纲领，遵守党的章程",
         "中国共产党是中国工人阶级的先锋队，同时是中国人民和中华民族的先锋队",
         "我深知，加入中国共产党是一种光荣，更是一种责任",
@@ -164,7 +164,7 @@ TEMPLATE_LIBRARY: Dict[str, List[str]] = {
         "如果党组织批准我的申请，我将……如果党组织暂时没有批准，我也不会气馁",
         "我认真学习马克思列宁主义、毛泽东思想、邓小平理论、'三个代表'重要思想",
     ],
-    "thought_report": [
+    "summary_report": [
         "敬爱的党组织：本季度我在思想、学习、工作等方面都取得了一定进步",
         "通过本季度的理论学习，我对 XX 有了更加深刻的认识",
         "在学习上，本季度我认真完成了各项学习任务，取得了较好成绩",
@@ -172,7 +172,7 @@ TEMPLATE_LIBRARY: Dict[str, List[str]] = {
         "本季度我也存在一些不足，主要表现在 XX 方面",
         "下一步，我将以 XX 为重点，努力提升自己",
     ],
-    "party_full_member": [
+    "youth_league_application": [
         "在预备期内，我在思想、学习、工作等方面都取得了新的进步",
         "现将我一年来的预备期情况向党组织汇报如下",
         "在理论学习方面，我认真学习了党的最新理论成果",
@@ -466,7 +466,7 @@ def check_plagiarism(
     主查重函数：检测文本与网络模板/党政原文的相似度。
 
     :param text: 待检测文本
-    :param skill_name: 子 skill 名称（如 national_scholarship）
+    :param skill_name: 子 skill 名称（如 national_project_eval）
     :param threshold: 相似度阈值（默认 0.3）
     :param party_check: 是否检查党政原文（默认 True）
     :return: PlagiarismReport
@@ -619,9 +619,9 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 示例：
-  python plagiarism_checker.py --text "我志愿加入中国共产党..." --skill party_application
-  python plagiarism_checker.py --file input.txt --skill national_scholarship
-  python plagiarism_checker.py --file input.txt --skill party_application --highlight
+  python plagiarism_checker.py --text "我志愿加入中国共产党..." --skill youth_league_application
+  python plagiarism_checker.py --file input.txt --skill national_project_eval
+  python plagiarism_checker.py --file input.txt --skill youth_league_application --highlight
   python plagiarism_checker.py --list-skills
 """,
     )
@@ -629,8 +629,8 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--file", help="待检测文本文件路径")
     p.add_argument(
         "--skill",
-        default="national_scholarship",
-        help="子 skill 名称（如 national_scholarship / party_application）",
+        default="national_project_eval",
+        help="子 skill 名称（如 national_project_eval / youth_league_application）",
     )
     p.add_argument("--threshold", type=float, default=0.3, help="相似度阈值（默认 0.3）")
     p.add_argument("--no-party", action="store_true", help="跳过党政原文比对")

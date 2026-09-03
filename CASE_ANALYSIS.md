@@ -1,7 +1,7 @@
 # 真实申报书案例分析报告
 
 > 基于 2 份用户提供的真实申报书 PDF（共 107 页 / 9.6MB）提炼的可复用撰写规范。
-> 用于指导 college-application-doc skill v2.1 优化。
+> 用于指导 awesome-student-ai-skills skill v2.1 优化。
 
 ## 案例清单
 

@@ -11,7 +11,7 @@ review_simulator.py — 大学生申报书评审模拟器
     2. simulate_review() — 模拟评审，返回评分 + 评语
     3. generate_review_report(out_path) — 生成评审报告 docx
     4. compare_applicants(applicant_list) — 多人对比排序
-    5. CLI 接口：python review_simulator.py --skill national_scholarship --data data.json
+    5. CLI 接口：python review_simulator.py --skill national_project_eval --data data.json
 
 依赖：
     - review_criteria.json（评审标准配置）
@@ -97,7 +97,7 @@ class ReviewSimulator:
 
     用法：
         sim = ReviewSimulator(
-            skill_name="national_scholarship",
+            skill_name="national_project_eval",
             application_text="本人自入学以来……",
             applicant_data={
                 "name": "张三",
@@ -312,7 +312,7 @@ class ReviewSimulator:
         data = self.applicant_data
         text = self.application_text
 
-        # 字数检查（适用于 party_application / thought_report 等有字数硬性要求的）
+        # 字数检查（适用于 youth_league_application / summary_report 等有字数硬性要求的）
         for item in veto_list:
             # 字数下限
             m = re.search(r"字数\s*<\s*(\d+)", item)
@@ -540,7 +540,7 @@ class ReviewSimulator:
                 evidence.append("预备党员")
             elif data.get("is_activist"):
                 score = min(score + 5, 100)
-                evidence.append("入党积极分子")
+                evidence.append("优秀团员积极分子")
             if data.get("is_league_member"):
                 evidence.append("共青团员")
             # 文本中政治理论引用
@@ -715,7 +715,7 @@ class ReviewSimulator:
                 elif "实践" in d.name:
                     out.append(f"提升 {d.name}：增加志愿服务时长、补全学生干部任职证明。")
                 elif "思想" in d.name or "政治" in d.name:
-                    out.append(f"提升 {d.name}：补充入党/积极分子证明，引用最新时政。")
+                    out.append(f"提升 {d.name}：补充入团/积极分子证明，引用最新时政。")
                 elif "规范" in d.name or "材料" in d.name:
                     out.append(f"提升 {d.name}：核对字数与必填字段，纠正错别字。")
                 else:
@@ -958,8 +958,8 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 示例：
-  python review_simulator.py --skill national_scholarship --data data.json
-  python review_simulator.py --skill national_scholarship --data data.json --text-file text.txt --out report.docx
+  python review_simulator.py --skill national_project_eval --data data.json
+  python review_simulator.py --skill national_project_eval --data data.json --text-file text.txt --out report.docx
   python review_simulator.py --compare applicants.json --out ranking.json
   python review_simulator.py --list-skills
 """,

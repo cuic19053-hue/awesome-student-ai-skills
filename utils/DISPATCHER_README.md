@@ -1,7 +1,7 @@
 # Dispatcher 使用说明 (DISPATCHER_README)
 
 > 模块：`utils/dispatcher.py`
-> 项目：`college-application-doc`
+> 项目：`awesome-student-ai-skills`
 > 版本：v2.0（T40 引入）
 > 最后更新：2025-05-20
 > 覆盖子 skill 数：35 个，分为 9 大类
@@ -17,7 +17,7 @@
 当用户说出以下任意一种意图时，**强烈建议**先调用本 dispatcher 做分流，再交给具体子 skill：
 
 - "我要申报 X" / "我想申请 X" / "帮我写 X 申请书"
-- "三下乡立项" / "大创申报" / "保研推免" / "入党" / "转正" / "国奖" 等模糊词
+- "三下乡立项" / "大创申报" / "保研推免" / "入团" / "评优" / "国奖" 等模糊词
 - "我是大学生，要交一份 X"
 
 当前项目下挂 35 个子 skill，覆盖 9 大类，单凭肉眼选择难度大；dispatcher 通过
@@ -28,12 +28,12 @@
 ## 2. 文件位置约定
 
 ```
-college-application-doc/
+awesome-student-ai-skills/
 ├── index.json              ← 机器可读索引（30 个子 skill 元数据）
 ├── version.json            ← 项目版本元数据（v2.0 / 总行数 45024）
 ├── SKILL.md                ← 父 skill 说明
 ├── subskills/
-│   ├── national_scholarship/
+│   ├── national_project_eval/
 │   │   ├── SKILL.md
 │   │   └── build.py
 │   ├── ... (共 30 个)
@@ -54,10 +54,10 @@ college-application-doc/
 
 ```bash
 # 返回 top 3 候选
-python3 utils/dispatcher.py "我想申请国奖"
+python3 utils/dispatcher.py "国家级项目立项逻辑评测"
 
 # 返回 top 5
-python3 utils/dispatcher.py "我要写入党申请书" -n 5
+python3 utils/dispatcher.py "入团申请书" -n 5
 
 # 以 JSON 输出（便于上层 agent 解析）
 python3 utils/dispatcher.py "暑期三下乡调研" --json
@@ -81,7 +81,7 @@ python3 utils/dispatcher.py --list --json     # JSON 输出
 ### 3.4 查看某子 skill 详情
 
 ```bash
-python3 utils/dispatcher.py --info national_scholarship
+python3 utils/dispatcher.py --info national_project_eval
 ```
 
 ### 3.5 自检（验证 index.json 与磁盘目录一致）
@@ -103,7 +103,7 @@ from utils.dispatcher import Dispatcher
 d = Dispatcher()                              # 自动加载 ../index.json
 
 # 关键词匹配
-top3 = d.dispatch("我想申请国奖")              # 默认 top 3
+top3 = d.dispatch("国家级项目立项逻辑评测")              # 默认 top 3
 for r in top3:
     print(r["name"], r["display_name"], r["score"], r["matched"])
 
@@ -118,7 +118,7 @@ d.interactive_dispatch()
 
 # 列出全部 / 查看详情 / 自检
 d.list_all()
-d.info("party_application")
+d.info("youth_league_application")
 d.selfcheck()
 ```
 
@@ -132,7 +132,7 @@ d.selfcheck()
 Q1 (类型?)
 ├── scholarship   → Q2 (国奖/励志/校奖/企业/单项/助学金?)
 ├── honor         → Q3 (优秀学生/毕业生/班干部/文明/班集体/毕设评优?)
-├── political     → Q4 (入党/转正/思想汇报/入团?)
+├── political     → Q4 (入团/评优/汇报/入团?)
 ├── research      → Q5 (大创创新/创业训练/创业实践/校级/院级?)
 ├── competition   → Q6 (挑战杯/互联网+主赛道/互联网+红旅?)
 ├── practice      → Q7 (社会调查/支教/政策宣讲/科技服务/西部计划?)

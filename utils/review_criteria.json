@@ -21,7 +21,7 @@
     ]
   },
 
-  "national_scholarship": {
+  "national_project_eval": {
     "name": "国家奖学金",
     "max_score": 100,
     "threshold_pass": 85,
@@ -34,7 +34,7 @@
       "no_discipline_record": true
     },
     "dimensions": [
-      {"name": "思想品德", "weight": 15, "max": 15, "criteria": "政治立场坚定、积极参与思政活动、群众基础好；入党/入团积极分子加分"},
+      {"name": "思想品德", "weight": 15, "max": 15, "criteria": "政治立场坚定、积极参与思政活动、群众基础好；入团/优秀团员积极分子加分"},
       {"name": "学业表现", "weight": 40, "max": 40, "criteria": "GPA 排名前 10% 满分；前 3% 加分；必修课无不及格；外语/计算机等级加分"},
       {"name": "创新能力", "weight": 20, "max": 20, "criteria": "SCI/EI/CSSCI/核心期刊论文；发明专利；学科竞赛省级以上获奖；大创项目"},
       {"name": "实践经历", "weight": 15, "max": 15, "criteria": "社会实践/志愿服务/学生工作；省级以上表彰加分"},
@@ -319,7 +319,7 @@
       "credits_completed": true
     },
     "dimensions": [
-      {"name": "思想品德", "weight": 15, "max": 15, "criteria": "四年思想政治表现；入党/入团；品德评价"},
+      {"name": "思想品德", "weight": 15, "max": 15, "criteria": "四年思想政治表现；入团；品德评价"},
       {"name": "学业表现", "weight": 35, "max": 35, "criteria": "四年综合 GPA；排名；学位课成绩"},
       {"name": "科研创新", "weight": 20, "max": 20, "criteria": "论文/专利/竞赛/大创；毕业论文质量"},
       {"name": "社会实践", "weight": 15, "max": 15, "criteria": "学生工作/志愿服务/实习经历；省级以上表彰加分"},
@@ -334,8 +334,8 @@
     ]
   },
 
-  "party_application": {
-    "name": "入党申请书",
+  "youth_league_application": {
+    "name": "申请材料",
     "max_score": 100,
     "threshold_pass": 80,
     "hard_gates": {
@@ -361,8 +361,8 @@
     ]
   },
 
-  "thought_report": {
-    "name": "思想汇报",
+  "summary_report": {
+    "name": "阶段汇报",
     "max_score": 100,
     "threshold_pass": 75,
     "hard_gates": {
@@ -385,7 +385,7 @@
     ]
   },
 
-  "party_full_member": {
+  "youth_league_application": {
     "name": "党员转正申请书",
     "max_score": 100,
     "threshold_pass": 80,

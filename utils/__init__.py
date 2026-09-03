@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-college-application-doc / utils
+awesome-student-ai-skills / utils
 ================================
 
 共享工具包：为 22+ 个子 skill 提供统一的 docx 生成与 PDF 输出能力。

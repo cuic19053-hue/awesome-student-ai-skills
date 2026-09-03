@@ -1,7 +1,7 @@
 ---
 name: exchange_program
 version: 1.0.0
-category: college-application-doc/subskills
+category: awesome-student-ai-skills/subskills
 subcategory: 交流类
 target: 交流项目申请书 docx 生成器
 description: |
@@ -1156,7 +1156,7 @@ build.py 通过 `word_count_target` 字段（P2 可选）切换档位，但实�
 
 ### 13.1 build.py 接口概览
 
-build.py 位于 `/home/z/my-project/skills/college-application-doc/subskills/exchange_program/build.py`，提供 CLI 接口生成交流项目申请书 docx。
+build.py 位于 `/home/z/my-project/skills/awesome-student-ai-skills/subskills/exchange_program/build.py`，提供 CLI 接口生成交流项目申请书 docx。
 
 **核心类**：`ExchangeProgramDocBuilder`
 
@@ -1361,14 +1361,14 @@ python build.py --demo --out demo.docx
 1. **核对项目政策**：生成前必须核对本校国际处发布的交流项目通知（GPA 门槛/名额/语言要求/学分转换/申请截止日期）
 2. **查证目标院校信息**：QS 排名/课程名/导师姓名/特色项目必须从官网与权威报告查证
 3. **结合本人真实经历**：交流动机与学习计划必须基于本人真实学业与职业规划，禁止编造
-4. **遵守学术诚信**：申请书必须本人撰写，禁止代写（部分学校将代写视为学术不端）
+4. **遵守学术诚信**：申请书必须本人撰写，禁止他人替代撰写（部分学校将撰写视为学术不端）
 5. **遵守项目格式要求**：若项目有指定模板，必须按项目模板调整
 6. **遵守 CSC 协议**：CSC 公派必须遵守回国服务 2 年义务
 
 ### 15.3 与其他 skill 的协同
 
 - **graduate_recommendation**：交流项目归国后可申请保研推免，走该 skill
-- **national_scholarship**：交流项目经历可作为评国奖的科研经历佐证
+- **national_project_eval**：交流项目经历可作为评国奖的科研经历佐证
 - **innovation_research**：交流项目期间可参与大创项目，走该 skill
 - **college_research**：交流项目归国后可参与科研立项，走该 skill
 - **outstanding_student**：交流项目归国后可申报评优，走该 skill

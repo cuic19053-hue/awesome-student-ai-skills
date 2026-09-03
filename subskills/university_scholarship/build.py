@@ -414,7 +414,7 @@ class ApplicationDocBuilder:
     # --- 思想方面 ---
 
     def _add_ideology(self):
-        """思想方面（120~180 字）：政治立场 + 入党/团情况 + 思想觉悟 + 1 件具体事"""
+        """思想方面（120~180 字）：政治立场 + 入团/团情况 + 思想觉悟 + 1 件具体事"""
         self.add_heading("一、思想方面")
         ideology = self._get("ideology", default="")
         if ideology:
@@ -434,7 +434,7 @@ class ApplicationDocBuilder:
                              "认真学习习近平新时代中国特色社会主义思想与"
                              "党的二十大和二十届三中全会精神。")
             elif "积极分子" in political:
-                parts.append("作为一名入党积极分子，我认真学习习近平新时代中国特色社会主义思想，"
+                parts.append("作为一名优秀团员/积极分子，我认真学习习近平新时代中国特色社会主义思想，"
                              "时刻以党员标准要求自己。")
             else:
                 parts.append(f"作为一名{political}，我拥护中国共产党的领导，"
@@ -870,10 +870,10 @@ DEFAULT_DATA = {
     "cet4": "510", "cet6": "480", "computer_level": "二级 C 语言",
     "study_method": "学习上注重课前预习与课后总结，建立知识体系；遇到问题主动与老师、同学讨论。",
     "academics_summary": "",
-    "party_history": "2023.09 提交入党申请书，2024.03 列为入党积极分子。",
+    "party_history": "2023.09 提交申请材料，2024.03 列为优秀团员/积极分子。",
     "party_activities": [
         "参加学院分党校第 8 期培训班（2024.09-2024.12）结业",
-        "提交思想汇报 2 篇",
+        "提交阶段汇报 2 篇",
     ],
     "ideology": "", "academics": "", "research_practice": "",
     "competitions": [

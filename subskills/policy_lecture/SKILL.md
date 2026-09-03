@@ -2,7 +2,7 @@
 name: policy_lecture
 description: 生成"三下乡社会实践-宣讲类"立项申报书 docx。覆盖政策宣讲、党史宣讲、普法宣讲、科技宣讲四类主题，含宣讲主题选定、宣讲大纲（开场5分钟+主体3点×15分钟+案例10分钟+互动10分钟+结尾5分钟）、宣讲对象分析、按场次实施方案表、宣讲材料清单、覆盖人次与场次量化产出。直接输出可提交的 Word 文档。
 version: 1.0.0
-author: college-application-doc skill suite
+author: awesome-student-ai-skills skill suite
 triggers:
   - 三下乡
   - 社会实践
@@ -21,7 +21,7 @@ triggers:
 priority: high
 output_type: docx
 skill_kind: subskill
-parent_skill: college-application-doc
+parent_skill: awesome-student-ai-skills
 sibling_skills:
   - social_survey
   - volunteer_teaching

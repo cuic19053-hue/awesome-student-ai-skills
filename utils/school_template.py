@@ -4,8 +4,8 @@
 学校模板适配层（School Template Adapter）
 ==========================================
 
-为 22+ 个子 skill（national_scholarship / motivation_scholarship /
-innovation_research / party_application / outstanding_graduate 等）提供
+为 22+ 个子 skill（national_project_eval / motivation_scholarship /
+innovation_research / youth_league_application / outstanding_graduate 等）提供
 统一的学校差异适配能力，让 build.py 不再写死学校特定的：
 
   - 页眉/页脚（含学校名 / 校徽 / 页码）

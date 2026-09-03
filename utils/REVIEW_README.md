@@ -30,7 +30,7 @@
 from plagiarism_checker import check_plagiarism, ngram_similarity, find_longest_common_substring, highlight_plagiarism
 
 # 主查重函数
-report = check_plagiarism(text="本人自入学以来...", skill_name="national_scholarship")
+report = check_plagiarism(text="本人自入学以来...", skill_name="national_project_eval")
 print(report.overall_similarity)   # 0.235
 print(report.grade)                # 'C' / 'D' / ...
 print(report.passed)               # True / False
@@ -55,19 +55,19 @@ python plagiarism_checker.py --list-skills
 # 检测单段文本
 python plagiarism_checker.py \
     --text "我志愿加入中国共产党，拥护党的纲领..." \
-    --skill party_application
+    --skill youth_league_application
 
 # 检测文件 + 输出 JSON 报告
 python plagiarism_checker.py \
     --file input.txt \
-    --skill national_scholarship \
+    --skill national_project_eval \
     --json \
     --out report.json
 
 # 输出高亮标注文本
 python plagiarism_checker.py \
     --file input.txt \
-    --skill party_application \
+    --skill youth_league_application \
     --highlight \
     --out highlighted.txt
 
@@ -88,10 +88,10 @@ python plagiarism_checker.py --text "..." --skill motivation_scholarship --no-pa
 
 `TEMPLATE_LIBRARY` 覆盖以下 30 个子 skill：
 
-national_scholarship, motivation_scholarship, university_scholarship, enterprise_scholarship,
+national_project_eval, motivation_scholarship, university_scholarship, enterprise_scholarship,
 single_scholarship, innovation_research, entrepreneurship_training, entrepreneurship_practice,
 challenge_cup, internet_plus, graduate_recommendation, outstanding_graduate,
-party_application, thought_report, party_full_member, college_research,
+youth_league_application, summary_report, youth_league_application, college_research,
 university_research, social_survey, outstanding_student, civilized_student,
 outstanding_cadre, youth_league_application, grant_application, western_plan,
 volunteer_teaching, tech_service, selected_graduate, policy_lecture,
@@ -117,7 +117,7 @@ class_collective, major_transfer
 from review_simulator import ReviewSimulator, compare_applicants
 
 sim = ReviewSimulator(
-    skill_name="national_scholarship",
+    skill_name="national_project_eval",
     application_text="本人自入学以来...",
     applicant_data={
         "name": "张三",
@@ -157,7 +157,7 @@ sim.generate_review_report("/tmp/report.docx")
 | `english_qualified` | bool | 保研推免 | 英语是否达标 |
 | `is_party_member` | bool | 政治类/选调 | 是否党员 |
 | `is_probationary_member` | bool | 政治类 | 是否预备党员 |
-| `is_activist` | bool | 政治类 | 是否入党积极分子 |
+| `is_activist` | bool | 政治类 | 是否优秀团员/积极分子 |
 | `is_league_member` | bool | 政治类 | 是否团员 |
 | `is_graduate` | bool | 西部计划 | 是否应届毕业生 |
 | `is_student_cadre` | bool | 选调/优秀干部 | 是否学生干部 |
@@ -188,20 +188,20 @@ python review_simulator.py --list-skills
 
 # 单人评审（控制台输出）
 python review_simulator.py \
-    --skill national_scholarship \
+    --skill national_project_eval \
     --data applicant.json \
     --text-file text.txt
 
 # 单人评审 + 输出 docx 报告
 python review_simulator.py \
-    --skill national_scholarship \
+    --skill national_project_eval \
     --data applicant.json \
     --text-file text.txt \
     --out report.docx
 
 # 单人评审 + 输出 JSON
 python review_simulator.py \
-    --skill national_scholarship \
+    --skill national_project_eval \
     --data applicant.json \
     --text-file text.txt \
     --json --out report.json
@@ -217,12 +217,12 @@ python review_simulator.py \
 ```json
 [
   {
-    "skill_name": "national_scholarship",
+    "skill_name": "national_project_eval",
     "application_text": "本人在过去一学年中...",
     "applicant_data": {"name": "甲同学", "gpa_rank_percent": 5, "comprehensive_rank_percent": 7, ...}
   },
   {
-    "skill_name": "national_scholarship",
+    "skill_name": "national_project_eval",
     "application_text": "...",
     "applicant_data": {"name": "乙同学", ...}
   }
@@ -251,7 +251,7 @@ python review_simulator.py \
     "grade_scale": {"A": "优 (90-100)", "B": "良 (80-89)", ...},
     "global_veto": ["查重率 > 30%", ...]
   },
-  "national_scholarship": {
+  "national_project_eval": {
     "name": "国家奖学金",
     "max_score": 100,
     "threshold_pass": 85,
@@ -295,7 +295,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'utils'))
 from review_simulator import ReviewSimulator
 
 # 生成完 docx 后，从 data + 生成的文本提取做模拟评审
-sim = ReviewSimulator(skill_name="national_scholarship",
+sim = ReviewSimulator(skill_name="national_project_eval",
                      application_text=full_text,
                      applicant_data=data)
 result = sim.simulate_review()

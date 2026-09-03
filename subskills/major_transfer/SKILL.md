@@ -1076,7 +1076,7 @@ build.py 通过 `word_count_target` 字段（P2 可选）切换档位，但实�
 
 ### 12.1 build.py 接口概览
 
-build.py 位于 `/home/z/my-project/skills/college-application-doc/subskills/major_transfer/build.py`，提供 CLI 接口生成转专业申请书 docx。
+build.py 位于 `/home/z/my-project/skills/awesome-student-ai-skills/subskills/major_transfer/build.py`，提供 CLI 接口生成转专业申请书 docx。
 
 **核心类**：`MajorTransferDocBuilder`
 
@@ -1273,7 +1273,7 @@ python build.py --demo --out demo.docx
 1. **核对学校政策**：生成前必须核对学校转专业管理办法（GPA 门槛/名额/考核方式/可转专业范围/不可转专业清单/申请次数）
 2. **查证目标专业信息**：目标专业课程名/师资姓名/就业数据必须从官网与权威报告查证
 3. **结合本人真实经历**：转专业原因必须基于本人真实兴趣/学业/职业经历，禁止编造
-4. **遵守学术诚信**：申请书必须本人撰写，禁止代写（部分学校将代写视为学术不端）
+4. **遵守学术诚信**：申请书必须本人撰写，禁止他人替代撰写（部分学校将撰写视为学术不端）
 5. **遵守学校格式要求**：若学校有指定模板，必须按学校模板调整
 
 ### 14.3 与其他 skill 的协同

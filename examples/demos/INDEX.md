@@ -7,8 +7,8 @@
 
 | 序号 | 文件名 | 子 skill | 类型 | 说明 |
 |------|--------|----------|------|------|
-| 1 | `demo_national_scholarship.docx` | 国家奖学金申请书 | 奖学金 | 8000 元国奖，前 10% GPA |
-| 2 | `demo_party_application.docx` | 入党申请书 | 政治 | 4000 字，含入党志愿+认识+经历+不足 |
+| 1 | `demo_national_project_eval.docx` | 国家奖学金申请书 | 奖学金 | 8000 元国奖，前 10% GPA |
+| 2 | `demo_challenge_cup.docx` | 申请材料 | 政治 | 4000 字，含入团志愿+认识+经历+不足 |
 | 3 | `demo_challenge_cup.docx` | 挑战杯作品申报书 | 竞赛 | 自然科学类学术论文 |
 | 4 | `demo_internet_plus.docx` | 互联网+商业计划书 | 竞赛 | 创业大赛，2025 新评审维度 |
 | 5 | `demo_innovation_research.docx` | 大创创新训练 | 科研 | 国家级，研究报告/论文产出 |
@@ -24,34 +24,34 @@
 
 ```bash
 # macOS
-open demo_national_scholarship.docx
+open demo_national_project_eval.docx
 
 # Linux
-xdg-open demo_national_scholarship.docx
+xdg-open demo_national_project_eval.docx
 
 # Windows
-start demo_national_scholarship.docx
+start demo_national_project_eval.docx
 ```
 
 ### 2. 用真实数据重新生成
 
 ```bash
 # 准备 data.json（字段定义见各 subskills/<skill>/SKILL.md）
-python3 subskills/national_scholarship/build.py --data my_data.json --out my_output.docx
+python3 subskills/national_project_eval/build.py --data my_data.json --out my_output.docx
 ```
 
 ### 3. 导出为 PDF
 
 ```bash
 # 使用 utils/pdf_export.py（依赖 libreoffice）
-python3 utils/pdf_export.py --input demo_national_scholarship.docx --output demo_national_scholarship.pdf
+python3 utils/pdf_export.py --input demo_national_project_eval.docx --output demo_national_project_eval.pdf
 ```
 
 ## 重新生成全部 demo
 
 ```bash
-cd /home/z/my-project/skills/college-application-doc/subskills
-for skill in national_scholarship party_application challenge_cup internet_plus innovation_research outstanding_graduate college_research military_enlistment csc_scholarship entrepreneurship_training; do
+cd /home/z/my-project/skills/awesome-student-ai-skills/subskills
+for skill in national_project_eval youth_league_application challenge_cup internet_plus innovation_research outstanding_graduate college_research military_enlistment csc_scholarship entrepreneurship_training; do
   python3 "$skill/build.py" --demo --out "../examples/demos/demo_${skill}.docx"
 done
 ```

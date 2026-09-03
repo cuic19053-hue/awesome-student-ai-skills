@@ -1831,14 +1831,14 @@ python build.py --data data.json --out /path/to/output.docx
 - 教育部《关于进一步加强大学生课堂管理的指导意见》（2024）
 - 国务院《关于全面深化新时代教师队伍建设改革的意见》（2023）
 - 案例 1 PDF：/tmp/pdf_analysis/case1.txt
-- 案例分析报告：/home/z/my-project/skills/college-application-doc/CASE_ANALYSIS.md
+- 案例分析报告：/home/z/my-project/skills/awesome-student-ai-skills/CASE_ANALYSIS.md
 
 ---
 
 ## 十七、版本与维护
 
 - **版本**：v2.1（2025-XX-XX）
-- **作者**：college-application-doc 项目组
+- **作者**：awesome-student-ai-skills 项目组
 - **更新内容**：基于案例 1 提炼 12 项撰写规范，新增 6 大必加章节
 - **下一步**：v2.2 计划接入网络查重 API、LLM 评审模拟、英文版模板
 
@@ -2179,10 +2179,10 @@ build.py 会将公式以等宽字体（宋体）渲染到 docx，保证可读性
 
 ## 附录 I：联系方式与反馈
 
-- **项目仓库**：/home/z/my-project/skills/college-application-doc/
-- **案例分析**：/home/z/my-project/skills/college-application-doc/CASE_ANALYSIS.md
+- **项目仓库**：/home/z/my-project/skills/awesome-student-ai-skills/
+- **案例分析**：/home/z/my-project/skills/awesome-student-ai-skills/CASE_ANALYSIS.md
 - **工作日志**：/home/z/my-project/worklog.md
-- **反馈渠道**：通过 college-application-doc 项目组反馈
+- **反馈渠道**：通过 awesome-student-ai-skills 项目组反馈
 
 ---
 

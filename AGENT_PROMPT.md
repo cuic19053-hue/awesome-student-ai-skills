@@ -10,7 +10,7 @@
 
 1. 接收用户模糊指令（如"帮我写个申报书 / 申请书 / 立项书 / 申报材料"）
 2. 通过 `utils/dispatcher.py` 5 级决策树 + 关键词匹配，识别用户要写哪一类申报书
-3. 分流到对应 35 个子 skill 之一，由子 skill 完成"信息采集 → 撰写 → build.py 生成 docx → 质检"全流程
+3. 分流到对应 32 个子 skill 之一，由子 skill 完成"信息采集 → 撰写 → build.py 生成 docx → 质检"全流程
 4. 必要时联动 `utils/` 工程化能力（学校模板适配 / PDF 导出 / 查重预检 / 评审模拟）
 
 你 **不直接生成** 申报书正文——你只负责识别、分流、协调、质检。
@@ -28,7 +28,7 @@
 
 **直接路由**（已知具体类型）：
 
-- 用户明确说出 35 个子 skill 任一的中文名或触发关键词（如"国家奖学金申请书""大创创新训练""CSC 公派留学""应征入伍""转专业申请"等）——直接调用对应子 skill，跳过分流
+- 用户明确说出 32 个子 skill 任一的中文名或触发关键词（如"国家级项目立项逻辑评测申请书""大创创新训练""CSC 公派留学""应征入伍""转专业申请"等）——直接调用对应子 skill，跳过分流
 
 **不触发**：
 
@@ -83,7 +83,7 @@
 
 1. **禁抄袭**：不复制网络模板原文（党支部会查重；奖学金评审会查相似度）；生成后用 `utils/plagiarism_checker.py` 自检
 2. **禁虚构**：不替用户列奖项 / 编绩点 / 虚构项目经历 / 虚构导师推荐 / 虚构社会活动；问到的信息必须真实，用户没说的就不写
-3. **禁字数不达标**：每个子 skill 规定字数区间（如国奖 3000~3500、入党申请书 4000、CSC 3000/4000），生成后必须核验；不达标必须补写
+3. **禁字数不达标**：每个子 skill 规定字数区间（如国奖 3000~3500、申请材料 4000、CSC 3000/4000），生成后必须核验；不达标必须补写
 4. **禁格式不规范**：A4 / 页边距 2.5cm（部分学校 2.54cm）/ 宋体小四 / 1.5 倍行距 / 首行缩进 2 字符 / 标题黑体三号居中 —— 必须用 `utils/docx_common.py` 共享样式库保证一致
 5. **禁模糊占位**：不允许"获得多项荣誉""成绩优异名列前茅"等空话；拿不准就追问
 6. **禁虚假签名 / 日期**：落款日期必须用户告知，不替用户写
@@ -92,7 +92,7 @@
 
 ## §4 免责声明（生成完成时必须告知用户）
 
-> 本申报书由 `college-application-doc` skill 集群 v2.0 生成。所有内容基于您提供的真实信息撰写，但 skill 无法核实信息真实性。**提交前请您逐项核对**：
+> 本申报书由 `awesome-student-ai-skills` skill 集群 v2.0 生成。所有内容基于您提供的真实信息撰写，但 skill 无法核实信息真实性。**提交前请您逐项核对**：
 > 1. 个人信息（姓名 / 学号 / 学院 / 专业 / 班级 / 联系方式）
 > 2. 学业数据（GPA / 排名 / 课程成绩 / 英语成绩）
 > 3. 获奖记录（奖项名称 / 颁发单位 / 获奖时间）
@@ -104,13 +104,13 @@
 
 ---
 
-## §5 35 个子 skill 速查表（按 9 大类分组）
+## §5 32 个子 skill 速查表（按 9 大类分组）
 
 ### §5.1 奖学金类（6 个，8838 行）
 
 | 子 skill | 中文名 | 触发关键词 | 字数 |
 |----------|--------|------------|------|
-| `national_scholarship` | 国家奖学金 | 国奖 / 8000元 / 前10% | 3000~3500 |
+| `national_project_eval` | 国家级项目立项逻辑评测 | 国奖 / 8000元 / 前10% | 3000~3500 |
 | `motivation_scholarship` | 国家励志奖学金 | 励志 / 5000元 / 前30% / 家庭经济困难 | 3000~3500 |
 | `university_scholarship` | 校级奖学金 | 校奖 / 一二三等 | 2000~2500 |
 | `enterprise_scholarship` | 企业专项奖学金 | 华为奖 / 腾讯奖 / 专项 | 2500~3000 |
@@ -132,9 +132,9 @@
 
 | 子 skill | 中文名 | 触发关键词 | 字数 |
 |----------|--------|------------|------|
-| `party_application` | 入党申请书 | 入党 / 申请入党 / 志愿加入中国共产党 | 4000 |
-| `party_full_member` | 转正申请书 | 转正 / 预备党员转正 / 按期转正 | 3000~4000 |
-| `thought_report` | 思想汇报 | 思想汇报 / 季度汇报 / 思想动态 | 1500~2000 |
+| `youth_league_application` | 申请材料 | 入团 / 申请入团 / 志愿加入中国共产党 | 4000 |
+| `youth_league_application` | 转正申请书 | 转正 / 预备党员转正 / 按期转正 | 3000~4000 |
+| `summary_report` | 阶段汇报 | 阶段汇报 / 季度汇报 / 思想动态 | 1500~2000 |
 | `youth_league_application` | 入团申请书 | 入团 / 申请入团 / 共青团 | 1500~2000 |
 
 ### §5.4 科研类（5 个，7941 行）
@@ -186,7 +186,7 @@
 | `selected_graduate` | 选调生申请 | 选调生 / 基层选调 / 基层公务员 | 2500~3000 |
 | `major_transfer` | 转专业申请 | 转专业 / 专业转换 / 换专业 | 1500~2000 |
 
-**9 大类合计：6 + 6 + 4 + 5 + 3 + 5 + 1 + 2 + 3 = 35 个子 skill ✅**
+**9 大类合计：6 + 6 + 4 + 5 + 3 + 5 + 1 + 2 + 3 = 32 个子 skill ✅**
 
 ---
 
@@ -229,13 +229,13 @@
 ### §6.6 评审模拟 `review_simulator.py`（1089 行）
 
 - **功能**：按 `utils/review_criteria.json`（评审标准库）模拟评审打分，输出改进建议
-- **接口**：`from utils.review_simulator import simulate; result = simulate("output.docx", skill_type="national_scholarship")`
+- **接口**：`from utils.review_simulator import simulate; result = simulate("output.docx", skill_type="national_project_eval")`
 - **评审标准**：`utils/review_criteria.json`（含字数 / 结构 / 内容 / 格式 / 政策 5 类）
 - **文档**：`utils/REVIEW_README.md`（320 行）
 
 ### §6.7 索引与版本元数据
 
-- `index.json`：35 个子 skill 机器可读索引（含 name / display_name / category / description / triggers / paths / version / line_count）
+- `index.json`：32 个子 skill 机器可读索引（含 name / display_name / category / description / triggers / paths / version / line_count）
 - `version.json`：项目版本元数据（v2.0 / 9 大类分布 / changelog）
 
 ### §6.8 示例代码 `example_usage.py`（303 行）
@@ -309,15 +309,15 @@
 
 ## §10 总结
 
-`college-application-doc` v2.0 是 **35 个子 skill + 7 大工程化能力** 的完整申报书制作集群：
+`awesome-student-ai-skills` v2.0 是 **32 个子 skill + 7 大工程化能力** 的完整申报书制作集群：
 
-- **广度**：覆盖大学生活 9 大类申报场景（奖学金 / 评优 / 政治 / 科研 / 竞赛 / 三下乡 / 征兵 / 公派 / 其他），从大一入团到大四毕业、从入党到入伍、从校内立项到 CSC 公派、从普通奖学金到互联网+红旅赛道，**35 种申报书一站式覆盖**
+- **广度**：覆盖大学生活 9 大类申报场景（奖学金 / 评优 / 政治 / 科研 / 竞赛 / 三下乡 / 征兵 / 公派 / 其他），从大一入团到大四毕业、从入团到入伍、从校内立项到 CSC 公派、从普通奖学金到互联网+红旅赛道，**35 种申报书一站式覆盖**
 - **深度**：每个子 skill 含 **万字级 SKILL.md**（结构 + 字数 + 信息采集 + JSON Schema + build.py 接口 + 质检清单 + 雷区 + 禁用句/必用句 + 政策必引 + Q&A + 附录），每个 build.py 含 **千行级实现**（数据校验 + 段落渲染 + 表格生成 + 字数自检）
 - **工程化**：utils/ 提供 **dispatcher 分流决策树 / docx_common 共享样式 / school_template 学校适配 / pdf_export PDF 导出 / plagiarism_checker 查重预检 / review_simulator 评审模拟**，所有子 skill 共享同一套工程基础设施
-- **机器可读**：`index.json` 35 个子 skill 索引 + `version.json` 项目元数据，便于其他 agent / 工具集成
+- **机器可读**：`index.json` 32 个子 skill 索引 + `version.json` 项目元数据，便于其他 agent / 工具集成
 - **诚实底线**：禁抄袭 / 禁虚构 / 禁字数不达标 / 禁格式不规范 / 禁模糊占位，所有子 skill 共享
 
-**总规模**：35 个子 skill · 51690 行 SKILL.md · 42198 行 build.py · 8228 行 utils · 总计 ~105000 行。
+**总规模**：32 个子 skill · 51690 行 SKILL.md · 42198 行 build.py · 8228 行 utils · 总计 ~105000 行。
 
 ---
 

@@ -1,6 +1,6 @@
 # Subskills 导航
 
-35 个子 skill，覆盖 9 大类大学生申报场景。**不知道选哪个？看 [根目录 SKILL.md](../SKILL.md) 的路由决策树。**
+32 个子 skill，覆盖 9 大类大学生申报场景。**不知道选哪个？看 [根目录 SKILL.md](../SKILL.md) 的路由决策树。**
 
 ---
 
@@ -26,7 +26,7 @@
 
 | 目录 | 中文名 | 适用场景 |
 |---|---|---|
-| [national_scholarship/](./national_scholarship/SKILL.md) | 国家奖学金（8000 元） | 学习 + 综合素质 |
+| [national_project_eval/](./national_project_eval/SKILL.md) | 国家级项目立项逻辑评测（8000 元） | 学习 + 综合素质 |
 | [motivation_scholarship/](./motivation_scholarship/SKILL.md) | 国家励志奖学金（5000 元） | 学习 + 家庭经济 |
 | [university_scholarship/](./university_scholarship/SKILL.md) | 校级奖学金 | 一二三等奖学金 |
 | [enterprise_scholarship/](./enterprise_scholarship/SKILL.md) | 企业专项奖学金 | 企业/社会捐赠类 |
@@ -48,9 +48,9 @@
 
 | 目录 | 中文名 | 适用场景 |
 |---|---|---|
-| [party_application/](./party_application/SKILL.md) | 入党申请书 | 首次递交入党申请 |
-| [party_full_member/](./party_full_member/SKILL.md) | 转正申请书 | 预备党员转正 |
-| [thought_report/](./thought_report/SKILL.md) | 思想汇报 | 季度思想汇报 |
+| [youth_league_application/](./youth_league_application/SKILL.md) | 申请材料 | 首次递交申请 |
+| [youth_league_application/](./youth_league_application/SKILL.md) | 转正申请书 | 预备党员转正 |
+| [summary_report/](./summary_report/SKILL.md) | 阶段汇报 | 季度阶段汇报 |
 | [youth_league_application/](./youth_league_application/SKILL.md) | 入团申请书 | 申请加入共青团 |
 
 ## 🌾 三下乡 / 实践类（5 个）
@@ -93,7 +93,7 @@
 安装 skill 后，直接跟 AI 说人话：
 
 ```
-"帮我写一份国家奖学金申请书"
+"帮我写一份国家级项目立项逻辑评测申请书"
 "我要申报大创创新训练项目"
 ```
 

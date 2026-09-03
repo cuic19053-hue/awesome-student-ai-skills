@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-college-application-doc · 分流决策树 (Dispatcher)
+awesome-student-ai-skills · 分流决策树 (Dispatcher)
 =============================================
 
 本模块为「大学生申报书制作 skill」提供分流决策能力。当前项目下挂 30 个子 skill，
@@ -10,7 +10,7 @@ college-application-doc · 分流决策树 (Dispatcher)
 帮助上层 agent / CLI 用户快速定位 top 3 候选子 skill：
 
   1. 关键词匹配 (keyword_match)：基于 index.json 中声明的 triggers 列表做加权打分，
-     适合一次性给出原始文本（如 CLI：python dispatcher.py "我想申请国奖"）。
+     适合一次性给出原始文本（如 CLI：python dispatcher.py "国家级项目立项逻辑评测"）。
   2. 交互式决策树 (interactive_dispatch)：5 个问题（Q1~Q5）逐步缩小范围，适合
      用户在 CLI 中走完一次完整问答。
 
@@ -19,14 +19,14 @@ college-application-doc · 分流决策树 (Dispatcher)
   - 仅依赖标准库（json / os / sys / re / argparse / datetime / pathlib）
 
 入口：
-  - CLI: python dispatcher.py "我想申请国奖"          # 关键词匹配返回 top 3
+  - CLI: python dispatcher.py "国家级项目立项逻辑评测"          # 关键词匹配返回 top 3
   - CLI: python dispatcher.py -i                        # 交互式决策树
   - CLI: python dispatcher.py --list                    # 列出全部子 skill
-  - CLI: python dispatcher.py --info national_scholarship  # 查看某子 skill 详情
+  - CLI: python dispatcher.py --info national_project_eval  # 查看某子 skill 详情
 
 文件位置约定：
   - 本文件：utils/dispatcher.py
-  - 索引文件：../index.json  (即 skills/college-application-doc/index.json)
+  - 索引文件：../index.json  (即 skills/awesome-student-ai-skills/index.json)
   - 子 skill：../subskills/<name>/SKILL.md 与 ../subskills/<name>/build.py
 """
 
@@ -46,7 +46,7 @@ from typing import Any, Dict, List, Optional, Tuple
 # ============================================================================
 THIS_FILE = Path(__file__).resolve()
 UTILS_DIR = THIS_FILE.parent                       # .../utils
-PROJECT_DIR = UTILS_DIR.parent                     # .../college-application-doc
+PROJECT_DIR = UTILS_DIR.parent                     # .../awesome-student-ai-skills
 INDEX_JSON_PATH = PROJECT_DIR / "index.json"
 VERSION_JSON_PATH = PROJECT_DIR / "version.json"
 SUBSKILLS_DIR = PROJECT_DIR / "subskills"
@@ -73,10 +73,10 @@ DECISION_TREE: Dict[str, Dict[str, Any]] = {
         "question": "你这次想申请/撰写的是什么类型？",
         "prompt_hint": "请输入选项编号或关键词",
         "options": [
-            {"label": "奖学金（国奖/励志/校奖/企业/单项/助学金）", "value": "scholarship", "next": "Q2"},
+            {"label": "奖学金（励志/校奖/企业/单项/助学金）", "value": "scholarship", "next": "Q2"},
             {"label": "评优（优秀学生/毕业生/班干部/文明大学生/班集体）", "value": "honor", "next": "Q3"},
-            {"label": "政治材料（入党/转正/入团/思想汇报）", "value": "political", "next": "Q4"},
-            {"label": "科研立项（大创/校级/院级）", "value": "research", "next": "Q5"},
+            {"label": "政治材料（入团）", "value": "political", "next": "Q4"},
+            {"label": "科研立项（大创/校级/院级/立项评测）", "value": "research", "next": "Q5"},
             {"label": "学科竞赛（挑战杯/互联网+）", "value": "competition", "next": "Q6"},
             {"label": "三下乡 / 暑期社会实践", "value": "practice", "next": "Q7"},
             {"label": "征兵 / 应征入伍", "value": "military", "next": "Q9"},
@@ -92,8 +92,6 @@ DECISION_TREE: Dict[str, Dict[str, Any]] = {
         "question": "你要申请的是哪种奖学金？",
         "prompt_hint": "看金额/排名/家庭经济情况选",
         "options": [
-            {"label": "国家奖学金（8000 元，专业前 10%）", "value": "national",
-             "skills": ["national_scholarship"]},
             {"label": "国家励志奖学金（5000 元，前 30%，家庭经济困难）", "value": "motivation",
              "skills": ["motivation_scholarship"]},
             {"label": "校级奖学金（1/2/3 等，纯看成绩）", "value": "university",
@@ -134,14 +132,8 @@ DECISION_TREE: Dict[str, Dict[str, Any]] = {
     "Q4": {
         "id": "Q4",
         "question": "你要写的是哪种政治材料？",
-        "prompt_hint": "看身份（群众/积极分子/预备党员/团员）",
+        "prompt_hint": "看身份（团员/青年）",
         "options": [
-            {"label": "入党申请书（首次向党组织申请）", "value": "apply",
-             "skills": ["party_application"]},
-            {"label": "转正申请书（预备党员期满转正）", "value": "full",
-             "skills": ["party_full_member"]},
-            {"label": "思想汇报（积极分子/预备党员季度汇报）", "value": "thought",
-             "skills": ["thought_report"]},
             {"label": "入团申请书（申请加入共青团）", "value": "league",
              "skills": ["youth_league_application"]},
         ],
@@ -151,9 +143,11 @@ DECISION_TREE: Dict[str, Dict[str, Any]] = {
     # ----------------------------------------------------------------------
     "Q5": {
         "id": "Q5",
-        "question": "你要申报的是哪种科研立项？",
-        "prompt_hint": "看级别（国家级/校级/院级）与类型（学术/创业模拟/真创业）",
+        "question": "你要申报的是哪种科研立项或评测？",
+        "prompt_hint": "看级别（国家级/校级/院级）与类型（评估/学术/创业模拟/真创业）",
         "options": [
+            {"label": "国家级项目立项逻辑评测（针对申报书进行逻辑纠错与诊断）", "value": "national_eval",
+             "skills": ["national_project_eval"]},
             {"label": "大创 · 创新训练（学术研究，产出论文/专利）", "value": "innovation",
              "skills": ["innovation_research"]},
             {"label": "大创 · 创业训练（商业计划书模拟，不注册公司）", "value": "training",
@@ -263,14 +257,13 @@ CATEGORY_DISPLAY = {
 
 # 类别关键词：用于 keyword_match 阶段一（粗筛大类）
 CATEGORY_KEYWORDS: Dict[str, List[str]] = {
-    "scholarship": ["奖学金", "国奖", "励志", "校奖", "企业奖", "单项奖", "助学金",
-                    "scholarship", "grant", "8000", "5000"],
+    "scholarship": ["奖学金", "励志", "校奖", "企业奖", "单项奖", "助学金",
+                    "scholarship", "grant", "5000"],
     "honor": ["评优", "优秀学生", "三好学生", "优秀毕业生", "优秀班干部", "优秀学生干部",
               "文明大学生", "优秀团员", "优秀班集体", "honor", "outstanding"],
-    "political": ["入党", "转正", "入团", "思想汇报", "党", "团", "political", "party",
-                  "league", "thought"],
+    "political": ["入团", "团", "political", "league"],
     "research": ["大创", "创新训练", "创业训练", "创业实践", "科研立项", "校级科研",
-                 "院级科研", "SRTP", "research", "innovation", "entrepreneurship"],
+                 "院级科研", "SRTP", "立项评测", "逻辑评测", "国家级项目", "research", "innovation", "entrepreneurship", "national_project_eval"],
     "competition": ["挑战杯", "互联网+", "互联网＋", "创新创业大赛", "竞赛",
                     "challenge", "internet plus"],
     "practice": ["三下乡", "暑期实践", "社会实践", "支教", "政策宣讲", "理论宣讲",
@@ -415,7 +408,7 @@ class Dispatcher:
         """根据用户输入文本，返回推荐的子 skill 列表（top N）。
 
         Args:
-            user_input: 用户原始文本，如 "我想申请国奖" 或 "我要写入党申请书"
+            user_input: 用户原始文本，如 "我想申请国奖" 或 "我要写申请材料"
             top_n: 返回前 N 个候选，默认 3
 
         Returns:
@@ -597,9 +590,9 @@ class Dispatcher:
 # 仅列 name / display_name / category / triggers / description，路径字段留空
 # ============================================================================
 _FALLBACK_SKILLS: List[Dict[str, Any]] = [
-    {"name": "national_scholarship", "display_name": "国家奖学金",
-     "category": "scholarship", "triggers": ["国奖", "国家奖学金", "8000"],
-     "description": "国家奖学金 8000 元/人，要求专业前 10%"},
+    {"name": "national_project_eval", "display_name": "国家级项目立项逻辑评测",
+     "category": "research", "triggers": ["国家级项目立项逻辑评测", "项目立项逻辑评测", "立项逻辑评估"],
+     "description": "国家级项目申报书立项逻辑评测与诊断"},
     {"name": "motivation_scholarship", "display_name": "国家励志奖学金",
      "category": "scholarship", "triggers": ["励志", "励志奖学金", "5000"],
      "description": "国家励志奖学金 5000 元/人，前 30%，家庭经济困难"},
@@ -630,15 +623,6 @@ _FALLBACK_SKILLS: List[Dict[str, Any]] = [
     {"name": "class_collective", "display_name": "优秀班集体",
      "category": "honor", "triggers": ["优秀班集体", "班集体", "先进班级"],
      "description": "班级集体申报的荣誉"},
-    {"name": "party_application", "display_name": "入党申请书",
-     "category": "political", "triggers": ["入党", "入党申请", "志愿加入"],
-     "description": "首次向党组织申请入党，4000 字"},
-    {"name": "party_full_member", "display_name": "转正申请书",
-     "category": "political", "triggers": ["转正", "转正申请", "预备党员转正"],
-     "description": "预备党员期满转正申请"},
-    {"name": "thought_report", "display_name": "思想汇报",
-     "category": "political", "triggers": ["思想汇报", "季度汇报", "积极分子汇报"],
-     "description": "积极分子/预备党员季度思想汇报，1500-2000 字"},
     {"name": "youth_league_application", "display_name": "入团申请书",
      "category": "political", "triggers": ["入团", "入团申请", "共青团"],
      "description": "申请加入共青团"},
@@ -748,14 +732,14 @@ def _print_info(skill: Optional[Dict[str, Any]]) -> None:
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         prog="dispatcher",
-        description="大学生申报书分流决策树 (college-application-doc)",
+        description="大学生申报书分流决策树 (awesome-student-ai-skills)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
   python dispatcher.py "我想申请国奖"          # 关键词匹配，返回 top 3
   python dispatcher.py -i                        # 交互式决策树
   python dispatcher.py --list                    # 列出全部子 skill
-  python dispatcher.py --info national_scholarship   # 查看某子 skill 详情
+  python dispatcher.py --info national_project_eval   # 查看某子 skill 详情
   python dispatcher.py --selfcheck               # 自检 index.json 与目录一致性
 """,
     )

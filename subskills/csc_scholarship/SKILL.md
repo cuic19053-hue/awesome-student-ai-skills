@@ -1,7 +1,7 @@
 ---
 name: csc_scholarship
 version: 1.0.0
-category: college-application-doc/subskills
+category: awesome-student-ai-skills/subskills
 subcategory: 公派留学类
 target: CSC 国家公派留学申请书 docx 生成器
 description: |
@@ -1324,13 +1324,13 @@ A：可再次申请，但须改进申请书。CSC 不公布被拒原因，建议
 | 评审侧重 | 留学动机 + 留学单位匹配 + 归国承诺 | 学业硬指标 + 科研软实力 + 匹配度 |
 | 关键差异 | 必含归国计划与服务期承诺 | 不含归国承诺 |
 
-### §16.2 csc_scholarship 与 party_application
+### §16.2 csc_scholarship 与 youth_league_application
 
-| 维度 | csc_scholarship | party_application |
+| 维度 | csc_scholarship | youth_league_application |
 |---|---|---|
-| 性质 | 出国留学申请 | 入党申请 |
+| 性质 | 出国留学申请 | 申请 |
 | 字数 | 2500~4000 字 | 4000 字左右 |
-| 评审侧重 | 留学动机 + 归国承诺 | 入党志愿 + 思想汇报 |
+| 评审侧重 | 留学动机 + 归国承诺 | 入团志愿 + 阶段汇报 |
 | 共同点 | 均含"政治忠诚"要素 | csc_scholarship 须明确"拥护中国共产党的领导，无移民倾向" |
 
 ### §16.3 csc_scholarship 与 honor_outstanding_student

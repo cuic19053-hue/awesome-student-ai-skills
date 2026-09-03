@@ -351,7 +351,7 @@ class ApplicationDocBuilder:
                 parts.append(f"作为一名{political}，我始终坚持学习党的理论，"
                              "认真学习习近平新时代中国特色社会主义思想与党的二十大和二十届三中全会精神。")
             elif "积极分子" in political:
-                parts.append("作为一名入党积极分子，我认真学习习近平新时代中国特色社会主义思想，"
+                parts.append("作为一名优秀团员/积极分子，我认真学习习近平新时代中国特色社会主义思想，"
                              "时刻以党员标准要求自己。")
             else:
                 parts.append(f"作为一名{political}，我拥护中国共产党的领导，"
@@ -878,11 +878,11 @@ DEFAULT_DATA = {
     "cet4": "542", "cet6": "498",
     "computer_level": "二级 C 语言（优秀）、三级数据库技术",
     "study_method": "学习上注重课前预习与课后总结，建立知识体系；遇到问题主动与老师、同学讨论。",
-    "party_history": "2023.09 提交入党申请书，2024.03 列为入党积极分子。",
+    "party_history": "2023.09 提交申请材料，2024.03 列为优秀团员/积极分子。",
     "party_activities": [
         "参加学院分党校第 7 期培训班（2024.09-2024.12）结业",
         "2024.10 参与主题党日活动'红色教育基地走访'，撰写调研报告 1 份（约 3000 字）",
-        "提交思想汇报 3 篇",
+        "提交阶段汇报 3 篇",
     ],
     "ideology": "", "academics": "", "industry_understanding": "",
     "career_plan": "", "research_practice": "",

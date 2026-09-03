@@ -473,7 +473,7 @@ def _format_basic_info_paragraph(data: Dict[str, Any]) -> str:
     parts = []
     parts.append(
         f"我叫{name}，{gender}，{ethnicity}，{birth_year}年{birth_month}月生，"
-        f"{native}人，{political}（{party_date}入党），"
+        f"{native}人，{political}（{party_date}入团），"
         f"现为{university}{college}{major}专业应届{degree}毕业生。"
     )
     parts.append(

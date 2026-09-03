@@ -1,10 +1,10 @@
-# 大学生申报书/申请书 Agent Skills 集合
+# awesome-student-ai-skills
 
+[![Awesome](https://awesome.re/badge.svg)](https://awesome.re)
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-Compatible-6e3bf0)](https://agentskills.io/specification)
 [![Platform](https://img.shields.io/badge/Platform-WorkBuddy_|_Trae_|_Claude_Code_|_Codex_|_Cursor_|_Windsurf-blue)]()
 [![License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
-[![Stars](https://img.shields.io/github/stars/cuic19053-hue/-skills-?style=social)](https://github.com/cuic19053-hue/-skills-)
-[![Subskills](https://img.shields.io/badge/Subskills-35-blue)](#能写哪些申报书)
+[![Subskills](https://img.shields.io/badge/Subskills-32-blue)](#能写哪些申报书)
 [![Content](https://img.shields.io/badge/Content-2.4MB_|_42000+_lines-orange)]()
 [![Mermaid](https://img.shields.io/badge/Charts-Mermaid-ff3670)]()
 
@@ -12,7 +12,7 @@
 >
 > | 指标 | 数值 | 说明 |
 > |---|---|---|
-> | 覆盖赛道 | **35 个** | 8 大类，从大创到公派留学全覆盖 |
+> | 覆盖赛道 | **32 个** | 9 大类，从大创到公派留学全覆盖 |
 > | 总内容量 | **2,400 KB** | 42,000+ 行结构化领域知识 |
 > | 平均深度 | **68 KB / 赛道** | 最深 116 KB（大创创新训练） |
 > | 最近更新 | 2026-07 | v2.1 版本 |
@@ -20,24 +20,24 @@
 >
 > ⭐ **如果这个项目帮到了你，点个 Star 让更多同学看到。Star 数越多，越能吸引赛道专家贡献内容，最终受益的是所有使用者。**
 
-一套覆盖中国大学生常见申报场景的 Agent Skills。**35 个子 skill**，从大创立项到入党申请书，从奖学金到保研推免，从应征入伍到公派留学。
+一套覆盖中国大学生常见申报场景的 Agent Skills。**32 个子 skill**，从大创立项到申请材料，从奖学金到保研推免，从应征入伍到公派留学。
 
-> 🔔 **下载任意支持 Agent Skills 的工具（如 WorkBuddy），装上这 35 个 skills，对话就能生成图文并茂的申报书。**
+> 🔔 **下载任意支持 Agent Skills 的工具（如 WorkBuddy），装上这 32 个 skills，对话就能生成图文并茂的申报书。**
 > 不需要克隆、不需要装环境、不需要会编程。技术路线图、甘特图、流程图全部自动生成，输出可直接提交的 Word 文档。
 
 ---
 
 ## 为什么做这个
 
-中国大学生每年要写多少份申报书？大创、奖学金、三下乡、入党、保研——每一份都要求格式规范、语气恰当、事实准确。但大多数人要么对着空白模板发愁，要么去网上搜一些不知所云的范文。
+中国大学生每年要写多少份申报书？大创、奖学金、三下乡、入团、保研——每一份都要求格式规范、语气恰当、事实准确。但大多数人要么对着空白模板发愁，要么去网上搜一些不知所云的范文。
 
-ChatGPT 可以帮你写，但通用模型不知道"大创"是什么、不知道国家奖学金评审看什么、不知道入党申请书有查重。
+ChatGPT 可以帮你写，但通用模型不知道"大创"是什么、不知道国家奖学金评审看什么、不知道申请材料有查重。
 
 这个项目把**高校申报书的领域知识**打包成了 Agent Skills——不是给聊天框里贴一段 prompt，而是让支持 Agent Skills 的 AI 工具（WorkBuddy、Claude Code、Codex、Cursor 等）在需要时自动加载对应的专业知识。
 
 ## 能写哪些申报书
 
-**8 大类 · 35 个子 skill · 2,400 KB 结构化领域知识**
+**8 大类 · 32 个子 skill · 2,400 KB 结构化领域知识**
 
 > 状态说明：✅ 已完备（可直接使用）｜ 🔄 持续打磨中｜ 📅 Star 解锁（达到对应 Star 数后启动）
 
@@ -58,7 +58,7 @@ ChatGPT 可以帮你写，但通用模型不知道"大创"是什么、不知道�
 
 | # | 赛道 | 编码 | 内容量 | 状态 |
 |---|---|---|---|---|
-| 9 | 国家奖学金（8000 元） | `national_scholarship` | 39 KB | ✅ |
+| 9 | 国家奖学金（8000 元） | `national_project_eval` | 39 KB | ✅ |
 | 10 | 国家励志奖学金（5000 元） | `motivation_scholarship` | 43 KB | ✅ |
 | 11 | 校级奖学金 | `university_scholarship` | 40 KB | ✅ |
 | 12 | 企业专项奖学金 | `enterprise_scholarship` | 47 KB | ✅ |
@@ -85,9 +85,9 @@ ChatGPT 可以帮你写，但通用模型不知道"大创"是什么、不知道�
 
 | # | 赛道 | 编码 | 内容量 | 状态 |
 |---|---|---|---|---|
-| 26 | 入党申请书 | `party_application` | 58 KB | ✅ |
-| 27 | 思想汇报 | `thought_report` | 51 KB | ✅ |
-| 28 | 转正申请书 | `party_full_member` | 90 KB | ✅ |
+| 26 | 申请材料 | `youth_league_application` | 58 KB | ✅ |
+| 27 | 阶段汇报 | `summary_report` | 51 KB | ✅ |
+| 28 | 转正申请书 | `youth_league_application` | 90 KB | ✅ |
 | 29 | 入团申请书 | `youth_league_application` | 72 KB | ✅ |
 
 ### 🎓 升学类 — 2 个
@@ -127,10 +127,10 @@ ChatGPT 可以帮你写，但通用模型不知道"大创"是什么、不知道�
 ## 项目结构
 
 ```
-college-application-doc/
-├── subskills/               # 35 个赛道 skill（核心资产）
+awesome-student-ai-skills/
+├── subskills/               # 32 个赛道 skill（核心资产）
 │   ├── innovation_research/SKILL.md    # 大创 · 创新训练（116 KB）
-│   ├── national_scholarship/SKILL.md   # 国家奖学金
+│   ├── national_project_eval/SKILL.md   # 国家奖学金
 │   └── ...（共 35 个，详见上方表格）
 ├── references/              # 共享知识库
 │   ├── writing_guide.md     # 撰写规范
@@ -201,8 +201,8 @@ college-application-doc/
 
 > 任选一个即可，推荐 WorkBuddy 或 Trae（零基础最友好，直接输出 Word）。
 
-### 2. 安装这 35 个 skills
-在工具中搜索或安装 `cuic19053-hue/-skills-`，一键装全部 35 个赛道
+### 2. 安装这 32 个 skills
+在工具中搜索或安装 `cuic19053-hue/-skills-`，一键装全部 32 个赛道
 
 ### 3. 开始对话
 直接跟 AI 说：
@@ -233,8 +233,8 @@ AI 会自动：
 
 | 下载 | 类型 |
 |---|---|
-| [📄 国家奖学金.docx](https://github.com/cuic19053-hue/-skills-/raw/main/examples/demos/demo_national_scholarship.docx) | 奖学金 |
-| [📄 入党申请书.docx](https://github.com/cuic19053-hue/-skills-/raw/main/examples/demos/demo_party_application.docx) | 政治身份 |
+| [📄 国家奖学金.docx](https://github.com/cuic19053-hue/-skills-/raw/main/examples/demos/demo_national_project_eval.docx) | 奖学金 |
+| [📄 申请材料.docx](https://github.com/cuic19053-hue/-skills-/raw/main/examples/demos/demo_youth_league_application.docx) | 政治身份 |
 | [📄 挑战杯.docx](https://github.com/cuic19053-hue/-skills-/raw/main/examples/demos/demo_challenge_cup.docx) | 竞赛 |
 | [📄 互联网+商业计划书.docx](https://github.com/cuic19053-hue/-skills-/raw/main/examples/demos/demo_internet_plus.docx) | 竞赛 |
 | [📄 大创创新训练.docx](https://github.com/cuic19053-hue/-skills-/raw/main/examples/demos/demo_innovation_research.docx) | 科研 |
@@ -258,6 +258,27 @@ AI 会自动：
 
 ---
 
+### 💡 觉得手调 Prompt 太繁琐？或者立项书反复被导师打回？
+
+如果你手头的项目面临申报截止、缺乏创新点，或需要针对**具体比赛方向**做深度打磨，作者提供 1 对 1 定制化支持：
+
+* **🎁 新人专属福利**：添加微信，**免费帮看立项书前 500 字**，指出 3 个最常被导师打回的逻辑硬伤。
+* **🛠️ 承接深度服务**：
+  * **大创 / 挑战杯 / 互联网+** 立项逻辑链深度重构与降噪
+  * 核心研发流程 / 技术路线图绘制（提供高清矢量格式）
+  * 商业计划书（BP）逻辑漏洞诊断与排版规范化
+  * 模拟答辩：评委视角 10 问与防身话术设计
+* **🔒 严格保密承诺**：所有材料仅用于当次梳理诊断，交付后 24 小时内本地彻底销毁，绝不外传或留档。
+
+<br>
+
+<div align="center">
+  <img src="assets/contact_qr.png" width="220" alt="作者微信二维码">
+  <p>👉 <b>扫码添加作者微信</b>（备注：<b>GitHub立项</b>，优先通过）</p>
+</div>
+
+---
+
 ## 免责声明
 
 **本项目按"现状"提供，仅供学习和参考使用。**
@@ -266,7 +287,7 @@ AI 会自动：
 2. **内容真实性由使用者负责**：Skill 生成的申报书内容取决于你提供的信息。使用本项目产生的任何申报材料，其真实性和准确性由使用者本人承担全部责任。用虚假信息申报奖学金、科研立项等，可能面临学籍处分乃至法律责任。
 3. **不保证结果**：本项目不承诺、不保证使用后一定能通过评审、获得立项、拿到奖学金。评审结果受多种因素影响，包括但不限于：你的实际条件、竞争激烈程度、评审专家的主观判断、学校政策变化。
 4. **格式以学校模板为准**：不同学校下发的模板在栏目顺序、字数要求、排版规范上可能存在差异。Skill 提供的内容参考不能替代学校官方模板，提交前请对照本校要求逐项检查。
-5. **政治类文书的特殊性**：入党申请书、思想汇报等政治身份类文书有严格的政治表述规范。Skill 中的参考内容不构成政治立场建议。申请人对文书中政治表述的准确性承担全部责任。
+5. **政治类文书的特殊性**：申请材料、阶段汇报等政治身份类文书有严格的政治表述规范。Skill 中的参考内容不构成政治立场建议。申请人对文书中政治表述的准确性承担全部责任。
 6. **责任豁免**：在法律允许的最大范围内，本项目作者及贡献者不对因使用或无法使用本项目而产生的任何直接、间接、附带、特殊或后果性损害承担责任，包括但不限于申报失败、奖学金落选、项目被拒、学籍处分或其他损失，即使已被告知可能发生此类损害。
 7. **合规使用**：使用者必须遵守所在国家/地区以及所在学校的相关法律法规和规章制度。如使用行为违反相关规定，请立即停止使用并删除本项目。
 
@@ -276,7 +297,7 @@ AI 会自动：
 
 ## 致谢
 
-感谢 [@richyhu](https://github.com/richyhu) 完成了本项目绝大部分的编写工作。从大创申报书到入党申请书的每一个栏目、每一条避坑指南、每一处格式规范，都来自他对高校申报体系的深入理解和大量实践积累。
+感谢 [@richyhu](https://github.com/richyhu) 完成了本项目绝大部分的编写工作。从大创申报书到申请材料的每一个栏目、每一条避坑指南、每一处格式规范，都来自他对高校申报体系的深入理解和大量实践积累。
 
 这些 skill 凝结了巨大的工作量——不只是写 prompt，而是把一套庞杂的、隐性的、散落在各高校通知文件里的领域知识，系统性地编码为 Agent 可理解、可执行的结构化指令。这在国内 Agent Skills 生态中是非常稀缺的工作。
 

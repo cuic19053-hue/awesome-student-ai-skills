@@ -1,4 +1,4 @@
-# docx_common — college-application-doc 共享组件库
+# docx_common — awesome-student-ai-skills 共享组件库
 
 > T39 工程化任务产出。为 22+ 个子 skill 的 `build.py` 提供统一 docx 生成基础能力，消除字体常量、页面设置、段落生成、表格生成、签字栏、页眉页脚等跨子 skill 重复代码。
 
@@ -12,7 +12,7 @@
 
 ## 1. 背景与动机
 
-`skills/college-application-doc/subskills/` 下共有 22+ 个子 skill，每个子 skill 都有自己的 `build.py`。抽样 `national_scholarship/build.py` 与 `motivation_scholarship/build.py` 后发现：
+`skills/awesome-student-ai-skills/subskills/` 下共有 22+ 个子 skill，每个子 skill 都有自己的 `build.py`。抽样 `national_project_eval/build.py` 与 `motivation_scholarship/build.py` 后发现：
 
 | 重复内容 | 重复次数 | 重复规模 |
 |---|---|---|
@@ -34,7 +34,7 @@
 
 ## 2. 设计原则
 
-1. **零业务耦合**：本模块只提供 docx 基础构件，不包含任何具体材料类型（奖学金/入党/三下乡/挑战杯…）的业务逻辑。
+1. **零业务耦合**：本模块只提供 docx 基础构件，不包含任何具体材料类型（奖学金/评优/三下乡/挑战杯…）的业务逻辑。
 2. **覆盖现有重复模式**：12 套字体常量、5 个工具函数、15 个段落/表格/页眉构件、1 个 DocxBuilder 基类，覆盖现有 build.py 中 95% 的重复样板。
 3. **不破坏向后兼容**：现有 build.py 不强制改造，本模块可被新增子 skill 直接 import 使用。
 4. **可独立测试**：`example_usage.py` 跑通即视为通过。
@@ -332,7 +332,7 @@ docx_to_pdf("/tmp/test.docx")  # 生成 /tmp/test.docx.pdf
 
 ## 9. 后续规划
 
-1. **T40**：基于本模块的 `DocxBuilder`，进一步抽取 `PoliticalDocBuilder`（入党申请书 / 思想汇报 / 转正申请书 共同基类，含政治红线、必引理论、查重检测）
+1. **T40**：基于本模块的 `DocxBuilder`，进一步抽取 `PoliticalDocBuilder`（团员材料 / 汇报材料 共同基类，含政治红线、必引理论、查重检测）
 2. **T41**：抽取 `ScholarshipDocBuilder`（国奖 / 励志 / 校奖 / 单项 / 企业 共同基类，含成绩表、奖项表、家庭情况表）
 3. **T42**：抽取 `ResearchProjectBuilder`（科研立项 / 大创 / 挑战杯 / 互联网+ 共同基类，含研究背景、技术路线、预期成果）
 4. **T43**：抽取 `SocialPracticeBuilder`（三下乡 / 志愿服务 / 西部计划 共同基类，含团队信息、服务内容、安全预案）
