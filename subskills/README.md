@@ -1,6 +1,6 @@
-# Subskills 导航
+# Subskills 核心资产库
 
-32 个子 skill，覆盖 9 大类大学生申报场景。**不知道选哪个？看 [根目录 SKILL.md](../SKILL.md) 的路由决策树。**
+35 个子 skill，覆盖 9 大类大学生申报场景。**不知道选哪个？看 [根目录 SKILL.md](../SKILL.md) 的路由决策树。**
 
 ---
 

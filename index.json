@@ -3,7 +3,7 @@
   "project_version": "v2.0",
   "description": "35 个大学生竞赛与立项 AI Skill 集合 | 覆盖大创/挑战杯/互联网+/国家级项目/答辩模拟等 | 零门槛即用 | Agent Skills 标准",
   "generated_at": "2025-05-20",
-  "total_skills": 32,
+  "total_skills": 35,
   "categories": {
     "scholarship": "奖学金",
     "honor": "评优",
@@ -607,6 +607,66 @@
       "version": "v1.0",
       "last_updated": "2025-05-20",
       "line_count": 1323
+    },
+    {
+      "name": "national_scholarship",
+      "display_name": "国家奖学金",
+      "category": "scholarship",
+      "description": "国家奖学金 8000 元/人，面向全日制二年级及以上特别优秀本科生，评审侧重学习成绩极优（专业前 10%）+ 科研竞赛等综合素质突出。",
+      "triggers": [
+        "国家奖学金",
+        "国奖",
+        "8000元奖学金",
+        "8000元",
+        "国家奖学金申请书",
+        "8000元奖学金申请",
+        "国奖申请",
+        "national_scholarship"
+      ],
+      "skill_md_path": "subskills/national_scholarship/SKILL.md",
+      "build_py_path": "subskills/national_scholarship/build.py",
+      "version": "v1.0",
+      "last_updated": "2026-09-05",
+      "line_count": 1250
+    },
+    {
+      "name": "summary_report",
+      "display_name": "阶段汇报/思想汇报",
+      "category": "political",
+      "description": "生成学生党团政治身份考察期、科研项目或工作阶段性思想与总结汇报。",
+      "triggers": [
+        "阶段汇报",
+        "思想汇报",
+        "季度思想汇报",
+        "阶段总结",
+        "思想工作汇报",
+        "summary_report"
+      ],
+      "skill_md_path": "subskills/summary_report/SKILL.md",
+      "build_py_path": "subskills/summary_report/build.py",
+      "version": "v1.0",
+      "last_updated": "2026-09-05",
+      "line_count": 1280
+    },
+    {
+      "name": "youth_league_conversion",
+      "display_name": "转正申请书",
+      "category": "political",
+      "description": "预备党员/预备团员考察期满后向组织正式提交的按期转正申请书。",
+      "triggers": [
+        "转正申请书",
+        "转正申请",
+        "团员转正",
+        "党员转正",
+        "预备党员转正",
+        "预备期满转正",
+        "youth_league_conversion"
+      ],
+      "skill_md_path": "subskills/youth_league_conversion/SKILL.md",
+      "build_py_path": "subskills/youth_league_conversion/build.py",
+      "version": "v1.0",
+      "last_updated": "2026-09-05",
+      "line_count": 1300
     }
   ]
 }

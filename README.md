@@ -4,7 +4,7 @@
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-Compatible-6e3bf0)](https://agentskills.io/specification)
 [![Platform](https://img.shields.io/badge/Platform-WorkBuddy_|_Trae_|_Claude_Code_|_Codex_|_Cursor_|_Windsurf-blue)]()
 [![License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
-[![Subskills](https://img.shields.io/badge/Subskills-32-blue)](#能写哪些申报书)
+[![Subskills](https://img.shields.io/badge/Subskills-35-blue)](#能写哪些申报书)
 [![Content](https://img.shields.io/badge/Content-2.4MB_|_42000+_lines-orange)]()
 [![Mermaid](https://img.shields.io/badge/Charts-Mermaid-ff3670)]()
 
@@ -12,7 +12,7 @@
 >
 > | 指标 | 数值 | 说明 |
 > |---|---|---|
-> | 覆盖赛道 | **32 个** | 9 大类，从大创到公派留学全覆盖 |
+> | 覆盖赛道 | **35 个** | 9 大类，从大创到公派留学全覆盖 |
 > | 总内容量 | **2,400 KB** | 42,000+ 行结构化领域知识 |
 > | 平均深度 | **68 KB / 赛道** | 最深 116 KB（大创创新训练） |
 > | 最近更新 | 2026-07 | v2.1 版本 |
@@ -20,9 +20,9 @@
 >
 > ⭐ **如果这个项目帮到了你，点个 Star 让更多同学看到。Star 数越多，越能吸引赛道专家贡献内容，最终受益的是所有使用者。**
 
-一套覆盖中国大学生常见申报场景的 Agent Skills。**32 个子 skill**，从大创立项到申请材料，从奖学金到保研推免，从应征入伍到公派留学。
+一套覆盖中国大学生常见申报场景的 Agent Skills。**35 个子 skill**，从大创立项到申请材料，从奖学金到保研推免，从应征入伍到公派留学。
 
-> 🔔 **下载任意支持 Agent Skills 的工具（如 WorkBuddy），装上这 32 个 skills，对话就能生成图文并茂的申报书。**
+> 🔔 **下载任意支持 Agent Skills 的工具（如 WorkBuddy），装上这 35 个 skills，对话就能生成图文并茂的申报书。**
 > 不需要克隆、不需要装环境、不需要会编程。技术路线图、甘特图、流程图全部自动生成，输出可直接提交的 Word 文档。
 
 ---
@@ -37,7 +37,7 @@ ChatGPT 可以帮你写，但通用模型不知道"大创"是什么、不知道�
 
 ## 能写哪些申报书
 
-**8 大类 · 32 个子 skill · 2,400 KB 结构化领域知识**
+**8 大类 · 35 个子 skill · 2,400 KB 结构化领域知识**
 
 > 状态说明：✅ 已完备（可直接使用）｜ 🔄 持续打磨中｜ 📅 Star 解锁（达到对应 Star 数后启动）
 
@@ -58,7 +58,7 @@ ChatGPT 可以帮你写，但通用模型不知道"大创"是什么、不知道�
 
 | # | 赛道 | 编码 | 内容量 | 状态 |
 |---|---|---|---|---|
-| 9 | 国家奖学金（8000 元） | `national_project_eval` | 39 KB | ✅ |
+| 9 | 国家奖学金（8000 元） | `national_scholarship` | 42 KB | ✅ |
 | 10 | 国家励志奖学金（5000 元） | `motivation_scholarship` | 43 KB | ✅ |
 | 11 | 校级奖学金 | `university_scholarship` | 40 KB | ✅ |
 | 12 | 企业专项奖学金 | `enterprise_scholarship` | 47 KB | ✅ |
@@ -87,7 +87,7 @@ ChatGPT 可以帮你写，但通用模型不知道"大创"是什么、不知道�
 |---|---|---|---|---|
 | 26 | 申请材料 | `youth_league_application` | 58 KB | ✅ |
 | 27 | 阶段汇报 | `summary_report` | 51 KB | ✅ |
-| 28 | 转正申请书 | `youth_league_application` | 90 KB | ✅ |
+| 28 | 转正申请书 | `youth_league_conversion` | 45 KB | ✅ |
 | 29 | 入团申请书 | `youth_league_application` | 72 KB | ✅ |
 
 ### 🎓 升学类 — 2 个
@@ -128,7 +128,7 @@ ChatGPT 可以帮你写，但通用模型不知道"大创"是什么、不知道�
 
 ```
 awesome-student-ai-skills/
-├── subskills/               # 32 个赛道 skill（核心资产）
+├── subskills/               # 35 个赛道 skill（核心资产）
 │   ├── innovation_research/SKILL.md    # 大创 · 创新训练（116 KB）
 │   ├── national_project_eval/SKILL.md   # 国家奖学金
 │   └── ...（共 35 个，详见上方表格）
@@ -201,8 +201,8 @@ awesome-student-ai-skills/
 
 > 任选一个即可，推荐 WorkBuddy 或 Trae（零基础最友好，直接输出 Word）。
 
-### 2. 安装这 32 个 skills
-在工具中搜索或安装 `cuic19053-hue/awesome-student-ai-skills`，一键装全部 32 个赛道
+### 2. 安装这 35 个 skills
+在工具中搜索或安装 `cuic19053-hue/awesome-student-ai-skills`，一键装全部 35 个赛道
 
 ### 3. 开始对话
 直接跟 AI 说：

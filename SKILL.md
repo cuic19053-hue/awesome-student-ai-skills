@@ -5,9 +5,9 @@ description: "35 个大学生竞赛与立项 AI Skill 集合 | 覆盖大创/挑�
 
 # awesome-student-ai-skills（路由 v2.0）
 
-本 skill 是 **路由入口**，不直接生成申报书。它的职责是：识别用户要写哪一类申报书，然后分流到对应的 32 个子 skill 之一。
+本 skill 是 **路由入口**，不直接生成申报书。它的职责是：识别用户要写哪一类申报书，然后分流到对应的 35 个子 skill 之一。
 
-> **v2.0 升级**：从 v1.x 的 18 个子 skill 扩展到 32 个，覆盖 9 大类；新增 `utils/` 工程化能力（dispatcher 分流决策树 / docx_common 共享样式 / school_template 学校适配 / pdf_export PDF 导出 / plagiarism_checker 查重预检 / review_simulator 评审模拟）；新增 `index.json` 机器可读索引 + `version.json` 项目元数据；新增 `AGENT_PROMPT.md` 总调度 prompt。
+> **v2.1 升级**：已实现 35 个子 skill 1 对 1 精准映射，覆盖 9 大类；包含 `utils/` 工程化能力（dispatcher 分流决策树 / docx_common 共享样式 / school_template 学校适配 / pdf_export PDF 导出 / plagiarism_checker 查重预检 / review_simulator 评审模拟）；`index.json` 机器可读索引 + `version.json` 项目元数据。
 
 ---
 
@@ -42,18 +42,19 @@ result = d.dispatch("帮我做个立项逻辑评测")
 
 ### 方式 3：手动对照下表
 
-见下方 §32 个子 skill 索引。
+见下方 §35 个子 skill 索引。
 
 ---
 
-## 32 个子 skill 索引（按 9 大类分组）
+## 35 个子 skill 索引（按 9 大类分组）
 
 > 机器可读索引：`index.json`（含 name / display_name / category / description / triggers / paths / version / line_count）
 
-### §1 奖学金类（6 个，8838 行）
+### §1 奖学金类（7 个）
 
 | 子 skill | 中文名 | 触发关键词 |
 |----------|--------|------------|
+| `subskills/national_scholarship/` | 国家奖学金 | "国家奖学金""国奖""8000元" |
 | `subskills/national_project_eval/` | 国家级项目立项逻辑评测 | "立项逻辑评测""国家级项目评测" |
 | `subskills/motivation_scholarship/` | 国家励志奖学金 | "励志""5000元""家庭经济困难" |
 | `subskills/university_scholarship/` | 校级奖学金 | "校奖""一等奖学金" |
@@ -61,7 +62,7 @@ result = d.dispatch("帮我做个立项逻辑评测")
 | `subskills/single_scholarship/` | 单项奖学金 | "单项奖""科研单项""文体单项" |
 | `subskills/grant_application/` | 国家助学金 | "助学金""贫困生""家庭经济困难补助" |
 
-### §2 评优类（6 个，8630 行）
+### §2 评优类（6 个）
 
 | 子 skill | 中文名 | 触发关键词 |
 |----------|--------|------------|
@@ -72,11 +73,13 @@ result = d.dispatch("帮我做个立项逻辑评测")
 | `subskills/class_collective/` | 优秀班集体 | "优秀班集体""先进班级" |
 | `subskills/outstanding_thesis/` | 优秀毕业设计/论文申报书 | "优秀毕设""毕设评优" |
 
-### §3 政治类（4 个，5959 行）
+### §3 政治类（3 个）
 
 | 子 skill | 中文名 | 触发关键词 |
 |----------|--------|------------|
 | `subskills/youth_league_application/` | 入团申请书 | "入团""申请入团" |
+| `subskills/summary_report/` | 阶段汇报/思想汇报 | "阶段汇报""思想汇报""季度思想汇报" |
+| `subskills/youth_league_conversion/` | 转正申请书 | "转正申请书""预备党员转正""转正申请" |
 
 ### §4 科研类（5 个，7941 行）
 
@@ -127,7 +130,7 @@ result = d.dispatch("帮我做个立项逻辑评测")
 | `subskills/selected_graduate/` | 选调生申请 | "选调生""基层选调" |
 | `subskills/major_transfer/` | 转专业申请 | "转专业""专业转换" |
 
-**9 大类合计：6 + 6 + 4 + 5 + 3 + 5 + 1 + 2 + 3 = 32 个子 skill ✅**
+**9 大类合计：7 + 6 + 3 + 5 + 3 + 5 + 1 + 2 + 3 = 35 个子 skill ✅**
 
 ---
 
@@ -274,8 +277,8 @@ result = d.dispatch("帮我做个立项逻辑评测")
 
 ## 项目元数据
 
-- **版本**：v2.0（详见 `version.json`）
-- **总规模**：32 个子 skill · 51690 行 SKILL.md · 42198 行 build.py · 8228 行 utils · 总计 ~105000 行
+- **版本**：v2.1（详见 `version.json`）
+- **总规模**：35 个子 skill · 55317 行 SKILL.md · 44198 行 build.py · 8228 行 utils · 总计 ~108000 行
 - **机器可读索引**：`index.json`
 - **总调度 prompt**：`AGENT_PROMPT.md`
 - **项目说明**：`README.md`
