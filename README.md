@@ -1,31 +1,44 @@
-# awesome-student-ai-skills
+# Awesome Student AI Skills
 
 [![Awesome](https://awesome.re/badge.svg)](https://awesome.re)
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-Compatible-6e3bf0)](https://agentskills.io/specification)
-[![Platform](https://img.shields.io/badge/Platform-WorkBuddy_|_Trae_|_Claude_Code_|_Codex_|_Cursor_|_Windsurf-blue)]()
-[![License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue)](#)
 [![Subskills](https://img.shields.io/badge/Subskills-35-blue)](#能写哪些申报书)
-[![Content](https://img.shields.io/badge/Content-2.4MB_|_42000+_lines-orange)]()
-[![Mermaid](https://img.shields.io/badge/Charts-Mermaid-ff3670)]()
+[![License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
 
-> 📊 **项目数据看板**
->
-> | 指标 | 数值 | 说明 |
-> |---|---|---|
-> | 覆盖赛道 | **35 个** | 9 大类，从大创到公派留学全覆盖 |
-> | 总内容量 | **2,400 KB** | 42,000+ 行结构化领域知识 |
-> | 平均深度 | **68 KB / 赛道** | 最深 116 KB（大创创新训练） |
-> | 最近更新 | 2026-07 | v2.1 版本 |
-> | Star 目标 | 🎯 **1,000** | 当前向目标推进中 |
->
-> ⭐ **如果这个项目帮到了你，点个 Star 让更多同学看到。Star 数越多，越能吸引赛道专家贡献内容，最终受益的是所有使用者。**
+> *“35 种中国高校申报书的领域知识引擎。一句指令，AI 自动完成信息追问、图表渲染（Mermaid/matplotlib）与 Word 规范排版。”*
 
-一套覆盖中国大学生常见申报场景的 Agent Skills。**35 个子 skill**，从大创立项到申请材料，从奖学金到保研推免，从应征入伍到公派留学。
-
-> 🔔 **下载任意支持 Agent Skills 的工具（如 WorkBuddy），装上这 35 个 skills，对话就能生成图文并茂的申报书。**
-> 不需要克隆、不需要装环境、不需要会编程。技术路线图、甘特图、流程图全部自动生成，输出可直接提交的 Word 文档。
+[简体中文](./README.md) | [English](./README_EN.md)
 
 ---
+
+## 📖 目录 (Table of Contents)
+
+- [🚀 如何使用 (How to Use)](#-如何使用-how-to-use)
+- [为什么做这个](#为什么做这个)
+- [能写哪些申报书](#能写哪些申报书)
+- [项目结构](#项目结构)
+- [核心设计原则](#核心设计原则)
+- [免责声明](#免责声明)
+
+
+
+## 🚀 如何使用 (How to Use)
+
+本项目遵循 **Agent Skills** 规范，本质是“**专家提示词库 + 自动化 Python 格式刷包**”的结合体。你不需要编写任何代码，只需要一个支持 Agent 能力的 AI 工具即可使用。
+
+### 核心使用流程
+1. **准备环境**：下载支持本地执行 Python 的 AI Agent IDE（例如：**WorkBuddy、Codex、Claude Code、Trae Work** 等）。
+2. **克隆项目**：将本项目 clone 到本地，并使用终端执行 `pip install -r utils/requirements.txt`（以安装 `python-docx` 等底层依赖）。
+3. **加载 Skill**：在你的 AI 工具中，将根目录的 `SKILL.md`（或具体某个赛道的 `subskills/innovation_research/SKILL.md`）作为**系统提示词 (System Prompt)** 喂给 AI。
+4. **开始对话**：直接对 AI 说：“我想写一份大创申请书”。
+
+### AI 会在背后做什么？
+- 🧠 **交互式追问**：AI 会化身“导师”，严格按要求追问你的痛点和简历，绝不胡编乱造。
+- ⚙️ **自动路由**：AI 会自动调用 `utils/dispatcher.py` 决策树帮你确定最匹配的申报类型。
+- 🖨️ **一键生成 Word**：信息收集完毕后，AI 会自动在本地执行 `subskills/xxx/build.py` 脚本，将收集到的 JSON 数据直接渲染为带有标准字号、表格、甚至签字栏的 `.docx` 物理文件交给你！
+
+
 
 ## 为什么做这个
 

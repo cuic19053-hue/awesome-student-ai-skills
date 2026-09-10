@@ -55,6 +55,7 @@ triggers:
 
 **阶段 3 docx 生成**：
 调用 `python build.py --data data.json --out output.docx` 生成 Word 文档。data.json 字段定义见第十二章。新增 8 个案例专属字段（policy_citations / scientific_challenges / literature_review / algorithm_comparison / tech_roadmap / formulas / economic_benefits / project_schedule）。
+**注意：在生成 data.json 数据时，必须且只能输出合法的纯 JSON 字符串，绝不包含任何 Markdown 标记（如 ```json）或多余的解释性文字，以便 Python 脚本直接无缝解析。**
 
 **阶段 4 质检**：
 按第十三章 30 项清单逐项检查（v2.0 15 项 + v3.0 新增 15 项案例规范检查）。任何一项不达标返回阶段 2 修改。
