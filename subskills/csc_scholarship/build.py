@@ -135,6 +135,34 @@ POLICY_MAP = {
 # 工具函数
 # ============================================================
 
+
+# ============================================================
+# 学校模板适配（--school 参数；详见 utils/school_template.py）
+# ============================================================
+import os as _os
+import sys as _sys
+
+_UTILS_DIR = _os.path.normpath(
+    _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "..", "utils")
+)
+if _UTILS_DIR not in _sys.path:
+    _sys.path.insert(0, _UTILS_DIR)
+
+try:
+    from school_template import apply_school_template as _apply_school_template
+except Exception as _e:  # pragma: no cover - 缺少 utils 时不影响主流程
+    _apply_school_template = None
+    _sys.stderr.write(f"[school] 学校模板模块不可用，将忽略 --school：{_e}\n")
+
+_SCHOOL_NAME = None
+
+
+def _apply_school(doc):
+    """若通过 --school 指定了学校，则套用其版式（页边距/页眉/页脚/印章）。"""
+    if _apply_school_template is None:
+        return False
+    return _apply_school_template(doc, _SCHOOL_NAME)
+
 def set_run_font(run, font_name: str = FONT_SONG,
                  font_size: Pt = SIZE_XIAO_SI, bold: bool = False,
                  color: Optional[RGBColor] = None) -> None:
@@ -1096,6 +1124,7 @@ class ApplicationDocBuilder:
         self._add_financial()
         self._add_closing()
 
+        _apply_school(self.doc)
         self.doc.save(output_path)
         print(f"✅ 国家公派留学申请书已生成：{output_path}")
         self._post_check_word_count()
@@ -1375,6 +1404,7 @@ def main():
                         help="数据 JSON 文件路径（与 --demo 二选一）")
     parser.add_argument("--out", type=str, required=True,
                         help="输出 docx 文件路径")
+    parser.add_argument("--school", default=None, help="学校模板，如 pku / tsinghua / whu / zju / THU 或「北京大学」；不传则用默认版式")
     parser.add_argument("--demo", action="store_true",
                         help="使用内置示例数据生成演示文档")
     parser.add_argument("--csc-type", type=str, default=None,
@@ -1384,6 +1414,8 @@ def main():
                         choices=["2500", "3000", "4000"],
                         help="字数版本（覆盖 data 中 word_count_version）")
     args = parser.parse_args()
+    global _SCHOOL_NAME
+    _SCHOOL_NAME = getattr(args, "school", None)
 
     if args.demo:
         data = DEFAULT_DATA.copy()

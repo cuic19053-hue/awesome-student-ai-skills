@@ -52,6 +52,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -754,7 +755,68 @@ def _self_test() -> int:
     return 0
 
 
-if __name__ == "__main__":
-    import sys
+# ============================================================
+# 供各 subskill/build.py 调用的便捷入口（--school 参数）
+# ============================================================
 
+# 与配置文件名不一致的英文缩写（避免静默落到默认模板）
+_ABBREV_ALIASES: Dict[str, str] = {
+    "thu": "tsinghua",
+}
+
+
+def resolve_school(school_name: Optional[str]) -> Optional[str]:
+    """把用户传入的学校名解析为已收录的模板 id；未收录时返回 None。"""
+    if not school_name or not str(school_name).strip():
+        return None
+    raw = str(school_name).strip()
+    candidate = _ABBREV_ALIASES.get(raw.lower(), _normalize_school_name(raw))
+    available = {s["id"] for s in list_supported_schools()}
+    return candidate if candidate in available else None
+
+
+def apply_school_template(
+    doc,
+    school_name: Optional[str] = None,
+    *,
+    apply_seal: bool = True,
+) -> bool:
+    """按学校名把版式套用到 docx Document 对象（供 build.py 的 --school 使用）。
+
+    行不静默降级：
+      · school_name 为空 → 不做事，返回 False（默认版式）
+      · 学校未收录     → 向 stderr 打印可用学校清单并返回 False（仍按默认版式生成）
+      · 学校已收录     → 套用版式（页边距/页眉/页脚/印章）并返回 True
+
+    参数：
+        doc: docx.Document 对象
+        school_name: 学校名或缩写，如 "北京大学" / "北大" / "pku" / "THU"
+        apply_seal: 是否添加印章占位（默认 True）
+
+    示例：
+        from school_template import apply_school_template
+        apply_school_template(doc, "pku")
+    """
+    if not school_name or not str(school_name).strip():
+        return False
+
+    resolved = resolve_school(school_name)
+    if resolved is None:
+        available = "、".join(
+            s["id"] for s in list_supported_schools() if s["id"] != DEFAULT_TEMPLATE_NAME
+        )
+        sys.stderr.write(
+            f"⚠️  未收录学校模板「{school_name}」，本次按默认版式输出。\n"
+            f"   已收录：{available}\n"
+            f"   新增方式：复制 utils/schools/template_default.json 为 template_<id>.json 后修改，"
+            f"或调用 register_template() 运行时注册。\n"
+        )
+        return False
+
+    apply_template(doc, resolved, apply_seal=apply_seal)
+    print(f"✅ 已套用学校模板：{school_name} → {resolved}")
+    return True
+
+
+if __name__ == "__main__":
     sys.exit(_self_test())

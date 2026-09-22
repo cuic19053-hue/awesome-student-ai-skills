@@ -32,6 +32,34 @@ FONT_TIMES = "Times New Roman"
 SIZE_ER = Pt(22)            # 二号
 SIZE_XIAO_SI = Pt(12)       # 小四
 
+
+# ============================================================
+# 学校模板适配（--school 参数；详见 utils/school_template.py）
+# ============================================================
+import os as _os
+import sys as _sys
+
+_UTILS_DIR = _os.path.normpath(
+    _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "..", "utils")
+)
+if _UTILS_DIR not in _sys.path:
+    _sys.path.insert(0, _UTILS_DIR)
+
+try:
+    from school_template import apply_school_template as _apply_school_template
+except Exception as _e:  # pragma: no cover - 缺少 utils 时不影响主流程
+    _apply_school_template = None
+    _sys.stderr.write(f"[school] 学校模板模块不可用，将忽略 --school：{_e}\n")
+
+_SCHOOL_NAME = None
+
+
+def _apply_school(doc):
+    """若通过 --school 指定了学校，则套用其版式（页边距/页眉/页脚/印章）。"""
+    if _apply_school_template is None:
+        return False
+    return _apply_school_template(doc, _SCHOOL_NAME)
+
 def set_run_font(run, font_name: str = FONT_SONG, size=SIZE_XIAO_SI, bold: bool = False):
     run.font.name = font_name
     run.font.size = size
@@ -102,6 +130,7 @@ def build_summary_report_doc(data: Dict[str, Any], output_path: str):
     set_run_font(r1, FONT_SONG, SIZE_XIAO_SI)
     
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+    _apply_school(doc)
     doc.save(output_path)
     print(f"成功生成阶段思想汇报: {output_path}")
 
@@ -109,8 +138,11 @@ def main():
     parser = argparse.ArgumentParser(description="阶段汇报 docx 生成器")
     parser.add_argument("--data", help="JSON 数据文件路径")
     parser.add_argument("--out", default="阶段思想汇报.docx", help="输出 docx 文件路径")
+    parser.add_argument("--school", default=None, help="学校模板，如 pku / tsinghua / whu / zju / THU 或「北京大学」；不传则用默认版式")
     parser.add_argument("--demo", action="store_true", help="使用演示数据生成")
     args = parser.parse_args()
+    global _SCHOOL_NAME
+    _SCHOOL_NAME = getattr(args, "school", None)
     
     demo_data = {
         "title": "2026年第三季度思想汇报",
