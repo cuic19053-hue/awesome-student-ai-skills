@@ -41,3 +41,14 @@ build/
 # ===== 本地规划文档（不公开）=====
 claude.md
 CLAUDE.md
+
+# ===== 密钥与本地配置（务必保留本段）=====
+# 任何 .env 都可能含真实 API Key，绝不能进仓库；示例文件用 !.env.example 放行
+.env
+.env.*
+!.env.example
+
+# ===== Python 测试缓存 =====
+.pytest_cache/
+.coverage
+htmlcov/
