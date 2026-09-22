@@ -134,7 +134,7 @@ A：项目拆解了上百篇国家级金奖 / 一等奖真实申报书（大创�
 
 | # | 赛道 | 编码 | 内容量 | 状态 |
 |---|---|---|---|---|
-| 10 | 国家奖学金（8000 元） | `national_scholarship` | 42 KB | ✅ |
+| 10 | 国家奖学金（8000 元） | `national_scholarship` | 37 KB | ✅ |
 | 11 | 国家励志奖学金（5000 元） | `motivation_scholarship` | 43 KB | ✅ |
 | 12 | 校级奖学金 | `university_scholarship` | 40 KB | ✅ |
 | 13 | 企业专项奖学金 | `enterprise_scholarship` | 47 KB | ✅ |
@@ -162,8 +162,8 @@ A：项目拆解了上百篇国家级金奖 / 一等奖真实申报书（大创�
 | # | 赛道 | 编码 | 内容量 | 状态 |
 |---|---|---|---|---|
 | 27 | 入团申请书 | `youth_league_application` | 72 KB | ✅ |
-| 28 | 阶段汇报 / 思想汇报 | `summary_report` | 51 KB | ✅ |
-| 29 | 转正申请书 | `youth_league_conversion` | 45 KB | ✅ |
+| 28 | 阶段汇报 / 思想汇报 | `summary_report` | 26 KB | ✅ |
+| 29 | 转正申请书 | `youth_league_conversion` | 26 KB | ✅ |
 
 ### 🎓 升学类 — 2 个
 
