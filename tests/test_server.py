@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """服务层接口测试（不依赖真实 LLM：无 Key 时应 fail-fast 返回 503）。"""
 
+import importlib.util
 import sys
 from pathlib import Path
 
@@ -12,8 +13,14 @@ for _p in (str(SERVER_DIR), str(ROOT)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-fastapi_testclient = pytest.importorskip("fastapi.testclient")
-TestClient = fastapi_testclient.TestClient
+# server/ 尚未纳入版本控制时，CI 不会安装 fastapi/httpx —— 此时跳过本模块而非报错。
+if importlib.util.find_spec("fastapi") is None or importlib.util.find_spec("httpx") is None:
+    pytest.skip(
+        "未安装 fastapi/httpx（server/ 尚未纳入版本控制时属预期），跳过服务层测试",
+        allow_module_level=True,
+    )
+
+from fastapi.testclient import TestClient  # noqa: E402
 
 
 @pytest.fixture()

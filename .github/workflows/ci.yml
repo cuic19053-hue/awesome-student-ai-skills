@@ -23,11 +23,16 @@ jobs:
       - name: 安装依赖
         run: |
           python -m pip install --upgrade pip
-          pip install -r utils/requirements.txt -r server/requirements.txt
+          pip install -r utils/requirements.txt
+          if [ -f server/requirements.txt ]; then
+            pip install -r server/requirements.txt
+          else
+            echo "server/ 尚未纳入版本控制，跳过服务层依赖（相关测试会自动 skip）"
+          fi
           pip install pytest
 
       - name: 文档一致性门禁（35 个赛道 / README 声称量 / 索引数量）
         run: python scripts/check_doc_consistency.py
 
       - name: 运行测试
-        run: python -m pytest tests -q
+        run: python -m pytest tests -q -rs
