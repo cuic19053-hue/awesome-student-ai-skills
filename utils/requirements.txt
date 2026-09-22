@@ -1,0 +1,9 @@
+# awesome-student-ai-skills · Python 依赖
+#
+# 全部 utils/、scripts/ 与 subskills/*/build.py 只依赖 python-docx 一个第三方库，
+# 其余均为 Python 标准库（json / pathlib / argparse / datetime / re 等）。
+#
+# 安装：
+#   pip install -r utils/requirements.txt
+
+python-docx>=1.1.0

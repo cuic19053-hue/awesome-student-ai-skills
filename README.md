@@ -116,7 +116,7 @@ A：项目拆解了上百篇国家级金奖 / 一等奖真实申报书（大创�
 
 > 状态说明：✅ 已完备（可直接使用）｜ 🔄 持续打磨中｜ 📅 Star 解锁（达到对应 Star 数后启动）
 
-### 🔬 项目类（要钱、要立项）— 8 个
+### 🔬 项目类（要钱、要立项）— 9 个
 
 | # | 赛道 | 编码 | 内容量 | 状态 |
 |---|---|---|---|---|
@@ -128,42 +128,42 @@ A：项目拆解了上百篇国家级金奖 / 一等奖真实申报书（大创�
 | 6 | 挑战杯 · 课外学术科技作品 | `challenge_cup` | 102 KB | ✅ |
 | 7 | 互联网+ · 商业计划书 | `internet_plus` | 93 KB | ✅ |
 | 8 | 互联网+ · 红旅赛道 | `internet_plus_red_tour` | 79 KB | ✅ |
+| 9 | 国家级项目立项逻辑评测 | `national_project_eval` | 38 KB | ✅ |
 
 ### 🏆 评优类（要荣誉）— 12 个
 
 | # | 赛道 | 编码 | 内容量 | 状态 |
 |---|---|---|---|---|
-| 9 | 国家奖学金（8000 元） | `national_scholarship` | 42 KB | ✅ |
-| 10 | 国家励志奖学金（5000 元） | `motivation_scholarship` | 43 KB | ✅ |
-| 11 | 校级奖学金 | `university_scholarship` | 40 KB | ✅ |
-| 12 | 企业专项奖学金 | `enterprise_scholarship` | 47 KB | ✅ |
-| 13 | 单项奖学金 | `single_scholarship` | 44 KB | ✅ |
-| 14 | 国家助学金 | `grant_application` | 75 KB | ✅ |
-| 15 | 优秀毕业生 | `outstanding_graduate` | 46 KB | ✅ |
-| 16 | 优秀学生 / 三好学生 | `outstanding_student` | 58 KB | ✅ |
-| 17 | 优秀学生干部 | `outstanding_cadre` | 87 KB | ✅ |
-| 18 | 文明大学生 / 优秀团员 | `civilized_student` | 60 KB | ✅ |
-| 19 | 优秀班集体 | `class_collective` | 66 KB | ✅ |
-| 20 | 优秀毕业设计 / 论文 | `outstanding_thesis` | 73 KB | ✅ |
+| 10 | 国家奖学金（8000 元） | `national_scholarship` | 42 KB | ✅ |
+| 11 | 国家励志奖学金（5000 元） | `motivation_scholarship` | 43 KB | ✅ |
+| 12 | 校级奖学金 | `university_scholarship` | 40 KB | ✅ |
+| 13 | 企业专项奖学金 | `enterprise_scholarship` | 47 KB | ✅ |
+| 14 | 单项奖学金 | `single_scholarship` | 44 KB | ✅ |
+| 15 | 国家助学金 | `grant_application` | 75 KB | ✅ |
+| 16 | 优秀毕业生 | `outstanding_graduate` | 46 KB | ✅ |
+| 17 | 优秀学生 / 三好学生 | `outstanding_student` | 58 KB | ✅ |
+| 18 | 优秀学生干部 | `outstanding_cadre` | 87 KB | ✅ |
+| 19 | 文明大学生 / 优秀团员 | `civilized_student` | 60 KB | ✅ |
+| 20 | 优秀班集体 | `class_collective` | 66 KB | ✅ |
+| 21 | 优秀毕业设计 / 论文 | `outstanding_thesis` | 73 KB | ✅ |
 
 ### 🌾 活动类 — 5 个
 
 | # | 赛道 | 编码 | 内容量 | 状态 |
 |---|---|---|---|---|
-| 21 | 三下乡 · 社会调查 | `social_survey` | 46 KB | ✅ |
-| 22 | 三下乡 · 支教 | `volunteer_teaching` | 48 KB | ✅ |
-| 23 | 三下乡 · 政策宣讲 | `policy_lecture` | 54 KB | ✅ |
-| 24 | 三下乡 · 科技服务 | `tech_service` | 63 KB | ✅ |
-| 25 | 西部计划 | `western_plan` | 74 KB | ✅ |
+| 22 | 三下乡 · 社会调查 | `social_survey` | 46 KB | ✅ |
+| 23 | 三下乡 · 支教 | `volunteer_teaching` | 48 KB | ✅ |
+| 24 | 三下乡 · 政策宣讲 | `policy_lecture` | 54 KB | ✅ |
+| 25 | 三下乡 · 科技服务 | `tech_service` | 63 KB | ✅ |
+| 26 | 西部计划 | `western_plan` | 74 KB | ✅ |
 
-### 🚩 政治身份类 — 4 个
+### 🚩 政治身份类 — 3 个
 
 | # | 赛道 | 编码 | 内容量 | 状态 |
 |---|---|---|---|---|
-| 26 | 申请材料 | `youth_league_application` | 58 KB | ✅ |
-| 27 | 阶段汇报 | `summary_report` | 51 KB | ✅ |
-| 28 | 转正申请书 | `youth_league_conversion` | 45 KB | ✅ |
-| 29 | 入团申请书 | `youth_league_application` | 72 KB | ✅ |
+| 27 | 入团申请书 | `youth_league_application` | 72 KB | ✅ |
+| 28 | 阶段汇报 / 思想汇报 | `summary_report` | 51 KB | ✅ |
+| 29 | 转正申请书 | `youth_league_conversion` | 45 KB | ✅ |
 
 ### 🎓 升学类 — 2 个
 
