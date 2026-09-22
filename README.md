@@ -252,11 +252,26 @@ awesome-student-ai-skills/
 
 ### 3. 学校差异兼容
 
-每个学校的模板有微调（栏目顺序、字号、页边距）。Skill 的策略是：
+每个学校的模板有微调（栏目顺序、字号、页边距）。项目内置**学校版式模板引擎**，按「先出内容、再套版式」两层工作：
 
-- 优先用用户提供的学校模板
-- Skill 提供**内容质量参考**（怎么写好、怎么避坑）
-- 格式标准以 `references/writing_guide.md` 为准
+- **内容层**：Skill 专注内容质量（怎么写好、怎么避坑），生成申报书正文
+- **版式层**：`utils/schools/` 下按学校存放版式配置（页边距 / 页眉 / 页脚 / 印章位置）
+- **套用**：正文生成完后，用 `--school` 一步套用本校版式
+
+已收录学校版式：`pku`（北京大学）、`tsinghua`（清华大学）、`whu`（武汉大学）、`zju`（浙江大学），其余学校走默认版式。
+
+用法（以国家奖学金为例，全部 35 个赛道均支持）：
+
+```bash
+python subskills/national_scholarship/build.py \
+  --data my_info.json \
+  --school pku \
+  --out 国家奖学金申请书.docx
+```
+
+`--school` 支持英文缩写、中文全称或简称（如 `pku` / `北京大学` / `北大` / `THU` 均可）。传入未收录的学校时会提示已收录清单，并按默认版式输出 —— 不会静默降级。
+
+想加自己学校的版式：复制 `utils/schools/template_default.json` 为 `template_<学校id>.json`，改好后即可被 `--school` 识别。
 
 ---
 
