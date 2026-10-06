@@ -50,7 +50,7 @@ triggers:
 
 **阶段 2 内容撰写（一次性产出）**：按 22 栏目顺序撰写。国内外研究现状必须评述式（不能简单罗列）。国家政策引用必须按时间倒序排列、含 4 要素。科学挑战采用 2 段结构。算法对比必须含 2~3 方法 × 3 维度。技术路线图必须 2 张。数学公式必须编号 + 变量定义。社会效益必须 5 项量化指标。创新点至少 1 个，用"对比式"写法。预期成果必须可量化，至少 1 篇论文。
 
-**阶段 3 docx 生成**：调用 `python build.py --data data.json --out output.docx` 生成 Word 文档。data.json 字段定义见第十一章。
+**阶段 3 docx 生成**：**必须**调用完整生成器产出最终文档——`python build.py --data data.json --out output.docx`，或等价的完整 `ApplicationDocBuilder.build(data, output_path)` 调用。禁止只导入 build.py 的辅助函数后自行拼装版式：那样产出的不是 Skill 原生样式，不得声称"按 Skill 生成"。如因学校下发模板需要自定义结构，必须主动向用户说明与原生样式的差异。原生样式参照 `examples/demos/` 成品样张。data.json 字段定义见第十一章。
 
 **阶段 4 质检**：按第十二章 25 项清单逐项检查。参考文献格式检查是校级科研立项的重点（GB/T 7714 五类文献格式必须规范）。
 
@@ -1591,7 +1591,7 @@ python build.py --data data.json --out /path/to/output.docx
 
 ---
 
-## 十二、质检清单（v2.1 升级 25 项）
+## 十二、质检清单（v2.1 升级 25 项 + v2.2 新增 2 项）
 
 ### 12.1 形式检查（10 项）
 
@@ -1652,6 +1652,11 @@ python build.py --data data.json --out /path/to/output.docx
 | peak | 9000~10000 字 | 22 栏目 + 深化 |
 
 ---
+
+### 12.7 生成方式与配图检查（v2.2 新增 2 项）
+
+26. ☐ 最终文档确实由完整 build.py 生成器产出（或已向用户明确记录因学校模板偏离的原因）
+27. ☐ 技术路线图以真图嵌入（`doc.inline_shapes` 数量 = 路线图张数，`word/media/` 含图片文件）；若回退为表格模拟，stderr 已说明原因且用户知情
 
 ## 十三、学校差异处理
 
@@ -2096,11 +2101,16 @@ y = β₀ + β₁x₁ + β₂x₂ + ... + βₙxₙ + ε    式(1)
 
 build.py 会将公式以等宽字体（宋体）渲染到 docx，保证可读性。
 
-### G.7 Q：技术路线图如何生成图片？
+### G.7 Q：技术路线图如何生成图片？（v2.2 更新）
 
-**A**：build.py 支持两种方式：
-1. **文字描述方式**（推荐）：在 `tech_roadmap[].description` 中用文字描述流程，build.py 渲染为带框线的流程图（使用 docx 表格 + 边框模拟）
-2. **图片方式**：在 `tech_flowchart_image` 字段指定图片路径，build.py 直接插入
+**A**：v2.2 起默认输出**代码渲染的真图**（`utils/figgen` 将 nodes/edges 绘制为 PNG 嵌入，遵守配图规范：中文字体 fallback 链、统一配色、禁止文生图）。图片来源按以下优先级：
+
+1. **每张路线图独立 `image_path`**（用户自备图，最高优先）：`tech_roadmap[].image_path`
+2. **figgen 自动渲染**：`tech_roadmap[].nodes`（字符串链或 `{id,label}` + `edges`）→ PNG，无需任何额外配置
+3. **全局 `tech_flowchart_image`**（旧版字段，兼容保留）：仅在前两者不可用时使用一次；被覆盖时 build.py 会在 stderr 提示
+4. **表格模拟回退**：matplotlib 缺失、无中文字体或渲染失败时，回退为 v2.1 的表格框 + 箭头方式，stderr 会说明原因
+
+另可用顶层字段 `"roadmap_render": "table"` 显式要求可编辑的 Word 表格样式（跳过图片）。生成后请确认 Word 中 `inline_shapes` 数量 = 技术路线图张数。
 
 ### G.8 Q：社会效益 5 项指标的"传统基准值"如何获取？
 
