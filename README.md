@@ -125,7 +125,7 @@ A：项目拆解了上百篇国家级金奖 / 一等奖真实申报书（大创�
 | 3 | 大创 · 创业实践项目 | `entrepreneurship_practice` | 52 KB | ✅ |
 | 4 | 校级科研立项 | `university_research` | 101 KB | ✅ |
 | 5 | 院级科研立项 | `college_research` | 98 KB | ✅ |
-| 6 | 挑战杯 · 课外学术科技作品 | `challenge_cup` | 102 KB | ✅ |
+| 6 | 挑战杯 · 课外学术科技作品 | `challenge_cup` | 111 KB | ✅ |
 | 7 | 互联网+ · 商业计划书 | `internet_plus` | 93 KB | ✅ |
 | 8 | 互联网+ · 红旅赛道 | `internet_plus_red_tour` | 79 KB | ✅ |
 | 9 | 国家级项目立项逻辑评测 | `national_project_eval` | 38 KB | ✅ |
