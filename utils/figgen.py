@@ -38,9 +38,14 @@ GREEN, GREENF = "#15803D", "#BBF7D0"
 STAGE_COLORS = [(BLUE, BLUEF), (AMBER, AMBERF), (GREEN, GREENF)]
 
 # 中文字体 fallback 链（按优先级；一个都没有则视为无法渲染，交由调用方降级）
+# 覆盖 Windows（SimHei/雅黑）、macOS（苹方/Heiti）、Linux 桌面（Noto/文泉驿）
+# 与精简服务器（Droid Sans Fallback 常随 fonts-droid-fallback 预装）。
 FONT_CANDIDATES = (
-    "SimHei", "Microsoft YaHei", "Noto Sans CJK SC",
+    "SimHei", "Microsoft YaHei",
+    "Noto Sans CJK SC", "Noto Serif CJK SC", "Source Han Sans CN",
     "PingFang SC", "Heiti SC", "Arial Unicode MS",
+    "WenQuanYi Micro Hei", "WenQuanYi Zen Hei",
+    "Droid Sans Fallback", "AR PL UMing CN",
 )
 
 _DEFAULT_DPI = 200
