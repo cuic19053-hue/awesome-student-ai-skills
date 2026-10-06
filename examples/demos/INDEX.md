@@ -14,6 +14,7 @@
 | 5 | `demo_innovation_research.docx` | 大创创新训练 | 科研 | 国家级，研究报告/论文产出 |
 | 6 | `demo_outstanding_graduate.docx` | 优秀毕业生申请书 | 评优 | 省级+校级，四年综合表现 |
 | 7 | `demo_college_research.docx` | 院级科研立项 | 科研 | SRTP，含参考文献 |
+| 8 | `demo_university_research.docx` | 校级科研立项 | 科研 | SRTP，v2.2 起技术路线图为真图嵌入 |
 | 8 | `demo_military_enlistment.docx` | 应征入伍申请书 | 征兵 | 2025 上半年应征 |
 | 9 | `demo_csc_scholarship.docx` | CSC 国家公派留学 | 公派 | 联合培养博士研究生 |
 | 10 | `demo_entrepreneurship_training.docx` | 大创创业训练（v2.1） | 科研 | 消防无人机项目，对齐案例 2 |

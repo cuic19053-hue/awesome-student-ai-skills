@@ -45,6 +45,15 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 
+# 共享配图渲染模块（v2.2 配图规范）：可选依赖，缺失时自动回退为表格模拟
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+try:
+    from utils.figgen import render_flowchart as _figgen_render
+except Exception:  # pragma: no cover - 仓库被单独拷贝时允许缺失
+    _figgen_render = None
+
 
 # 字体与格式常量
 
@@ -584,14 +593,67 @@ def add_method_comparison_section(doc, mc: Dict[str, Any]) -> None:
         add_body_paragraph(doc, conclusion)
 
 
-def add_tech_roadmap_section(doc, roadmaps: List[Dict[str, Any]]) -> None:
-    """渲染技术路线图章节（v2.1 新增，2 张图）"""
+def _embed_roadmap_image(doc, image_path: str, width_cm: float) -> None:
+    """居中嵌入路线图图片。"""
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = p.add_run()
+    run.add_picture(image_path, width=Cm(width_cm))
+
+
+def _roadmap_table_fallback(doc, nodes: List[Any]) -> None:
+    """表格模拟流程图框（v2.1 方式，现为渲染失败/显式指定时的回退）。"""
+    n_nodes = len(nodes)
+    table = doc.add_table(rows=1, cols=1)
+    table.style = "Table Grid"
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    cell = table.rows[0].cells[0]
+    cell.text = ""
+    for i, node in enumerate(nodes):
+        p = cell.add_paragraph() if i > 0 else cell.paragraphs[0]
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        pf = p.paragraph_format
+        pf.line_spacing = 1.5
+        pf.first_line_indent = Pt(0)
+        run = p.add_run(str(node))
+        set_run_font(run, font_name=FONT_SONG,
+                     font_size=SIZE_WU, bold=False)
+        if i < n_nodes - 1:
+            arrow_p = cell.add_paragraph()
+            arrow_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            arrow_run = arrow_p.add_run("↓")
+            set_run_font(arrow_run, font_name=FONT_SONG,
+                         font_size=SIZE_WU, bold=True)
+    cell.width = Cm(14)
+    doc.add_paragraph()
+
+
+def add_tech_roadmap_section(
+    doc,
+    roadmaps: List[Dict[str, Any]],
+    flowchart_image: str = "",
+    render_mode: str = "image",
+) -> None:
+    """渲染技术路线图章节。
+
+    v2.2 配图规范：默认将 nodes/edges 代码渲染为真图嵌入（utils/figgen），
+    渲染不可用时回退为表格模拟并在 stderr 说明。图片来源优先级：
+
+    1. 每张路线图独立的 ``image_path``（用户自备图，最高优先）；
+    2. figgen 自动渲染（nodes/edges → PNG）；
+    3. 全局 ``flowchart_image``（旧版 tech_flowchart_image 字段，仅用一次）；
+    4. 表格模拟回退。
+
+    render_mode="table" 可显式要求可编辑的 Word 表格样式（跳过图片）。
+    """
     if not roadmaps:
         add_body_paragraph(
             doc,
             "（请填写技术路线图，2 张：研究内容关系图 + 技术路线图。"
             "详见 SKILL.md 3.8 节模板。）")
         return
+
+    flowchart_image_used = False
     for rm in roadmaps:
         if not isinstance(rm, dict):
             continue
@@ -599,6 +661,7 @@ def add_tech_roadmap_section(doc, roadmaps: List[Dict[str, Any]]) -> None:
         title = rm.get("title", "")
         description = rm.get("description", "")
         nodes = rm.get("nodes", [])
+        edges = rm.get("edges", [])
 
         # 图标题
         add_paragraph_with_format(
@@ -607,31 +670,34 @@ def add_tech_roadmap_section(doc, roadmaps: List[Dict[str, Any]]) -> None:
             alignment=WD_ALIGN_PARAGRAPH.CENTER, first_line_indent=False,
             space_before=12, space_after=6)
 
-        # 用表格模拟流程图框
         if nodes:
-            n_nodes = len(nodes)
-            table = doc.add_table(rows=1, cols=1)
-            table.style = "Table Grid"
-            table.alignment = WD_TABLE_ALIGNMENT.CENTER
-            cell = table.rows[0].cells[0]
-            cell.text = ""
-            for i, node in enumerate(nodes):
-                p = cell.add_paragraph() if i > 0 else cell.paragraphs[0]
-                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                pf = p.paragraph_format
-                pf.line_spacing = 1.5
-                pf.first_line_indent = Pt(0)
-                run = p.add_run(str(node))
-                set_run_font(run, font_name=FONT_SONG,
-                             font_size=SIZE_WU, bold=False)
-                if i < n_nodes - 1:
-                    arrow_p = cell.add_paragraph()
-                    arrow_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                    arrow_run = arrow_p.add_run("↓")
-                    set_run_font(arrow_run, font_name=FONT_SONG,
-                                 font_size=SIZE_WU, bold=True)
-            cell.width = Cm(14)
-            doc.add_paragraph()
+            image_path = ""
+            source = ""
+            if render_mode != "table":
+                user_img = str(rm.get("image_path", "") or "")
+                if user_img and os.path.exists(user_img):
+                    image_path, source = user_img, "用户自备图（image_path）"
+                elif _figgen_render is not None and nodes:
+                    image_path = _figgen_render(nodes, edges)
+                    source = "figgen 自动渲染"
+                if not image_path and flowchart_image \
+                        and os.path.exists(flowchart_image) \
+                        and not flowchart_image_used:
+                    image_path = flowchart_image
+                    flowchart_image_used = True
+                    source = "全局 tech_flowchart_image"
+
+            if image_path:
+                # 自动渲染的图为竖版流程图，稍收窄；用户自备图按原比例放大
+                width_cm = 12.5 if source.startswith("figgen") else 15.0
+                _embed_roadmap_image(doc, image_path, width_cm)
+                print(f"ℹ️ 技术路线图「{title}」已嵌入图片（{source}）",
+                      file=sys.stderr)
+            else:
+                _roadmap_table_fallback(doc, nodes)
+                print(f"⚠️ 技术路线图「{title}」无法渲染图片，"
+                      "已回退为表格模拟（检查 matplotlib 安装或提供 image_path）",
+                      file=sys.stderr)
 
         # 图说明
         if description:
@@ -640,6 +706,12 @@ def add_tech_roadmap_section(doc, roadmaps: List[Dict[str, Any]]) -> None:
                 font_name=FONT_SONG, font_size=SIZE_WU, bold=False,
                 alignment=WD_ALIGN_PARAGRAPH.LEFT, first_line_indent=False,
                 space_after=6)
+
+    if flowchart_image and not flowchart_image_used \
+            and render_mode != "table":
+        print("⚠️ 已提供 tech_flowchart_image 但未被使用"
+              "（被 image_path 或自动渲染覆盖），请确认字段优先级",
+              file=sys.stderr)
 
 
 def add_formulas_section(doc, formulas: List[Dict[str, Any]]) -> None:
@@ -1056,11 +1128,15 @@ class ApplicationDocBuilder:
             self.add_para(route)
         else:
             self.add_para("（请填写总体技术路线，150~250 字 + 2 张技术路线图（研究内容关系图 + 技术路线图），4 阶段流程，每阶段标注交付物。）")
-        # 技术路线图【v2.1 新增】
+        # 技术路线图【v2.1 新增；v2.2 起默认渲染为真图】
         roadmaps = self._get("tech_roadmap", default=[])
         if isinstance(roadmaps, list) and roadmaps:
             target_count = self.version_config.get("tech_roadmap_count", 2)
-            add_tech_roadmap_section(self.doc, roadmaps[:target_count])
+            add_tech_roadmap_section(
+                self.doc, roadmaps[:target_count],
+                flowchart_image=str(self._get("tech_flowchart_image", default="") or ""),
+                render_mode=str(self._get("roadmap_render", default="image") or "image"),
+            )
         else:
             # 兼容旧版流程图字段
             flowchart = self._get("tech_flowchart_image", default="")
