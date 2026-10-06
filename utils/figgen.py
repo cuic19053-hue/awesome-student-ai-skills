@@ -71,7 +71,10 @@ def _load_plt() -> Optional[Any]:
         else:
             print(
                 "⚠️ figgen：未找到可用中文字体（候选："
-                + "、".join(FONT_CANDIDATES) + "），放弃渲染以免产出乱码图",
+                + "、".join(FONT_CANDIDATES) + "），放弃渲染以免产出乱码图。"
+                "安装提示：Windows/macOS 自带；Ubuntu 可执行 "
+                "'sudo apt-get install -y fonts-droid-fallback'"
+                "（注意 fonts-noto-cjk 为 .ttc 集合，matplotlib 不支持）",
                 file=sys.stderr,
             )
             return None
