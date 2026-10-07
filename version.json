@@ -54,263 +54,41 @@
     }
   },
   "skills": [
-    {
-      "name": "national_project_eval",
-      "display_name": "国家级项目立项逻辑评测",
-      "category": "research",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1252
-    },
-    {
-      "name": "motivation_scholarship",
-      "display_name": "国家励志奖学金",
-      "category": "scholarship",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1570
-    },
-    {
-      "name": "university_scholarship",
-      "display_name": "校级奖学金",
-      "category": "scholarship",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1598
-    },
-    {
-      "name": "enterprise_scholarship",
-      "display_name": "企业专项奖学金",
-      "category": "scholarship",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1598
-    },
-    {
-      "name": "single_scholarship",
-      "display_name": "单项奖学金",
-      "category": "scholarship",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1594
-    },
-    {
-      "name": "grant_application",
-      "display_name": "国家助学金",
-      "category": "scholarship",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1226
-    },
-    {
-      "name": "outstanding_student",
-      "display_name": "优秀学生/三好学生",
-      "category": "honor",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1693
-    },
-    {
-      "name": "outstanding_graduate",
-      "display_name": "优秀毕业生",
-      "category": "honor",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1268
-    },
-    {
-      "name": "outstanding_cadre",
-      "display_name": "优秀学生干部",
-      "category": "honor",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1398
-    },
-    {
-      "name": "civilized_student",
-      "display_name": "文明大学生/优秀团员",
-      "category": "honor",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1694
-    },
-    {
-      "name": "class_collective",
-      "display_name": "优秀班集体",
-      "category": "honor",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1254
-    },
-    {
-      "name": "youth_league_application",
-      "display_name": "入团申请书",
-      "category": "political",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1293
-    },
-    {
-      "name": "innovation_research",
-      "display_name": "大创·创新训练",
-      "category": "research",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1218
-    },
-    {
-      "name": "entrepreneurship_training",
-      "display_name": "大创·创业训练",
-      "category": "research",
-      "version": "v2.1",
-      "last_updated": "2026-07-25",
-      "line_count": 4197,
-      "notes": "SKILL.md 2082 行 + build.py 2115 行；对齐案例 2 (姚奕晗消防无人机)，新增 21 字段 + 18 章节渲染方法"
-    },
-    {
-      "name": "entrepreneurship_practice",
-      "display_name": "大创·创业实践",
-      "category": "research",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1511
-    },
-    {
-      "name": "university_research",
-      "display_name": "校级科研立项",
-      "category": "research",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1817
-    },
-    {
-      "name": "college_research",
-      "display_name": "院级科研立项",
-      "category": "research",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1597
-    },
-    {
-      "name": "challenge_cup",
-      "display_name": "挑战杯",
-      "category": "competition",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1430
-    },
-    {
-      "name": "internet_plus",
-      "display_name": "互联网+",
-      "category": "competition",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1531
-    },
-    {
-      "name": "social_survey",
-      "display_name": "三下乡社会调查",
-      "category": "practice",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1688
-    },
-    {
-      "name": "volunteer_teaching",
-      "display_name": "支教",
-      "category": "practice",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1692
-    },
-    {
-      "name": "policy_lecture",
-      "display_name": "政策宣讲",
-      "category": "practice",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1698
-    },
-    {
-      "name": "tech_service",
-      "display_name": "科技服务",
-      "category": "practice",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1450
-    },
-    {
-      "name": "western_plan",
-      "display_name": "西部计划",
-      "category": "practice",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1342
-    },
-    {
-      "name": "graduate_recommendation",
-      "display_name": "保研推免",
-      "category": "other",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1598
-    },
-    {
-      "name": "selected_graduate",
-      "display_name": "选调生申请",
-      "category": "other",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1250
-    },
-    {
-      "name": "major_transfer",
-      "display_name": "转专业申请",
-      "category": "other",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1300
-    },
-    {
-      "name": "military_enlistment",
-      "display_name": "应征入伍申请书",
-      "category": "military",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1336
-    },
-    {
-      "name": "csc_scholarship",
-      "display_name": "CSC 国家公派留学申请书",
-      "category": "study_abroad",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1368
-    },
-    {
-      "name": "exchange_program",
-      "display_name": "交流项目申请书",
-      "category": "study_abroad",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1391
-    },
-    {
-      "name": "internet_plus_red_tour",
-      "display_name": "互联网+红旅赛道",
-      "category": "competition",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1248
-    },
-    {
-      "name": "outstanding_thesis",
-      "display_name": "优秀毕业设计/论文申报书",
-      "category": "honor",
-      "version": "v1.0",
-      "last_updated": "2025-05-20",
-      "line_count": 1323
-    }
+    "national-project-eval",
+    "motivation-scholarship",
+    "university-scholarship",
+    "enterprise-scholarship",
+    "single-scholarship",
+    "grant-application",
+    "outstanding-student",
+    "outstanding-graduate",
+    "outstanding-cadre",
+    "civilized-student",
+    "class-collective",
+    "youth-league-application",
+    "innovation-research",
+    "entrepreneurship-training",
+    "entrepreneurship-practice",
+    "university-research",
+    "college-research",
+    "challenge-cup",
+    "internet-plus",
+    "social-survey",
+    "volunteer-teaching",
+    "policy-lecture",
+    "tech-service",
+    "western-plan",
+    "graduate-recommendation",
+    "selected-graduate",
+    "major-transfer",
+    "military-enlistment",
+    "csc-scholarship",
+    "exchange-program",
+    "internet-plus-red-tour",
+    "outstanding-thesis",
+    "national-scholarship",
+    "summary-report",
+    "youth-league-conversion"
   ],
   "changelog": [
     {

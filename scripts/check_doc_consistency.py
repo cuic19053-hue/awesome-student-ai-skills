@@ -28,7 +28,7 @@ from typing import List, Tuple
 ROOT = Path(__file__).resolve().parent.parent
 
 README_ROW = re.compile(
-    r"^\|\s*(\d+)\s*\|\s*([^|]+?)\s*\|\s*`([a-z_]+)`\s*\|\s*(\d+)\s*KB\s*\|", re.M
+    r"^\|\s*(\d+)\s*\|\s*([^|]+?)\s*\|\s*`([a-z0-9_-]+)`\s*\|\s*(\d+)\s*KB\s*\|", re.M
 )
 FRONTMATTER = re.compile(r"^---\n(.*?)\n---\n", re.S)
 
@@ -99,6 +99,17 @@ def check(root: Path = ROOT) -> Tuple[List[str], List[str]]:
         vs = ver.get("skills")
         if isinstance(vs, list) and vs and len(vs) != len(dirs):
             warnings.append(f"[version.json] skills 列表 {len(vs)} 条，实际 {len(dirs)}（元数据待更新）")
+
+    # --- 5: skills-ref 标准规范校验 ---
+    try:
+        from skills_ref import validate
+        for name in dirs:
+            sd = skills_dir / name
+            s_errs = validate(sd)
+            if s_errs:
+                errors.append(f"[skills-ref] subskills/{name} 未通过规范校验: {s_errs}")
+    except ImportError:
+        warnings.append("[skills-ref] 未安装 skills-ref，跳过参考规范严格校验")
 
     return errors, warnings
 

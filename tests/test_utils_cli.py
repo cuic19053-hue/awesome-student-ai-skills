@@ -51,3 +51,18 @@ def test_review_simulator_outputs_json():
     assert data["max_score"] == 100
     assert 0 <= data["total_score"] <= 100
     assert isinstance(data["dimensions"], list) and data["dimensions"]
+
+
+def test_dispatcher_query_flag_and_tree_coverage():
+    """验证 Issue #6：--query 参数支持与决策树 100% 覆盖 35 个技能。"""
+    proc = _run("utils/dispatcher.py", "--query", "国家奖学金", "--json")
+    assert proc.returncode == 0, proc.stderr[-800:]
+    data = json.loads(proc.stdout)
+    assert data["query"] == "国家奖学金"
+    assert len(data["results"]) > 0
+
+    sc_proc = _run("utils/dispatcher.py", "--selfcheck")
+    assert sc_proc.returncode == 0
+    sc_data = json.loads(sc_proc.stdout)
+    assert sc_data["tree_count"] == 35
+    assert not sc_data["missing_in_tree"]

@@ -32,7 +32,7 @@ def test_readme_table_row_count():
     import re
 
     rows = re.findall(
-        r"^\|\s*\d+\s*\|\s*[^|]+?\s*\|\s*`[a-z_]+`\s*\|\s*\d+\s*KB\s*\|",
+        r"^\|\s*\d+\s*\|\s*[^|]+?\s*\|\s*`[a-z0-9_-]+`\s*\|\s*\d+\s*KB\s*\|",
         (ROOT / "README.md").read_text(encoding="utf-8"),
         re.M,
     )

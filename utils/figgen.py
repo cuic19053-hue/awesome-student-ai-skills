@@ -190,7 +190,7 @@ def render_flowchart(
         def group_key(n: Dict[str, str], row: int) -> str:
             return n["id"].split(".", 1)[0] if "." in n["id"] else f"row{row}"
 
-        BOX_W, BOX_H = 6.0, 1.15
+        BOX_H = 1.15
         GAP = 0.85
         n_rows = len(rows)
         fig_h = n_rows * (BOX_H + GAP) + 0.6
@@ -200,24 +200,38 @@ def render_flowchart(
         ax.axis("off")
 
         centers: Dict[str, Tuple[float, float]] = {}
+        node_widths: Dict[str, float] = {}
         seen_groups: Dict[str, int] = {}
         for r, row in enumerate(rows):
             y = fig_h - 0.6 - r * (BOX_H + GAP) - BOX_H / 2
-            span = 8.6 / len(row)
+            k = len(row)
+            if k == 1:
+                cur_w = 6.0
+                x_coords = [0.0]
+            else:
+                avail_total = 8.0
+                h_gap = 0.5 if k == 2 else 0.35
+                cur_w = max(2.0, (avail_total - (k - 1) * h_gap) / k)
+                total_span = k * cur_w + (k - 1) * h_gap
+                start_x = -total_span / 2 + cur_w / 2
+                x_coords = [start_x + c * (cur_w + h_gap) for c in range(k)]
+
             for c, n in enumerate(row):
-                x = -3.8 + span * (c + 0.5) if len(row) > 1 else 0.0
+                x = x_coords[c]
+                node_widths[n["id"]] = cur_w
                 gk = group_key(n, r)
                 if gk not in seen_groups:
                     seen_groups[gk] = len(seen_groups)
                 ec, fc = STAGE_COLORS[seen_groups[gk] % len(STAGE_COLORS)]
-                wrap_w = 16 if len(row) == 1 else max(8, int(15 * span / 8.6))
+                wrap_w = 16 if k == 1 else max(6, int(cur_w * 2.6))
+                font_size = 10.5 if k == 1 else (9.5 if k == 2 else 8.5)
                 ax.add_patch(FancyBboxPatch(
-                    (x - BOX_W / 2, y - BOX_H / 2), BOX_W, BOX_H,
+                    (x - cur_w / 2, y - BOX_H / 2), cur_w, BOX_H,
                     boxstyle="round,pad=0.06,rounding_size=0.10",
                     fc=fc, ec=ec, lw=1.4, zorder=3))
                 ax.text(x, y, _wrap(n["label"], wrap_w), ha="center",
-                        va="center", fontsize=10.5, color=INK, zorder=4,
-                        linespacing=1.3)
+                        va="center", fontsize=font_size, color=INK, zorder=4,
+                        linespacing=1.2)
                 centers[n["id"]] = (x, y)
 
         for a, b in parsed_edges:

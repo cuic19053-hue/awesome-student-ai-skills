@@ -12,7 +12,7 @@ import pytest
 from docx import Document
 
 ROOT = Path(__file__).resolve().parent.parent
-UR_BUILD = ROOT / "subskills" / "university_research" / "build.py"
+UR_BUILD = ROOT / "subskills" / "university-research" / "build.py"
 
 CHAIN_NODES = [
     "总目标：开发本土化方案",
@@ -122,3 +122,23 @@ def test_flowchart_image_used_when_render_unavailable(tmp_path, capsys, monkeypa
         doc, _roadmaps(CHAIN_NODES), flowchart_image=global_img)
     assert len(doc.inline_shapes) == 1
     assert "tech_flowchart_image" in capsys.readouterr().err
+
+
+def test_figgen_dag_parallel_nodes_no_overlap_or_clip(tmp_path):
+    """验证 Issue #7：DAG 存在多分支并行节点时，节点间互不重叠且不被画布裁切。"""
+    from utils.figgen import render_flowchart
+    parallel_nodes = [
+        {"id": "1", "label": "输入与需求分析"},
+        {"id": "2a", "label": "并行分支A 深度学习模型优化与超参数调优"},
+        {"id": "2b", "label": "并行分支B 硬件边缘部署加速与低功耗适配"},
+        {"id": "3", "label": "综合成果验收与上线发布"},
+    ]
+    parallel_edges = [
+        {"from": "1", "to": "2a"},
+        {"from": "1", "to": "2b"},
+        {"from": "2a", "to": "3"},
+        {"from": "2b", "to": "3"},
+    ]
+    out = render_flowchart(parallel_nodes, parallel_edges, str(tmp_path / "dag_no_overlap.png"))
+    assert out and Path(out).exists()
+    assert Path(out).stat().st_size > 1000

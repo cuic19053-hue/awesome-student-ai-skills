@@ -17,7 +17,7 @@
   },
   "skills": [
     {
-      "name": "national_project_eval",
+      "name": "national-project-eval",
       "display_name": "国家级项目立项逻辑评测",
       "category": "research",
       "description": "国家级项目立项逻辑评测：对国家级科研/创客项目申报书的立项逻辑、创新点、可行性及研究方案进行系统化评估与逻辑纠错。",
@@ -28,17 +28,18 @@
         "国家级项目评测",
         "national_project_eval"
       ],
-      "skill_md_path": "subskills/national_project_eval/SKILL.md",
-      "build_py_path": "subskills/national_project_eval/build.py",
+      "skill_md_path": "subskills/national-project-eval/SKILL.md",
+      "build_py_path": "subskills/national-project-eval/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1252
+      "line_count": 1252,
+      "id": "national_project_eval"
     },
     {
-      "name": "motivation_scholarship",
+      "name": "motivation-scholarship",
       "display_name": "国家励志奖学金",
       "category": "scholarship",
-      "description": "国家励志奖学金 5000 元/人，面向家庭经济困难学生，要求前 30%、建档立卡。",
+      "description": "国家励志奖学金 6000 元/人（2024年起执行财教〔2024〕181号新标准），面向全日制二年级及以上品学兼优且家庭经济困难本科生（成绩前 30%）。",
       "triggers": [
         "励志",
         "励志奖学金",
@@ -46,16 +47,20 @@
         "5000 元",
         "前30%",
         "家庭经济困难",
-        "motivation"
+        "motivation",
+        "6000元奖学金",
+        "6000元",
+        "6000元奖学金申请"
       ],
-      "skill_md_path": "subskills/motivation_scholarship/SKILL.md",
-      "build_py_path": "subskills/motivation_scholarship/build.py",
+      "skill_md_path": "subskills/motivation-scholarship/SKILL.md",
+      "build_py_path": "subskills/motivation-scholarship/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1570
+      "line_count": 1570,
+      "id": "motivation_scholarship"
     },
     {
-      "name": "university_scholarship",
+      "name": "university-scholarship",
       "display_name": "校级奖学金",
       "category": "scholarship",
       "description": "校设奖学金，分一等(约 2000-3000)/二等(约 1000-1500)/三等(约 500-800)，纯看学习成绩。",
@@ -67,14 +72,15 @@
         "三等奖学金",
         "学校奖学金"
       ],
-      "skill_md_path": "subskills/university_scholarship/SKILL.md",
-      "build_py_path": "subskills/university_scholarship/build.py",
+      "skill_md_path": "subskills/university-scholarship/SKILL.md",
+      "build_py_path": "subskills/university-scholarship/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1598
+      "line_count": 1598,
+      "id": "university_scholarship"
     },
     {
-      "name": "enterprise_scholarship",
+      "name": "enterprise-scholarship",
       "display_name": "企业专项奖学金",
       "category": "scholarship",
       "description": "企业/社会团体在校设立的专项奖学金，1000-10000 元，评审侧重学习+行业兴趣+职业规划。",
@@ -86,14 +92,15 @@
         "腾讯奖",
         "国家电网奖"
       ],
-      "skill_md_path": "subskills/enterprise_scholarship/SKILL.md",
-      "build_py_path": "subskills/enterprise_scholarship/build.py",
+      "skill_md_path": "subskills/enterprise-scholarship/SKILL.md",
+      "build_py_path": "subskills/enterprise-scholarship/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1598
+      "line_count": 1598,
+      "id": "enterprise_scholarship"
     },
     {
-      "name": "single_scholarship",
+      "name": "single-scholarship",
       "display_name": "单项奖学金",
       "category": "scholarship",
       "description": "为奖励在某一方面（科研/社会工作/文体/实践/创新）有突出表现的学生而设，500-2000 元。",
@@ -106,17 +113,18 @@
         "创新单项",
         "学习单项"
       ],
-      "skill_md_path": "subskills/single_scholarship/SKILL.md",
-      "build_py_path": "subskills/single_scholarship/build.py",
+      "skill_md_path": "subskills/single-scholarship/SKILL.md",
+      "build_py_path": "subskills/single-scholarship/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1594
+      "line_count": 1594,
+      "id": "single_scholarship"
     },
     {
-      "name": "grant_application",
+      "name": "grant-application",
       "display_name": "国家助学金",
       "category": "scholarship",
-      "description": "国家助学金面向家庭经济困难学生，无需成绩排名，分档发放。",
+      "description": "国家助学金面向家庭经济困难学生，无需成绩排名，平均 3700 元/年，由高校在 2500-5000 元范围内自主确定分档发放。",
       "triggers": [
         "助学金",
         "国家助学金",
@@ -124,14 +132,15 @@
         "家庭经济困难补助",
         "grant"
       ],
-      "skill_md_path": "subskills/grant_application/SKILL.md",
-      "build_py_path": "subskills/grant_application/build.py",
+      "skill_md_path": "subskills/grant-application/SKILL.md",
+      "build_py_path": "subskills/grant-application/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1226
+      "line_count": 1226,
+      "id": "grant_application"
     },
     {
-      "name": "outstanding_student",
+      "name": "outstanding-student",
       "display_name": "优秀学生/三好学生",
       "category": "honor",
       "description": "面向在校生的学年评优，要求本学年思想+学习+身体三方面突出，时间跨度为一学年。",
@@ -141,14 +150,15 @@
         "学年评优",
         "优秀学生标兵"
       ],
-      "skill_md_path": "subskills/outstanding_student/SKILL.md",
-      "build_py_path": "subskills/outstanding_student/build.py",
+      "skill_md_path": "subskills/outstanding-student/SKILL.md",
+      "build_py_path": "subskills/outstanding-student/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1693
+      "line_count": 1693,
+      "id": "outstanding_student"
     },
     {
-      "name": "outstanding_graduate",
+      "name": "outstanding-graduate",
       "display_name": "优秀毕业生",
       "category": "honor",
       "description": "毕业前最高荣誉之一，分省级和校级，要求大学四年综合表现突出。",
@@ -158,14 +168,15 @@
         "校优毕业生",
         "省级优秀毕业生"
       ],
-      "skill_md_path": "subskills/outstanding_graduate/SKILL.md",
-      "build_py_path": "subskills/outstanding_graduate/build.py",
+      "skill_md_path": "subskills/outstanding-graduate/SKILL.md",
+      "build_py_path": "subskills/outstanding-graduate/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1268
+      "line_count": 1268,
+      "id": "outstanding_graduate"
     },
     {
-      "name": "outstanding_cadre",
+      "name": "outstanding-cadre",
       "display_name": "优秀学生干部",
       "category": "honor",
       "description": "面向班干部/学生干部的学年评优，要求社会工作表现突出。",
@@ -175,14 +186,15 @@
         "班干部评优",
         "学生干部"
       ],
-      "skill_md_path": "subskills/outstanding_cadre/SKILL.md",
-      "build_py_path": "subskills/outstanding_cadre/build.py",
+      "skill_md_path": "subskills/outstanding-cadre/SKILL.md",
+      "build_py_path": "subskills/outstanding-cadre/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1398
+      "line_count": 1398,
+      "id": "outstanding_cadre"
     },
     {
-      "name": "civilized_student",
+      "name": "civilized-student",
       "display_name": "文明大学生/优秀团员",
       "category": "honor",
       "description": "文明大学生侧重文明素养（课堂纪律/宿舍卫生/网络文明）；优秀团员侧重团员先进性。",
@@ -193,14 +205,15 @@
         "文明素养",
         "团员先进性"
       ],
-      "skill_md_path": "subskills/civilized_student/SKILL.md",
-      "build_py_path": "subskills/civilized_student/build.py",
+      "skill_md_path": "subskills/civilized-student/SKILL.md",
+      "build_py_path": "subskills/civilized-student/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1694
+      "line_count": 1694,
+      "id": "civilized_student"
     },
     {
-      "name": "class_collective",
+      "name": "class-collective",
       "display_name": "优秀班集体",
       "category": "honor",
       "description": "班级集体申报的荣誉，看班级建设、学风、活动开展、集体获奖等。",
@@ -210,14 +223,15 @@
         "先进班级",
         "先进班集体"
       ],
-      "skill_md_path": "subskills/class_collective/SKILL.md",
-      "build_py_path": "subskills/class_collective/build.py",
+      "skill_md_path": "subskills/class-collective/SKILL.md",
+      "build_py_path": "subskills/class-collective/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1254
+      "line_count": 1254,
+      "id": "class_collective"
     },
     {
-      "name": "youth_league_application",
+      "name": "youth-league-application",
       "display_name": "入团申请书",
       "category": "political",
       "description": "申请加入中国共产主义青年团的正式申请材料。",
@@ -228,14 +242,15 @@
         "共青团",
         "申请入团"
       ],
-      "skill_md_path": "subskills/youth_league_application/SKILL.md",
-      "build_py_path": "subskills/youth_league_application/build.py",
+      "skill_md_path": "subskills/youth-league-application/SKILL.md",
+      "build_py_path": "subskills/youth-league-application/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1293
+      "line_count": 1293,
+      "id": "youth_league_application"
     },
     {
-      "name": "innovation_research",
+      "name": "innovation-research",
       "display_name": "大创·创新训练",
       "category": "research",
       "description": "国家级/省级/校级大创三类中最常见、偏学术研究的子类型，产出以研究报告/论文/专利为主。",
@@ -247,14 +262,15 @@
         "省级大创",
         "创新训练计划"
       ],
-      "skill_md_path": "subskills/innovation_research/SKILL.md",
-      "build_py_path": "subskills/innovation_research/build.py",
+      "skill_md_path": "subskills/innovation-research/SKILL.md",
+      "build_py_path": "subskills/innovation-research/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1218
+      "line_count": 1218,
+      "id": "innovation_research"
     },
     {
-      "name": "entrepreneurship_training",
+      "name": "entrepreneurship-training",
       "display_name": "大创·创业训练",
       "category": "research",
       "description": "大创三类里偏商业计划的子类型，团队完成商业计划书编制/可行性研究/模拟运行，但不实际注册公司。",
@@ -264,14 +280,15 @@
         "商业计划书模拟",
         "企业模拟运行"
       ],
-      "skill_md_path": "subskills/entrepreneurship_training/SKILL.md",
-      "build_py_path": "subskills/entrepreneurship_training/build.py",
+      "skill_md_path": "subskills/entrepreneurship-training/SKILL.md",
+      "build_py_path": "subskills/entrepreneurship-training/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1798
+      "line_count": 1798,
+      "id": "entrepreneurship_training"
     },
     {
-      "name": "entrepreneurship_practice",
+      "name": "entrepreneurship-practice",
       "display_name": "大创·创业实践",
       "category": "research",
       "description": "大创三类里要求最高、最实战的子类型，要求团队实际注册公司或运营 6 个月以上。",
@@ -282,14 +299,15 @@
         "已运营项目",
         "真实营收"
       ],
-      "skill_md_path": "subskills/entrepreneurship_practice/SKILL.md",
-      "build_py_path": "subskills/entrepreneurship_practice/build.py",
+      "skill_md_path": "subskills/entrepreneurship-practice/SKILL.md",
+      "build_py_path": "subskills/entrepreneurship-practice/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1511
+      "line_count": 1511,
+      "id": "entrepreneurship_practice"
     },
     {
-      "name": "university_research",
+      "name": "university-research",
       "display_name": "校级科研立项",
       "category": "research",
       "description": "学生科研训练项目(SRTP)，经费 2000-5000 元、周期 6-12 个月、团队 1-3 人，至少 1 篇论文产出。",
@@ -301,14 +319,15 @@
         "本科生科研训练",
         "校级科研立项"
       ],
-      "skill_md_path": "subskills/university_research/SKILL.md",
-      "build_py_path": "subskills/university_research/build.py",
+      "skill_md_path": "subskills/university-research/SKILL.md",
+      "build_py_path": "subskills/university-research/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1817
+      "line_count": 1817,
+      "id": "university_research"
     },
     {
-      "name": "college_research",
+      "name": "college-research",
       "display_name": "院级科研立项",
       "category": "research",
       "description": "院级科研训练项目，规模更小，通常面向本院本科生开放。",
@@ -318,14 +337,15 @@
         "院设科研",
         "院级科研立项"
       ],
-      "skill_md_path": "subskills/college_research/SKILL.md",
-      "build_py_path": "subskills/college_research/build.py",
+      "skill_md_path": "subskills/college-research/SKILL.md",
+      "build_py_path": "subskills/college-research/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1597
+      "line_count": 1597,
+      "id": "college_research"
     },
     {
-      "name": "challenge_cup",
+      "name": "challenge-cup",
       "display_name": "挑战杯",
       "category": "competition",
       "description": "全国大学生课外学术科技作品竞赛，分自然科学类学术论文/哲学社会科学类调查报告/科技发明制作三类。",
@@ -336,14 +356,15 @@
         "挑战杯申报书",
         "挑战杯作品"
       ],
-      "skill_md_path": "subskills/challenge_cup/SKILL.md",
-      "build_py_path": "subskills/challenge_cup/build.py",
+      "skill_md_path": "subskills/challenge-cup/SKILL.md",
+      "build_py_path": "subskills/challenge-cup/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1430
+      "line_count": 1430,
+      "id": "challenge_cup"
     },
     {
-      "name": "internet_plus",
+      "name": "internet-plus",
       "display_name": "互联网+",
       "category": "competition",
       "description": "中国国际互联网+大学生创新创业大赛商业计划书，2025 年起新评审维度为个人成长30%+项目创新30%+产业价值25%+团队协作15%。",
@@ -355,14 +376,15 @@
         "创业大赛",
         "商业计划书大赛"
       ],
-      "skill_md_path": "subskills/internet_plus/SKILL.md",
-      "build_py_path": "subskills/internet_plus/build.py",
+      "skill_md_path": "subskills/internet-plus/SKILL.md",
+      "build_py_path": "subskills/internet-plus/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1531
+      "line_count": 1531,
+      "id": "internet_plus"
     },
     {
-      "name": "social_survey",
+      "name": "social-survey",
       "display_name": "三下乡社会调查",
       "category": "practice",
       "description": "团中央组织的暑期三下乡社会实践，主题每年发布，团队赴农村开展文化/科技/卫生服务，含问卷/访谈/调研报告。",
@@ -373,14 +395,15 @@
         "社会实践立项",
         "返家乡"
       ],
-      "skill_md_path": "subskills/social_survey/SKILL.md",
-      "build_py_path": "subskills/social_survey/build.py",
+      "skill_md_path": "subskills/social-survey/SKILL.md",
+      "build_py_path": "subskills/social-survey/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1688
+      "line_count": 1688,
+      "id": "social_survey"
     },
     {
-      "name": "volunteer_teaching",
+      "name": "volunteer-teaching",
       "display_name": "支教",
       "category": "practice",
       "description": "暑期教育帮扶类社会实践，赴欠发达地区学校开展短期支教。",
@@ -390,14 +413,15 @@
         "志愿支教",
         "暑期支教"
       ],
-      "skill_md_path": "subskills/volunteer_teaching/SKILL.md",
-      "build_py_path": "subskills/volunteer_teaching/build.py",
+      "skill_md_path": "subskills/volunteer-teaching/SKILL.md",
+      "build_py_path": "subskills/volunteer-teaching/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1692
+      "line_count": 1692,
+      "id": "volunteer_teaching"
     },
     {
-      "name": "policy_lecture",
+      "name": "policy-lecture",
       "display_name": "政策宣讲",
       "category": "practice",
       "description": "理论/政策宣讲类社会实践，赴基层宣讲党的理论、国家政策、新时代成就。",
@@ -407,14 +431,15 @@
         "宣讲团",
         "党的理论宣讲"
       ],
-      "skill_md_path": "subskills/policy_lecture/SKILL.md",
-      "build_py_path": "subskills/policy_lecture/build.py",
+      "skill_md_path": "subskills/policy-lecture/SKILL.md",
+      "build_py_path": "subskills/policy-lecture/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1698
+      "line_count": 1698,
+      "id": "policy_lecture"
     },
     {
-      "name": "tech_service",
+      "name": "tech-service",
       "display_name": "科技服务",
       "category": "practice",
       "description": "科技下乡/科技服务类社会实践，结合专业特长为农村/企业提供技术咨询与服务。",
@@ -424,14 +449,15 @@
         "技术服务",
         "科技帮扶"
       ],
-      "skill_md_path": "subskills/tech_service/SKILL.md",
-      "build_py_path": "subskills/tech_service/build.py",
+      "skill_md_path": "subskills/tech-service/SKILL.md",
+      "build_py_path": "subskills/tech-service/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1450
+      "line_count": 1450,
+      "id": "tech_service"
     },
     {
-      "name": "western_plan",
+      "name": "western-plan",
       "display_name": "西部计划",
       "category": "practice",
       "description": "大学生志愿服务西部计划，赴西部基层开展 1-3 年志愿服务。",
@@ -441,14 +467,15 @@
         "西部服务",
         "西部基层"
       ],
-      "skill_md_path": "subskills/western_plan/SKILL.md",
-      "build_py_path": "subskills/western_plan/build.py",
+      "skill_md_path": "subskills/western-plan/SKILL.md",
+      "build_py_path": "subskills/western-plan/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1342
+      "line_count": 1342,
+      "id": "western_plan"
     },
     {
-      "name": "graduate_recommendation",
+      "name": "graduate-recommendation",
       "display_name": "保研推免",
       "category": "other",
       "description": "本科生免试攻读研究生的推免申请，要求前 6 学期 GPA/排名达标、英语成绩达标、有科研经历。",
@@ -461,14 +488,15 @@
         "保研推免",
         "免试读研"
       ],
-      "skill_md_path": "subskills/graduate_recommendation/SKILL.md",
-      "build_py_path": "subskills/graduate_recommendation/build.py",
+      "skill_md_path": "subskills/graduate-recommendation/SKILL.md",
+      "build_py_path": "subskills/graduate-recommendation/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1598
+      "line_count": 1598,
+      "id": "graduate_recommendation"
     },
     {
-      "name": "selected_graduate",
+      "name": "selected-graduate",
       "display_name": "选调生申请",
       "category": "other",
       "description": "应届毕业生报考选调生（基层公务员选调）的申请材料，含个人陈述/履历/政治表现等。",
@@ -478,14 +506,15 @@
         "选调",
         "基层公务员"
       ],
-      "skill_md_path": "subskills/selected_graduate/SKILL.md",
-      "build_py_path": "subskills/selected_graduate/build.py",
+      "skill_md_path": "subskills/selected-graduate/SKILL.md",
+      "build_py_path": "subskills/selected-graduate/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1250
+      "line_count": 1250,
+      "id": "selected_graduate"
     },
     {
-      "name": "major_transfer",
+      "name": "major-transfer",
       "display_name": "转专业申请",
       "category": "other",
       "description": "校内转专业申请，含申请理由/原专业表现/新专业认识/未来规划等。",
@@ -495,14 +524,15 @@
         "换专业",
         "转专业申请"
       ],
-      "skill_md_path": "subskills/major_transfer/SKILL.md",
-      "build_py_path": "subskills/major_transfer/build.py",
+      "skill_md_path": "subskills/major-transfer/SKILL.md",
+      "build_py_path": "subskills/major-transfer/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1300
+      "line_count": 1300,
+      "id": "major_transfer"
     },
     {
-      "name": "military_enlistment",
+      "name": "military-enlistment",
       "display_name": "应征入伍申请书",
       "category": "military",
       "description": "大学生应征入伍申请书，覆盖在校生入伍与毕业生入伍两类人群，5 段结构，4 维度入伍动机，3 档字数版本（1500/2000/2500 字）。",
@@ -519,14 +549,15 @@
         "征兵报名",
         "退役大学生士兵"
       ],
-      "skill_md_path": "subskills/military_enlistment/SKILL.md",
-      "build_py_path": "subskills/military_enlistment/build.py",
+      "skill_md_path": "subskills/military-enlistment/SKILL.md",
+      "build_py_path": "subskills/military-enlistment/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1336
+      "line_count": 1336,
+      "id": "military_enlistment"
     },
     {
-      "name": "csc_scholarship",
+      "name": "csc-scholarship",
       "display_name": "CSC 国家公派留学申请书",
       "category": "study_abroad",
       "description": "国家留学基金委公派留学项目申请书，覆盖攻读博士/联合培养/硕士/访问学者 4 类项目，六段结构，3 档字数版本（2500/3000/4000 字）。",
@@ -540,14 +571,15 @@
         "访问学者",
         "公派申请"
       ],
-      "skill_md_path": "subskills/csc_scholarship/SKILL.md",
-      "build_py_path": "subskills/csc_scholarship/build.py",
+      "skill_md_path": "subskills/csc-scholarship/SKILL.md",
+      "build_py_path": "subskills/csc-scholarship/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1368
+      "line_count": 1368,
+      "id": "csc_scholarship"
     },
     {
-      "name": "exchange_program",
+      "name": "exchange-program",
       "display_name": "交流项目申请书",
       "category": "study_abroad",
       "description": "大学生交流项目申请书（校际/院际/CSC 等学期/学年交换项目），5 段结构，交流动机 4 维度，3 档字数版本（1500/2000/2500 字）。",
@@ -561,14 +593,15 @@
         "学年交换",
         "交流申请"
       ],
-      "skill_md_path": "subskills/exchange_program/SKILL.md",
-      "build_py_path": "subskills/exchange_program/build.py",
+      "skill_md_path": "subskills/exchange-program/SKILL.md",
+      "build_py_path": "subskills/exchange-program/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1391
+      "line_count": 1391,
+      "id": "exchange_program"
     },
     {
-      "name": "internet_plus_red_tour",
+      "name": "internet-plus-red-tour",
       "display_name": "互联网+红旅赛道",
       "category": "competition",
       "description": "中国国际大学生创新大赛（原互联网+）红色之旅赛道商业计划书，专攻红旅赛道，必含乡村振兴/革命老区/民族团结/西部开发 4 大主题，3 档字数版本（8000/12000/15000 字）。",
@@ -583,14 +616,15 @@
         "红色之旅",
         "红色之旅 BP"
       ],
-      "skill_md_path": "subskills/internet_plus_red_tour/SKILL.md",
-      "build_py_path": "subskills/internet_plus_red_tour/build.py",
+      "skill_md_path": "subskills/internet-plus-red-tour/SKILL.md",
+      "build_py_path": "subskills/internet-plus-red-tour/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1248
+      "line_count": 1248,
+      "id": "internet_plus_red_tour"
     },
     {
-      "name": "outstanding_thesis",
+      "name": "outstanding-thesis",
       "display_name": "优秀毕业设计/论文申报书",
       "category": "honor",
       "description": "优秀毕业设计/论文申报书，覆盖大四毕业答辩后申报校级/院级优秀毕业设计（论文），4 段结构，支持本科/硕士/专科三档学制，3 档字数版本（2000/2500/3000 字）。",
@@ -602,17 +636,18 @@
         "优秀毕设",
         "毕业设计评优"
       ],
-      "skill_md_path": "subskills/outstanding_thesis/SKILL.md",
-      "build_py_path": "subskills/outstanding_thesis/build.py",
+      "skill_md_path": "subskills/outstanding-thesis/SKILL.md",
+      "build_py_path": "subskills/outstanding-thesis/build.py",
       "version": "v1.0",
       "last_updated": "2025-05-20",
-      "line_count": 1323
+      "line_count": 1323,
+      "id": "outstanding_thesis"
     },
     {
-      "name": "national_scholarship",
+      "name": "national-scholarship",
       "display_name": "国家奖学金",
       "category": "scholarship",
-      "description": "国家奖学金 8000 元/人，面向全日制二年级及以上特别优秀本科生，评审侧重学习成绩极优（专业前 10%）+ 科研竞赛等综合素质突出。",
+      "description": "国家奖学金 10000 元/人（2024年起执行财教〔2024〕181号新标准），面向全日制二年级及以上特别优秀本科生，评审侧重学习成绩极优（专业前 10%）+ 科研竞赛等综合素质突出。",
       "triggers": [
         "国家奖学金",
         "国奖",
@@ -621,16 +656,21 @@
         "国家奖学金申请书",
         "8000元奖学金申请",
         "国奖申请",
-        "national_scholarship"
+        "national_scholarship",
+        "10000元奖学金",
+        "10000元",
+        "10000元奖学金申请",
+        "万元国奖"
       ],
-      "skill_md_path": "subskills/national_scholarship/SKILL.md",
-      "build_py_path": "subskills/national_scholarship/build.py",
+      "skill_md_path": "subskills/national-scholarship/SKILL.md",
+      "build_py_path": "subskills/national-scholarship/build.py",
       "version": "v1.0",
       "last_updated": "2026-09-05",
-      "line_count": 1250
+      "line_count": 1250,
+      "id": "national_scholarship"
     },
     {
-      "name": "summary_report",
+      "name": "summary-report",
       "display_name": "阶段汇报/思想汇报",
       "category": "political",
       "description": "生成学生党团政治身份考察期、科研项目或工作阶段性思想与总结汇报。",
@@ -642,14 +682,15 @@
         "思想工作汇报",
         "summary_report"
       ],
-      "skill_md_path": "subskills/summary_report/SKILL.md",
-      "build_py_path": "subskills/summary_report/build.py",
+      "skill_md_path": "subskills/summary-report/SKILL.md",
+      "build_py_path": "subskills/summary-report/build.py",
       "version": "v1.0",
       "last_updated": "2026-09-05",
-      "line_count": 1280
+      "line_count": 1280,
+      "id": "summary_report"
     },
     {
-      "name": "youth_league_conversion",
+      "name": "youth-league-conversion",
       "display_name": "转正申请书",
       "category": "political",
       "description": "预备党员/预备团员考察期满后向组织正式提交的按期转正申请书。",
@@ -662,11 +703,12 @@
         "预备期满转正",
         "youth_league_conversion"
       ],
-      "skill_md_path": "subskills/youth_league_conversion/SKILL.md",
-      "build_py_path": "subskills/youth_league_conversion/build.py",
+      "skill_md_path": "subskills/youth-league-conversion/SKILL.md",
+      "build_py_path": "subskills/youth-league-conversion/build.py",
       "version": "v1.0",
       "last_updated": "2026-09-05",
-      "line_count": 1300
+      "line_count": 1300,
+      "id": "youth_league_conversion"
     }
   ]
 }
