@@ -55,7 +55,7 @@
 ### 核心使用流程
 1. **准备环境**：下载支持本地执行 Python 的 AI Agent IDE（例如：**WorkBuddy、Codex、Claude Code、Trae Work** 等）。
 2. **克隆项目**：将本项目 clone 到本地，并使用终端执行 `pip install -r utils/requirements.txt`（以安装 `python-docx` 等底层依赖）。
-3. **加载 Skill**：在你的 AI 工具中，将根目录的 `SKILL.md`（或具体某个赛道的 `subskills/innovation_research/SKILL.md`）作为**系统提示词 (System Prompt)** 喂给 AI。
+3. **加载 Skill**：在你的 AI 工具中，将根目录的 `SKILL.md`（或具体某个赛道的 `subskills/innovation-research/SKILL.md`）作为**系统提示词 (System Prompt)** 喂给 AI。
 4. **开始对话**：直接对 AI 说：“我想写一份大创申请书”。
 
 ### AI 会在背后做什么？
@@ -120,71 +120,71 @@ A：项目拆解了上百篇国家级金奖 / 一等奖真实申报书（大创�
 
 | # | 赛道 | 编码 | 内容量 | 状态 |
 |---|---|---|---|---|
-| 1 | 大创 · 创新训练项目 | `innovation_research` | 116 KB | ✅ |
-| 2 | 大创 · 创业训练项目 | `entrepreneurship_training` | 112 KB | ✅ |
-| 3 | 大创 · 创业实践项目 | `entrepreneurship_practice` | 52 KB | ✅ |
-| 4 | 校级科研立项 | `university_research` | 101 KB | ✅ |
-| 5 | 院级科研立项 | `college_research` | 98 KB | ✅ |
-| 6 | 挑战杯 · 课外学术科技作品 | `challenge_cup` | 111 KB | ✅ |
-| 7 | 互联网+ · 商业计划书 | `internet_plus` | 93 KB | ✅ |
-| 8 | 互联网+ · 红旅赛道 | `internet_plus_red_tour` | 79 KB | ✅ |
-| 9 | 国家级项目立项逻辑评测 | `national_project_eval` | 38 KB | ✅ |
+| 1 | 大创 · 创新训练项目 | `innovation-research` | 117 KB | ✅ |
+| 2 | 大创 · 创业训练项目 | `entrepreneurship-training` | 112 KB | ✅ |
+| 3 | 大创 · 创业实践项目 | `entrepreneurship-practice` | 52 KB | ✅ |
+| 4 | 校级科研立项 | `university-research` | 102 KB | ✅ |
+| 5 | 院级科研立项 | `college-research` | 99 KB | ✅ |
+| 6 | 挑战杯 · 课外学术科技作品 | `challenge-cup` | 111 KB | ✅ |
+| 7 | 互联网+ · 商业计划书 | `internet-plus` | 93 KB | ✅ |
+| 8 | 互联网+ · 红旅赛道 | `internet-plus-red-tour` | 79 KB | ✅ |
+| 9 | 国家级项目立项逻辑评测 | `national-project-eval` | 39 KB | ✅ |
 
 ### 🏆 评优类（要荣誉）— 12 个
 
 | # | 赛道 | 编码 | 内容量 | 状态 |
 |---|---|---|---|---|
-| 10 | 国家奖学金（8000 元） | `national_scholarship` | 37 KB | ✅ |
-| 11 | 国家励志奖学金（5000 元） | `motivation_scholarship` | 43 KB | ✅ |
-| 12 | 校级奖学金 | `university_scholarship` | 40 KB | ✅ |
-| 13 | 企业专项奖学金 | `enterprise_scholarship` | 47 KB | ✅ |
-| 14 | 单项奖学金 | `single_scholarship` | 44 KB | ✅ |
-| 15 | 国家助学金 | `grant_application` | 75 KB | ✅ |
-| 16 | 优秀毕业生 | `outstanding_graduate` | 46 KB | ✅ |
-| 17 | 优秀学生 / 三好学生 | `outstanding_student` | 58 KB | ✅ |
-| 18 | 优秀学生干部 | `outstanding_cadre` | 87 KB | ✅ |
-| 19 | 文明大学生 / 优秀团员 | `civilized_student` | 60 KB | ✅ |
-| 20 | 优秀班集体 | `class_collective` | 66 KB | ✅ |
-| 21 | 优秀毕业设计 / 论文 | `outstanding_thesis` | 73 KB | ✅ |
+| 10 | 国家奖学金（10000 元） | `national-scholarship` | 37 KB | ✅ |
+| 11 | 国家励志奖学金（6000 元） | `motivation-scholarship` | 44 KB | ✅ |
+| 12 | 校级奖学金 | `university-scholarship` | 40 KB | ✅ |
+| 13 | 企业专项奖学金 | `enterprise-scholarship` | 47 KB | ✅ |
+| 14 | 单项奖学金 | `single-scholarship` | 44 KB | ✅ |
+| 15 | 国家助学金 | `grant-application` | 75 KB | ✅ |
+| 16 | 优秀毕业生 | `outstanding-graduate` | 46 KB | ✅ |
+| 17 | 优秀学生 / 三好学生 | `outstanding-student` | 58 KB | ✅ |
+| 18 | 优秀学生干部 | `outstanding-cadre` | 87 KB | ✅ |
+| 19 | 文明大学生 / 优秀团员 | `civilized-student` | 60 KB | ✅ |
+| 20 | 优秀班集体 | `class-collective` | 67 KB | ✅ |
+| 21 | 优秀毕业设计 / 论文 | `outstanding-thesis` | 73 KB | ✅ |
 
 ### 🌾 活动类 — 5 个
 
 | # | 赛道 | 编码 | 内容量 | 状态 |
 |---|---|---|---|---|
-| 22 | 三下乡 · 社会调查 | `social_survey` | 46 KB | ✅ |
-| 23 | 三下乡 · 支教 | `volunteer_teaching` | 48 KB | ✅ |
-| 24 | 三下乡 · 政策宣讲 | `policy_lecture` | 54 KB | ✅ |
-| 25 | 三下乡 · 科技服务 | `tech_service` | 63 KB | ✅ |
-| 26 | 西部计划 | `western_plan` | 74 KB | ✅ |
+| 22 | 三下乡 · 社会调查 | `social-survey` | 46 KB | ✅ |
+| 23 | 三下乡 · 支教 | `volunteer-teaching` | 48 KB | ✅ |
+| 24 | 三下乡 · 政策宣讲 | `policy-lecture` | 54 KB | ✅ |
+| 25 | 三下乡 · 科技服务 | `tech-service` | 63 KB | ✅ |
+| 26 | 西部计划 | `western-plan` | 75 KB | ✅ |
 
 ### 🚩 政治身份类 — 3 个
 
 | # | 赛道 | 编码 | 内容量 | 状态 |
 |---|---|---|---|---|
-| 27 | 入团申请书 | `youth_league_application` | 72 KB | ✅ |
-| 28 | 阶段汇报 / 思想汇报 | `summary_report` | 26 KB | ✅ |
-| 29 | 转正申请书 | `youth_league_conversion` | 26 KB | ✅ |
+| 27 | 入团申请书 | `youth-league-application` | 72 KB | ✅ |
+| 28 | 阶段汇报 / 思想汇报 | `summary-report` | 26 KB | ✅ |
+| 29 | 转正申请书 | `youth-league-conversion` | 26 KB | ✅ |
 
 ### 🎓 升学类 — 2 个
 
 | # | 赛道 | 编码 | 内容量 | 状态 |
 |---|---|---|---|---|
-| 30 | 保研推免申请 | `graduate_recommendation` | 43 KB | ✅ |
-| 31 | 选调生申请 | `selected_graduate` | 68 KB | ✅ |
+| 30 | 保研推免申请 | `graduate-recommendation` | 43 KB | ✅ |
+| 31 | 选调生申请 | `selected-graduate` | 68 KB | ✅ |
 
 ### ✈️ 公派留学 / 交流类 — 2 个
 
 | # | 赛道 | 编码 | 内容量 | 状态 |
 |---|---|---|---|---|
-| 32 | CSC 国家公派留学 | `csc_scholarship` | 65 KB | ✅ |
-| 33 | 交流项目申请 | `exchange_program` | 89 KB | ✅ |
+| 32 | CSC 国家公派留学 | `csc-scholarship` | 66 KB | ✅ |
+| 33 | 交流项目申请 | `exchange-program` | 90 KB | ✅ |
 
 ### 📋 其他 — 2 个
 
 | # | 赛道 | 编码 | 内容量 | 状态 |
 |---|---|---|---|---|
-| 34 | 转专业申请 | `major_transfer` | 78 KB | ✅ |
-| 35 | 应征入伍申请书 | `military_enlistment` | 73 KB | ✅ |
+| 34 | 转专业申请 | `major-transfer` | 79 KB | ✅ |
+| 35 | 应征入伍申请书 | `military-enlistment` | 73 KB | ✅ |
 
 ---
 
@@ -263,7 +263,7 @@ awesome-student-ai-skills/
 用法（以国家奖学金为例，全部 35 个赛道均支持）：
 
 ```bash
-python subskills/national_scholarship/build.py \
+python subskills/national-scholarship/build.py \
   --data my_info.json \
   --school pku \
   --out 国家奖学金申请书.docx
@@ -418,3 +418,9 @@ MIT License —— 随便用、随便改，但请保留原作者署名和免责�
 ---
 
 *如果你用这个项目写出了一份好的申报书，或者踩了什么坑，欢迎提 Issue 分享。让后面的人少走弯路。*
+
+## 💻 Windows 终端与编码约定说明
+
+本项目在 Windows / macOS / Linux 均提供完整支持。为了获得最佳终端交互体验：
+- **推荐启用 UTF-8**：在 Windows 控制台中建议设置环境变量 `set PYTHONUTF8=1`（或 PowerShell 中 `/Users/mac/.gemini/antigravity/scratch/awesome-student-ai-skillsYTHONUTF8=1`），保证所有特殊状态标识符与中文格式完美显示。
+- **内置 GBK 容错**：即使在未开启 UTF-8 的原生 GBK 控制台下，所有子技能的 `build.py` 脚本均已内置标准流容错机制，自动降级安全输出，绝不会因 Unicode 状态符号抛出 `UnicodeEncodeError` 崩溃。

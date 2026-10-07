@@ -92,16 +92,18 @@ DECISION_TREE: Dict[str, Dict[str, Any]] = {
         "question": "你要申请的是哪种奖学金？",
         "prompt_hint": "看金额/排名/家庭经济情况选",
         "options": [
-            {"label": "国家励志奖学金（5000 元，前 30%，家庭经济困难）", "value": "motivation",
-             "skills": ["motivation_scholarship"]},
+            {"label": "国家奖学金（10000 元，成绩卓越专业前 10% 或前 30% 附国家级大奖）", "value": "national",
+             "skills": ["national-scholarship"]},
+            {"label": "国家励志奖学金（6000 元，前 30%，家庭经济困难）", "value": "motivation",
+             "skills": ["motivation-scholarship"]},
             {"label": "校级奖学金（1/2/3 等，纯看成绩）", "value": "university",
-             "skills": ["university_scholarship"]},
+             "skills": ["university-scholarship"]},
             {"label": "企业/社会专项奖学金（看行业匹配+职业规划）", "value": "enterprise",
-             "skills": ["enterprise_scholarship"]},
+             "skills": ["enterprise-scholarship"]},
             {"label": "单项奖学金（科研/文体/社工/实践等单点突出）", "value": "single",
-             "skills": ["single_scholarship"]},
+             "skills": ["single-scholarship"]},
             {"label": "国家助学金（家庭经济困难，无需成绩排名）", "value": "grant",
-             "skills": ["grant_application"]},
+             "skills": ["grant-application"]},
         ],
     },
     # ----------------------------------------------------------------------
@@ -113,17 +115,17 @@ DECISION_TREE: Dict[str, Dict[str, Any]] = {
         "prompt_hint": "看面向群体（在校生/毕业生/班干部/毕设评优）",
         "options": [
             {"label": "优秀学生 / 三好学生（在校生学年评优）", "value": "student",
-             "skills": ["outstanding_student"]},
+             "skills": ["outstanding-student"]},
             {"label": "优秀毕业生（应届毕业生，看四年综合）", "value": "graduate",
-             "skills": ["outstanding_graduate"]},
+             "skills": ["outstanding-graduate"]},
             {"label": "优秀学生干部 / 优秀班干部", "value": "cadre",
-             "skills": ["outstanding_cadre"]},
+             "skills": ["outstanding-cadre"]},
             {"label": "文明大学生 / 优秀团员", "value": "civilized",
-             "skills": ["civilized_student"]},
+             "skills": ["civilized-student"]},
             {"label": "优秀班集体（班级集体申报）", "value": "collective",
-             "skills": ["class_collective"]},
+             "skills": ["class-collective"]},
             {"label": "优秀毕业设计/论文申报书（毕设评优）", "value": "thesis",
-             "skills": ["outstanding_thesis"]},
+             "skills": ["outstanding-thesis"]},
         ],
     },
     # ----------------------------------------------------------------------
@@ -135,7 +137,9 @@ DECISION_TREE: Dict[str, Dict[str, Any]] = {
         "prompt_hint": "看身份（团员/青年）",
         "options": [
             {"label": "入团申请书（申请加入共青团）", "value": "league",
-             "skills": ["youth_league_application"]},
+             "skills": ["youth-league-application"]},
+            {"label": "入团转正申请书（团员转正/预备期满总结）", "value": "league_conversion",
+             "skills": ["youth-league-conversion"]},
         ],
     },
     # ----------------------------------------------------------------------
@@ -147,17 +151,17 @@ DECISION_TREE: Dict[str, Dict[str, Any]] = {
         "prompt_hint": "看级别（国家级/校级/院级）与类型（评估/学术/创业模拟/真创业）",
         "options": [
             {"label": "国家级项目立项逻辑评测（针对申报书进行逻辑纠错与诊断）", "value": "national_eval",
-             "skills": ["national_project_eval"]},
+             "skills": ["national-project-eval"]},
             {"label": "大创 · 创新训练（学术研究，产出论文/专利）", "value": "innovation",
-             "skills": ["innovation_research"]},
+             "skills": ["innovation-research"]},
             {"label": "大创 · 创业训练（商业计划书模拟，不注册公司）", "value": "training",
-             "skills": ["entrepreneurship_training"]},
+             "skills": ["entrepreneurship-training"]},
             {"label": "大创 · 创业实践（真实注册公司运营 6 个月+）", "value": "practice",
-             "skills": ["entrepreneurship_practice"]},
+             "skills": ["entrepreneurship-practice"]},
             {"label": "校级科研立项（SRTP，1-3 人，2000-5000 元）", "value": "university",
-             "skills": ["university_research"]},
+             "skills": ["university-research"]},
             {"label": "院级科研立项（院设，规模更小）", "value": "college",
-             "skills": ["college_research"]},
+             "skills": ["college-research"]},
         ],
     },
     # ----------------------------------------------------------------------
@@ -169,11 +173,11 @@ DECISION_TREE: Dict[str, Dict[str, Any]] = {
         "prompt_hint": "挑战杯=学术作品赛；互联网+=创业计划赛（含主赛道与红旅赛道）",
         "options": [
             {"label": "挑战杯（课外学术科技作品竞赛）", "value": "challenge",
-             "skills": ["challenge_cup"]},
+             "skills": ["challenge-cup"]},
             {"label": "互联网+ 主赛道（大学生创新创业大赛，商业计划书）", "value": "internet",
-             "skills": ["internet_plus"]},
+             "skills": ["internet-plus"]},
             {"label": "互联网+ 红色之旅赛道（青年红色筑梦之旅）", "value": "red_tour",
-             "skills": ["internet_plus_red_tour"]},
+             "skills": ["internet-plus-red-tour"]},
         ],
     },
     # ----------------------------------------------------------------------
@@ -185,15 +189,15 @@ DECISION_TREE: Dict[str, Dict[str, Any]] = {
         "prompt_hint": "看实践内容（调研/支教/宣讲/科技/西部）",
         "options": [
             {"label": "三下乡社会调查（问卷/访谈/调研报告）", "value": "survey",
-             "skills": ["social_survey"]},
+             "skills": ["social-survey"]},
             {"label": "支教（教育帮扶）", "value": "teach",
-             "skills": ["volunteer_teaching"]},
+             "skills": ["volunteer-teaching"]},
             {"label": "政策宣讲 / 理论宣讲", "value": "policy",
-             "skills": ["policy_lecture"]},
+             "skills": ["policy-lecture"]},
             {"label": "科技服务 / 科技下乡", "value": "tech",
-             "skills": ["tech_service"]},
+             "skills": ["tech-service"]},
             {"label": "西部计划（西部志愿服务）", "value": "western",
-             "skills": ["western_plan"]},
+             "skills": ["western-plan"]},
         ],
     },
     # ----------------------------------------------------------------------
@@ -205,11 +209,13 @@ DECISION_TREE: Dict[str, Dict[str, Any]] = {
         "prompt_hint": "保研推免/选调生/转专业",
         "options": [
             {"label": "保研推免申请书（免试读研）", "value": "baoyan",
-             "skills": ["graduate_recommendation"]},
+             "skills": ["graduate-recommendation"]},
             {"label": "选调生申请（基层公务员选调）", "value": "xuandiao",
-             "skills": ["selected_graduate"]},
+             "skills": ["selected-graduate"]},
             {"label": "转专业申请书（校内转专业）", "value": "transfer",
-             "skills": ["major_transfer"]},
+             "skills": ["major-transfer"]},
+            {"label": "阶段总结汇报（项目中期/年度总结/阶段成果汇报）", "value": "summary",
+             "skills": ["summary-report"]},
         ],
     },
     # ----------------------------------------------------------------------
@@ -221,7 +227,7 @@ DECISION_TREE: Dict[str, Dict[str, Any]] = {
         "prompt_hint": "当前仅应征入伍申请书；后续可扩展退役优待/征兵宣传等",
         "options": [
             {"label": "应征入伍申请书（在校生/毕业生入伍）", "value": "enlistment",
-             "skills": ["military_enlistment"]},
+             "skills": ["military-enlistment"]},
         ],
     },
     # ----------------------------------------------------------------------
@@ -233,9 +239,9 @@ DECISION_TREE: Dict[str, Dict[str, Any]] = {
         "prompt_hint": "CSC 公派 vs 校际交换",
         "options": [
             {"label": "CSC 国家公派留学申请书（留学基金委）", "value": "csc",
-             "skills": ["csc_scholarship"]},
+             "skills": ["csc-scholarship"]},
             {"label": "交流项目申请书（校际/院际/CSC 交换）", "value": "exchange",
-             "skills": ["exchange_program"]},
+             "skills": ["exchange-program"]},
         ],
     },
 }
@@ -263,7 +269,7 @@ CATEGORY_KEYWORDS: Dict[str, List[str]] = {
               "文明大学生", "优秀团员", "优秀班集体", "honor", "outstanding"],
     "political": ["入团", "团", "political", "league"],
     "research": ["大创", "创新训练", "创业训练", "创业实践", "科研立项", "校级科研",
-                 "院级科研", "SRTP", "立项评测", "逻辑评测", "国家级项目", "research", "innovation", "entrepreneurship", "national_project_eval"],
+                 "院级科研", "SRTP", "立项评测", "逻辑评测", "国家级项目", "research", "innovation", "entrepreneurship", "national-project-eval"],
     "competition": ["挑战杯", "互联网+", "互联网＋", "创新创业大赛", "竞赛",
                     "challenge", "internet plus"],
     "practice": ["三下乡", "暑期实践", "社会实践", "支教", "政策宣讲", "理论宣讲",
@@ -531,8 +537,13 @@ class Dispatcher:
     # 辅助：按 name 查 skill 元数据
     # ------------------------------------------------------------------
     def _find_skill_by_name(self, name: str) -> Optional[Dict[str, Any]]:
+        target = name.strip()
+        target_kebab = target.replace("_", "-")
+        target_snake = target.replace("-", "_")
         for s in self.skills:
-            if s.get("name") == name:
+            s_name = s.get("name", "")
+            s_id = s.get("id", "")
+            if s_name in (target, target_kebab, target_snake) or s_id in (target, target_kebab, target_snake):
                 return s
         return None
 
@@ -575,13 +586,22 @@ class Dispatcher:
                 empty_placeholders.append(p.name)
         missing_in_index = sorted(real_disk - indexed)
         missing_on_disk = sorted(indexed - real_disk)
+
+        tree_skills = set()
+        for q_data in DECISION_TREE.values():
+            for opt in q_data.get("options", []):
+                for s in opt.get("skills", []):
+                    tree_skills.add(s)
+        missing_in_tree = sorted(indexed - tree_skills)
         return {
             "indexed_count": len(indexed),
             "disk_count": len(real_disk),
+            "tree_count": len(tree_skills),
             "empty_placeholders": sorted(empty_placeholders),
             "missing_in_index": missing_in_index,
             "missing_on_disk": missing_on_disk,
-            "ok": (not missing_in_index) and (not missing_on_disk),
+            "missing_in_tree": missing_in_tree,
+            "ok": (not missing_in_index) and (not missing_on_disk) and (not missing_in_tree),
         }
 
 
@@ -590,100 +610,100 @@ class Dispatcher:
 # 仅列 name / display_name / category / triggers / description，路径字段留空
 # ============================================================================
 _FALLBACK_SKILLS: List[Dict[str, Any]] = [
-    {"name": "national_project_eval", "display_name": "国家级项目立项逻辑评测",
+    {"name": "national-project-eval", "display_name": "国家级项目立项逻辑评测",
      "category": "research", "triggers": ["国家级项目立项逻辑评测", "项目立项逻辑评测", "立项逻辑评估"],
      "description": "国家级项目申报书立项逻辑评测与诊断"},
-    {"name": "motivation_scholarship", "display_name": "国家励志奖学金",
+    {"name": "motivation-scholarship", "display_name": "国家励志奖学金",
      "category": "scholarship", "triggers": ["励志", "励志奖学金", "5000"],
      "description": "国家励志奖学金 5000 元/人，前 30%，家庭经济困难"},
-    {"name": "university_scholarship", "display_name": "校级奖学金",
+    {"name": "university-scholarship", "display_name": "校级奖学金",
      "category": "scholarship", "triggers": ["校奖", "校级奖学金", "一等奖学金"],
      "description": "校设奖学金，1/2/3 等，纯看成绩"},
-    {"name": "enterprise_scholarship", "display_name": "企业专项奖学金",
+    {"name": "enterprise-scholarship", "display_name": "企业专项奖学金",
      "category": "scholarship", "triggers": ["企业奖", "专项奖", "华为奖"],
      "description": "企业/社会团体设立，看行业匹配+职业规划"},
-    {"name": "single_scholarship", "display_name": "单项奖学金",
+    {"name": "single-scholarship", "display_name": "单项奖学金",
      "category": "scholarship", "triggers": ["单项奖", "科研单项", "文体单项"],
      "description": "单点突出（科研/文体/社工/实践）即可"},
-    {"name": "grant_application", "display_name": "国家助学金",
+    {"name": "grant-application", "display_name": "国家助学金",
      "category": "scholarship", "triggers": ["助学金", "国家助学金", "贫困生"],
      "description": "家庭经济困难认定后申请，无需成绩排名"},
-    {"name": "outstanding_student", "display_name": "优秀学生/三好学生",
+    {"name": "outstanding-student", "display_name": "优秀学生/三好学生",
      "category": "honor", "triggers": ["优秀学生", "三好学生", "学年评优"],
      "description": "在校生学年评优，思想+学习+身体三方面"},
-    {"name": "outstanding_graduate", "display_name": "优秀毕业生",
+    {"name": "outstanding-graduate", "display_name": "优秀毕业生",
      "category": "honor", "triggers": ["优秀毕业生", "省优", "校优"],
      "description": "毕业前最高荣誉，看四年综合"},
-    {"name": "outstanding_cadre", "display_name": "优秀学生干部",
+    {"name": "outstanding-cadre", "display_name": "优秀学生干部",
      "category": "honor", "triggers": ["优秀班干部", "优秀学生干部", "班干部"],
      "description": "面向班干部的评优"},
-    {"name": "civilized_student", "display_name": "文明大学生/优秀团员",
+    {"name": "civilized-student", "display_name": "文明大学生/优秀团员",
      "category": "honor", "triggers": ["文明大学生", "优秀团员", "文明素养"],
      "description": "侧重文明素养与团员先进性"},
-    {"name": "class_collective", "display_name": "优秀班集体",
+    {"name": "class-collective", "display_name": "优秀班集体",
      "category": "honor", "triggers": ["优秀班集体", "班集体", "先进班级"],
      "description": "班级集体申报的荣誉"},
-    {"name": "youth_league_application", "display_name": "入团申请书",
+    {"name": "youth-league-application", "display_name": "入团申请书",
      "category": "political", "triggers": ["入团", "入团申请", "共青团"],
      "description": "申请加入共青团"},
-    {"name": "innovation_research", "display_name": "大创·创新训练",
+    {"name": "innovation-research", "display_name": "大创·创新训练",
      "category": "research", "triggers": ["大创", "创新训练", "大创创新"],
      "description": "大创学术研究类，产出论文/专利"},
-    {"name": "entrepreneurship_training", "display_name": "大创·创业训练",
+    {"name": "entrepreneurship-training", "display_name": "大创·创业训练",
      "category": "research", "triggers": ["创业训练", "商业计划模拟"],
      "description": "大创商业计划书模拟，不注册公司"},
-    {"name": "entrepreneurship_practice", "display_name": "大创·创业实践",
+    {"name": "entrepreneurship-practice", "display_name": "大创·创业实践",
      "category": "research", "triggers": ["创业实践", "真实注册公司"],
      "description": "大创真实公司运营 6 个月+"},
-    {"name": "university_research", "display_name": "校级科研立项",
+    {"name": "university-research", "display_name": "校级科研立项",
      "category": "research", "triggers": ["校级科研", "SRTP", "校级立项"],
      "description": "校级 SRTP，1-3 人，2000-5000 元"},
-    {"name": "college_research", "display_name": "院级科研立项",
+    {"name": "college-research", "display_name": "院级科研立项",
      "category": "research", "triggers": ["院级科研", "院级立项"],
      "description": "院级科研训练，规模更小"},
-    {"name": "challenge_cup", "display_name": "挑战杯",
+    {"name": "challenge-cup", "display_name": "挑战杯",
      "category": "competition", "triggers": ["挑战杯", "课外学术", "学术作品"],
      "description": "课外学术科技作品竞赛"},
-    {"name": "internet_plus", "display_name": "互联网+",
+    {"name": "internet-plus", "display_name": "互联网+",
      "category": "competition", "triggers": ["互联网+", "互联网＋", "创新创业大赛"],
      "description": "大学生创新创业大赛，商业计划书"},
-    {"name": "social_survey", "display_name": "三下乡社会调查",
+    {"name": "social-survey", "display_name": "三下乡社会调查",
      "category": "practice", "triggers": ["三下乡", "社会调查", "暑期实践"],
      "description": "暑期社会实践，调研报告"},
-    {"name": "volunteer_teaching", "display_name": "支教",
+    {"name": "volunteer-teaching", "display_name": "支教",
      "category": "practice", "triggers": ["支教", "教育帮扶", "志愿支教"],
      "description": "暑期支教志愿活动"},
-    {"name": "policy_lecture", "display_name": "政策宣讲",
+    {"name": "policy-lecture", "display_name": "政策宣讲",
      "category": "practice", "triggers": ["政策宣讲", "理论宣讲"],
      "description": "政策/理论宣讲实践"},
-    {"name": "tech_service", "display_name": "科技服务",
+    {"name": "tech-service", "display_name": "科技服务",
      "category": "practice", "triggers": ["科技服务", "科技下乡"],
      "description": "科技下乡/科技服务实践"},
-    {"name": "western_plan", "display_name": "西部计划",
+    {"name": "western-plan", "display_name": "西部计划",
      "category": "practice", "triggers": ["西部计划", "西部志愿"],
      "description": "大学生志愿服务西部计划"},
-    {"name": "graduate_recommendation", "display_name": "保研推免",
+    {"name": "graduate-recommendation", "display_name": "保研推免",
      "category": "other", "triggers": ["保研", "推免", "免试读研"],
      "description": "保研推免申请书/申请表"},
-    {"name": "selected_graduate", "display_name": "选调生申请",
+    {"name": "selected-graduate", "display_name": "选调生申请",
      "category": "other", "triggers": ["选调生", "基层选调"],
      "description": "选调生（基层公务员）申请"},
-    {"name": "major_transfer", "display_name": "转专业申请",
+    {"name": "major-transfer", "display_name": "转专业申请",
      "category": "other", "triggers": ["转专业", "专业转换"],
      "description": "校内转专业申请"},
-    {"name": "military_enlistment", "display_name": "应征入伍申请书",
+    {"name": "military-enlistment", "display_name": "应征入伍申请书",
      "category": "military", "triggers": ["应征入伍", "大学生入伍", "参军", "征兵", "入伍申请"],
      "description": "大学生应征入伍申请书，5 段结构，3 档字数版本"},
-    {"name": "csc_scholarship", "display_name": "CSC 国家公派留学申请书",
+    {"name": "csc-scholarship", "display_name": "CSC 国家公派留学申请书",
      "category": "study_abroad", "triggers": ["CSC", "公派留学", "国家公派", "留学基金委"],
      "description": "国家公派留学申请书，6 段结构，3 档字数版本"},
-    {"name": "exchange_program", "display_name": "交流项目申请书",
+    {"name": "exchange-program", "display_name": "交流项目申请书",
      "category": "study_abroad", "triggers": ["交流项目", "交换生", "校际交流", "交换项目"],
      "description": "大学生交流项目申请书，5 段结构"},
-    {"name": "internet_plus_red_tour", "display_name": "互联网+红旅赛道",
+    {"name": "internet-plus-red-tour", "display_name": "互联网+红旅赛道",
      "category": "competition", "triggers": ["互联网+红旅", "红旅赛道", "红色之旅", "红色筑梦"],
      "description": "互联网+大赛红色之旅赛道商业计划书"},
-    {"name": "outstanding_thesis", "display_name": "优秀毕业设计/论文申报书",
+    {"name": "outstanding-thesis", "display_name": "优秀毕业设计/论文申报书",
      "category": "honor", "triggers": ["优秀毕业设计", "优秀毕业论文", "毕设评优"],
      "description": "优秀毕业设计/论文申报书"},
 ]
@@ -745,6 +765,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     parser.add_argument("query", nargs="?", default=None,
                         help="用户输入文本，如 \"我想申请国奖\"")
+    parser.add_argument("--query", "-q", dest="query_opt", default=None,
+                        help='用户输入文本（选项形式），如 --query "我想申请国奖"')
     parser.add_argument("-i", "--interactive", action="store_true",
                         help="进入交互式决策树")
     parser.add_argument("-l", "--list", action="store_true",
@@ -796,20 +818,21 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 0
 
     # ---- 关键词匹配 ----
-    if args.query:
-        results = d.dispatch(args.query, top_n=args.top_n)
+    effective_query = args.query_opt or args.query
+    if effective_query:
+        results = d.dispatch(effective_query, top_n=args.top_n)
         if args.json:
             print(json.dumps({
-                "query": args.query,
+                "query": effective_query,
                 "top_n": args.top_n,
                 "results": results,
             }, ensure_ascii=False, indent=2))
         else:
             if not results:
-                print(f"\n未匹配到任何子 skill。输入: {args.query!r}")
+                print(f"\n未匹配到任何子 skill。输入: {effective_query!r}")
                 print("建议运行 `python dispatcher.py -i` 进入交互式决策树。")
                 return 1
-            _print_top_n(results, args.query)
+            _print_top_n(results, effective_query)
         return 0
 
     # 无参数则打印 help
