@@ -14,7 +14,7 @@
 
 ## 涉及的子 skill
 
-<!-- 如：national_scholarship、innovation_research。如不涉及请写"无" -->
+<!-- 如：national-scholarship、innovation-research（目录名用连字符；index.json 的 id 仍可为下划线）。如不涉及请写"无" -->
 
 ## 诚实底线检查
 
