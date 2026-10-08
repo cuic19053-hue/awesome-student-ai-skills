@@ -13,6 +13,7 @@
 python-docx>=1.1.0
 matplotlib>=3.7
 pyyaml>=6.0
+pypdf>=4.0
 
 # Agent Skills 标准规范校验依赖（Issue #8，官方包要求 Python >= 3.11）：
 skills-ref==0.1.1; python_version >= '3.11'
