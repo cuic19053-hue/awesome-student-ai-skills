@@ -813,7 +813,7 @@ def validate_pdf(pdf_path: str | Path) -> bool:
 
     # 检查 EOF 标记
     with open(pdf_path, "rb") as f:
-        f.seek(-1024 if size > 1024 else 0, 2)
+        f.seek(max(0, size - 1024))
         tail = f.read()
     if b"%%EOF" not in tail:
         raise PDFValidationError(
