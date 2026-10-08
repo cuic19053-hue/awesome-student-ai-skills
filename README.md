@@ -323,7 +323,7 @@ AI 会自动：
 
 | 下载 | 类型 |
 |---|---|
-| [📄 国家奖学金.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_national_project_eval.docx) | 奖学金 |
+| [📄 国家奖学金.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_national_scholarship.docx) | 奖学金 |
 | [📄 申请材料.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_youth_league_application.docx) | 政治身份 |
 | [📄 挑战杯.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_challenge_cup.docx) | 竞赛 |
 | [📄 互联网+商业计划书.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_internet_plus.docx) | 竞赛 |
