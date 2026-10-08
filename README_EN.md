@@ -46,7 +46,7 @@ This project follows the **Agent Skills** specification. It is a combination of 
 ### Core Workflow
 1. **Prepare Environment**: Download an AI Agent IDE that supports local Python execution (e.g., **WorkBuddy, Codex, Claude Code, Trae Work**).
 2. **Clone the Project**: Clone this project locally and run `pip install -r utils/requirements.txt` in your terminal (to install underlying dependencies like `python-docx`).
-3. **Load the Skill**: In your AI tool, feed the root `SKILL.md` (or a specific subskill like `subskills/innovation_research/SKILL.md`) into the AI as the **System Prompt**.
+3. **Load the Skill**: In your AI tool, feed the root `SKILL.md` (or a specific subskill like `subskills/innovation-research/SKILL.md`) into the AI as the **System Prompt**.
 4. **Start the Conversation**: Simply say to the AI: *"I want to write an innovation research proposal."*
 
 ### Agent Execution Loop

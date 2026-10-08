@@ -26,7 +26,7 @@ description: "35 个大学生竞赛与立项 AI Skill 集合 | 覆盖大创/挑�
 
 ```bash
 python3 utils/dispatcher.py --query "用户原话"
-# 输出：候选子 skill 列表 + 置信度 + 决策路径
+# 输出：候选子 skill 列表、关键词匹配分数和加载路径
 ```
 
 详见 `utils/DISPATCHER_README.md`。
@@ -36,9 +36,14 @@ python3 utils/dispatcher.py --query "用户原话"
 ```python
 from utils.dispatcher import Dispatcher
 d = Dispatcher()
-result = d.dispatch("帮我做个立项逻辑评测")
-# result = {"candidates": [{"name": "national_project_eval", "score": 0.92}, ...], "path": [...]}
+candidates = d.dispatch("国家级项目立项逻辑评测")
+if candidates:
+    top = candidates[0]
+    print(top["name"], top["score"])
+    print(top["skill_md_path"])
 ```
+
+`dispatch()` 返回候选字典列表；未命中时返回空列表。每项包含 `name`、`score`、`matched`、`skill_md_path` 和 `build_py_path` 等字段。`score` 是整数关键词匹配分数，不是概率；加载路径相对于仓库根目录。
 
 ### 方式 3：手动对照下表
 
@@ -50,87 +55,87 @@ result = d.dispatch("帮我做个立项逻辑评测")
 
 > 机器可读索引：`index.json`（含 name / display_name / category / description / triggers / paths / version / line_count）
 
-### §1 奖学金类（7 个）
+### §1 奖学金类（6 个）
 
 | 子 skill | 中文名 | 触发关键词 |
 |----------|--------|------------|
-| `subskills/national_scholarship/` | 国家奖学金 | "国家奖学金""国奖""8000元" |
-| `subskills/national_project_eval/` | 国家级项目立项逻辑评测 | "立项逻辑评测""国家级项目评测" |
-| `subskills/motivation_scholarship/` | 国家励志奖学金 | "励志""5000元""家庭经济困难" |
-| `subskills/university_scholarship/` | 校级奖学金 | "校奖""一等奖学金" |
-| `subskills/enterprise_scholarship/` | 企业专项奖学金 | "企业奖""专项奖""华为奖" |
-| `subskills/single_scholarship/` | 单项奖学金 | "单项奖""科研单项""文体单项" |
-| `subskills/grant_application/` | 国家助学金 | "助学金""贫困生""家庭经济困难补助" |
+| `subskills/national-scholarship/` | 国家奖学金 | "国家奖学金""国奖""10000元" |
+| `subskills/motivation-scholarship/` | 国家励志奖学金 | "励志""6000元""家庭经济困难" |
+| `subskills/university-scholarship/` | 校级奖学金 | "校奖""一等奖学金" |
+| `subskills/enterprise-scholarship/` | 企业专项奖学金 | "企业奖""专项奖""华为奖" |
+| `subskills/single-scholarship/` | 单项奖学金 | "单项奖""科研单项""文体单项" |
+| `subskills/grant-application/` | 国家助学金 | "助学金""贫困生""家庭经济困难补助" |
 
 ### §2 评优类（6 个）
 
 | 子 skill | 中文名 | 触发关键词 |
 |----------|--------|------------|
-| `subskills/outstanding_student/` | 优秀学生/三好学生 | "三好学生""优秀学生""优秀学生标兵" |
-| `subskills/outstanding_graduate/` | 优秀毕业生 | "优秀毕业生""省优毕业生" |
-| `subskills/outstanding_cadre/` | 优秀学生干部 | "优秀班干部""优秀学生干部" |
-| `subskills/civilized_student/` | 文明大学生/优秀团员 | "文明大学生""优秀团员" |
-| `subskills/class_collective/` | 优秀班集体 | "优秀班集体""先进班级" |
-| `subskills/outstanding_thesis/` | 优秀毕业设计/论文申报书 | "优秀毕设""毕设评优" |
+| `subskills/outstanding-student/` | 优秀学生/三好学生 | "三好学生""优秀学生""优秀学生标兵" |
+| `subskills/outstanding-graduate/` | 优秀毕业生 | "优秀毕业生""省优毕业生" |
+| `subskills/outstanding-cadre/` | 优秀学生干部 | "优秀班干部""优秀学生干部" |
+| `subskills/civilized-student/` | 文明大学生/优秀团员 | "文明大学生""优秀团员" |
+| `subskills/class-collective/` | 优秀班集体 | "优秀班集体""先进班级" |
+| `subskills/outstanding-thesis/` | 优秀毕业设计/论文申报书 | "优秀毕设""毕设评优" |
 
 ### §3 政治类（3 个）
 
 | 子 skill | 中文名 | 触发关键词 |
 |----------|--------|------------|
-| `subskills/youth_league_application/` | 入团申请书 | "入团""申请入团" |
-| `subskills/summary_report/` | 阶段汇报/思想汇报 | "阶段汇报""思想汇报""季度思想汇报" |
-| `subskills/youth_league_conversion/` | 转正申请书 | "转正申请书""预备党员转正""转正申请" |
+| `subskills/youth-league-application/` | 入团申请书 | "入团""申请入团" |
+| `subskills/summary-report/` | 阶段汇报/思想汇报 | "阶段汇报""思想汇报""季度思想汇报" |
+| `subskills/youth-league-conversion/` | 转正申请书 | "转正申请书""预备党员转正""转正申请" |
 
-### §4 科研类（5 个，7941 行）
+### §4 科研类（6 个）
 
 | 子 skill | 中文名 | 触发关键词 |
 |----------|--------|------------|
-| `subskills/innovation_research/` | 大创·创新训练 | "大创""创新训练" |
-| `subskills/entrepreneurship_training/` | 大创·创业训练 | "创业训练""商业计划书模拟" |
-| `subskills/entrepreneurship_practice/` | 大创·创业实践 | "创业实践""实际注册公司" |
-| `subskills/university_research/` | 校级科研立项 | "校级科研""SRTP" |
-| `subskills/college_research/` | 院级科研立项 | "院级科研""院级立项" |
+| `subskills/national-project-eval/` | 国家级项目立项逻辑评测 | "国家级项目立项逻辑评测""国家级项目评测" |
+| `subskills/innovation-research/` | 大创·创新训练 | "大创""创新训练" |
+| `subskills/entrepreneurship-training/` | 大创·创业训练 | "创业训练""商业计划书模拟" |
+| `subskills/entrepreneurship-practice/` | 大创·创业实践 | "创业实践""实际注册公司" |
+| `subskills/university-research/` | 校级科研立项 | "校级科研""SRTP" |
+| `subskills/college-research/` | 院级科研立项 | "院级科研""院级立项" |
 
 ### §5 竞赛类（3 个，4209 行）
 
 | 子 skill | 中文名 | 触发关键词 |
 |----------|--------|------------|
-| `subskills/challenge_cup/` | 挑战杯 | "挑战杯""课外学术" |
-| `subskills/internet_plus/` | 互联网+ | "互联网+""创新创业大赛" |
-| `subskills/internet_plus_red_tour/` | 互联网+红旅赛道 | "红旅""红色之旅""红色筑梦" |
+| `subskills/challenge-cup/` | 挑战杯 | "挑战杯""课外学术" |
+| `subskills/internet-plus/` | 互联网+ | "互联网+""创新创业大赛" |
+| `subskills/internet-plus-red-tour/` | 互联网+红旅赛道 | "红旅""红色之旅""红色筑梦" |
 
 ### §6 三下乡/实践类（5 个，7870 行）
 
 | 子 skill | 中文名 | 触发关键词 |
 |----------|--------|------------|
-| `subskills/social_survey/` | 三下乡社会调查 | "三下乡""社会调查""暑期实践" |
-| `subskills/volunteer_teaching/` | 支教 | "支教""教育帮扶" |
-| `subskills/policy_lecture/` | 政策宣讲 | "政策宣讲""理论宣讲" |
-| `subskills/tech_service/` | 科技服务 | "科技服务""科技下乡" |
-| `subskills/western_plan/` | 西部计划 | "西部计划""西部志愿" |
+| `subskills/social-survey/` | 三下乡社会调查 | "三下乡""社会调查""暑期实践" |
+| `subskills/volunteer-teaching/` | 支教 | "支教""教育帮扶" |
+| `subskills/policy-lecture/` | 政策宣讲 | "政策宣讲""理论宣讲" |
+| `subskills/tech-service/` | 科技服务 | "科技服务""科技下乡" |
+| `subskills/western-plan/` | 西部计划 | "西部计划""西部志愿" |
 
 ### §7 征兵/入伍类（1 个，1336 行）
 
 | 子 skill | 中文名 | 触发关键词 |
 |----------|--------|------------|
-| `subskills/military_enlistment/` | 应征入伍申请书 | "应征入伍""大学生入伍""参军""征兵" |
+| `subskills/military-enlistment/` | 应征入伍申请书 | "应征入伍""大学生入伍""参军""征兵" |
 
 ### §8 公派留学/交流类（2 个，2759 行）
 
 | 子 skill | 中文名 | 触发关键词 |
 |----------|--------|------------|
-| `subskills/csc_scholarship/` | CSC 国家公派留学申请书 | "CSC""公派留学""国家公派""联合培养" |
-| `subskills/exchange_program/` | 交流项目申请书 | "交流项目""交换生""校际交流" |
+| `subskills/csc-scholarship/` | CSC 国家公派留学申请书 | "CSC""公派留学""国家公派""联合培养" |
+| `subskills/exchange-program/` | 交流项目申请书 | "交流项目""交换生""校际交流" |
 
 ### §9 其他类（3 个，4148 行）
 
 | 子 skill | 中文名 | 触发关键词 |
 |----------|--------|------------|
-| `subskills/graduate_recommendation/` | 保研推免 | "保研""推免" |
-| `subskills/selected_graduate/` | 选调生申请 | "选调生""基层选调" |
-| `subskills/major_transfer/` | 转专业申请 | "转专业""专业转换" |
+| `subskills/graduate-recommendation/` | 保研推免 | "保研""推免" |
+| `subskills/selected-graduate/` | 选调生申请 | "选调生""基层选调" |
+| `subskills/major-transfer/` | 转专业申请 | "转专业""专业转换" |
 
-**9 大类合计：7 + 6 + 3 + 5 + 3 + 5 + 1 + 2 + 3 = 35 个子 skill ✅**
+**9 大类合计：6 + 6 + 3 + 6 + 3 + 5 + 1 + 2 + 3 = 35 个子 skill ✅**
 
 ---
 
@@ -139,59 +144,60 @@ result = d.dispatch("帮我做个立项逻辑评测")
 ```
 用户要"申报 / 申请"什么？
 │
-├─ Q1：要钱、要立项？
+├─ Q1：科研立项或立项逻辑评测？
 │   ├─ Q2：大创训练计划？
-│   │   ├─ 偏学术研究 → innovation_research
-│   │   ├─ 偏商业计划（不实际运营） → entrepreneurship_training
-│   │   └─ 实际注册公司运营 → entrepreneurship_practice
+│   │   ├─ 偏学术研究 → innovation-research
+│   │   ├─ 偏商业计划（不实际运营） → entrepreneurship-training
+│   │   └─ 实际注册公司运营 → entrepreneurship-practice
 │   ├─ Q3：校级/院级科研课题？
-│   │   ├─ 校级 → university_research
-│   │   └─ 院级 → college_research
-│   └─ Q4：创业大赛？
-│       ├─ 学术科技作品 → challenge_cup
-│       ├─ 创业计划书（主赛道） → internet_plus
-│       └─ 创业计划书（红旅赛道） → internet_plus_red_tour
+│   │   ├─ 校级 → university-research
+│   │   └─ 院级 → college-research
+│   └─ 国家级项目立项逻辑评测 → national-project-eval
+│
+├─ Q4：学科竞赛？
+│   ├─ 学术科技作品 → challenge-cup
+│   ├─ 创业计划书（主赛道） → internet-plus
+│   └─ 创业计划书（红旅赛道） → internet-plus-red-tour
 │
 ├─ Q5：要荣誉？
 │   ├─ Q6：奖学金？
-│   │   ├─ 国家级 8000 元 → national_project_eval
-│   │   ├─ 国家级 5000 元，家庭经济困难 → motivation_scholarship
-│   │   ├─ 校级（一二三等） → university_scholarship
-│   │   ├─ 企业/社会捐赠 → enterprise_scholarship
-│   │   ├─ 单项（科研/社工/文体） → single_scholarship
-│   │   └─ 助学金（贫困补助，无成绩要求） → grant_application
+│   │   ├─ 国家奖学金 10000 元 → national-scholarship
+│   │   ├─ 国家励志奖学金 6000 元，家庭经济困难 → motivation-scholarship
+│   │   ├─ 校级（一二三等） → university-scholarship
+│   │   ├─ 企业/社会捐赠 → enterprise-scholarship
+│   │   ├─ 单项（科研/社工/文体） → single-scholarship
+│   │   └─ 助学金（贫困补助，无成绩要求） → grant-application
 │   ├─ Q7：在校生学年评优？
-│   │   ├─ 三好学生/优秀学生 → outstanding_student
-│   │   ├─ 优秀学生干部 → outstanding_cadre
-│   │   ├─ 文明大学生/优秀团员 → civilized_student
-│   │   └─ 优秀班集体 → class_collective
+│   │   ├─ 三好学生/优秀学生 → outstanding-student
+│   │   ├─ 优秀学生干部 → outstanding-cadre
+│   │   ├─ 文明大学生/优秀团员 → civilized-student
+│   │   └─ 优秀班集体 → class-collective
 │   ├─ Q8：毕业生评优？
-│   │   ├─ 优秀毕业生 → outstanding_graduate
-│   │   └─ 优秀毕业设计/论文 → outstanding_thesis
+│   │   ├─ 优秀毕业生 → outstanding-graduate
+│   │   └─ 优秀毕业设计/论文 → outstanding-thesis
 │
 ├─ Q9：政治身份？
-│   ├─ 第一次递交申请 → youth_league_application
-│   ├─ 预备党员预备期满转正 → youth_league_application
-│   ├─ 已是积极分子，季度汇报 → summary_report
-│   └─ 申请入团 → youth_league_application
+│   ├─ 申请入团 → youth-league-application
+│   ├─ 转正申请 → youth-league-conversion
+│   └─ 阶段汇报/思想汇报 → summary-report
 │
 ├─ Q10：三下乡/社会实践？
-│   ├─ 社会调查类 → social_survey
-│   ├─ 教育帮扶 → volunteer_teaching
-│   ├─ 政策/理论宣讲 → policy_lecture
-│   ├─ 科技服务 → tech_service
-│   └─ 西部计划（1-3 年） → western_plan
+│   ├─ 社会调查类 → social-survey
+│   ├─ 教育帮扶 → volunteer-teaching
+│   ├─ 政策/理论宣讲 → policy-lecture
+│   ├─ 科技服务 → tech-service
+│   └─ 西部计划（1-3 年） → western-plan
 │
-├─ Q11：征兵入伍？ → military_enlistment
+├─ Q11：征兵入伍？ → military-enlistment
 │
 ├─ Q12：公派留学/交流？
-│   ├─ CSC 国家公派（攻读博士/联合培养/硕士/访问学者） → csc_scholarship
-│   └─ 校际/院际交流项目 → exchange_program
+│   ├─ CSC 国家公派（攻读博士/联合培养/硕士/访问学者） → csc-scholarship
+│   └─ 校际/院际交流项目 → exchange-program
 │
 └─ Q13：其他？
-    ├─ 保研推免 → graduate_recommendation
-    ├─ 选调生申请 → selected_graduate
-    └─ 转专业 → major_transfer
+    ├─ 保研推免 → graduate-recommendation
+    ├─ 选调生申请 → selected-graduate
+    └─ 转专业 → major-transfer
 ```
 
 ---
