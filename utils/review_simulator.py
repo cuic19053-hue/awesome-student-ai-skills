@@ -114,10 +114,10 @@ class ReviewSimulator:
 
     GRADE_THRESHOLDS = {"A": 90, "B": 80, "C": 70, "D": 0}
     GRADE_LABELS = {
-        "A": "优（强烈推荐通过）",
-        "B": "良（建议通过）",
-        "C": "中（待定/有保留通过）",
-        "D": "差（不建议通过）",
+        "A": "优",
+        "B": "良",
+        "C": "中",
+        "D": "差",
     }
 
     def __init__(
@@ -295,7 +295,8 @@ class ReviewSimulator:
                 if result.total_score >= threshold:
                     result.grade = grade
                     break
-            result.passed = result.grade in ("A", "B")
+            pass_threshold = self.skill_config.get("threshold_pass", self.GRADE_THRESHOLDS["B"])
+            result.passed = result.total_score >= pass_threshold
 
         # 7. 评语
         result.overall_comment = self._generate_overall_comment(result)
@@ -656,7 +657,8 @@ class ReviewSimulator:
         parts.append(
             f"申请人 {result.applicant_name} 申报 {result.skill_label}，"
             f"模拟评审总分 {result.total_score}/{result.max_score}，"
-            f"等级 {result.grade}（{self.GRADE_LABELS.get(result.grade, '')}）。"
+            f"等级 {result.grade}（{self.GRADE_LABELS.get(result.grade, '')}），通过线 "
+            f"{self.skill_config.get('threshold_pass', self.GRADE_THRESHOLDS['B'])}。"
         )
         if result.veto_triggered:
             parts.append(
