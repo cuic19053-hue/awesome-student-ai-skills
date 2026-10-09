@@ -205,7 +205,7 @@ A：项目拆解了上百篇国家级金奖 / 一等奖真实申报书（大创�
 awesome-student-ai-skills/
 ├── subskills/               # 35 个赛道 skill（核心资产）
 │   ├── innovation-research/SKILL.md    # 大创 · 创新训练（116 KB）
-│   ├── national_project_eval/SKILL.md   # 国家奖学金
+│   ├── national-scholarship/SKILL.md   # 国家奖学金
 │   └── ...（共 35 个，详见上方表格）
 ├── references/              # 共享知识库
 │   ├── writing_guide.md     # 撰写规范
