@@ -45,7 +45,7 @@
 
 发现问题但不会写代码？直接提 Issue：
 
-1. 点击 [Issues](https://github.com/cuic19053-hue/-skills-/issues)
+1. 点击 [Issues](https://github.com/cuic19053-hue/awesome-student-ai-skills/issues)
 2. 点击 **New Issue**
 3. 选择模板（Bug 报告 / 内容建议 / 新赛道请求）
 4. 填写信息并提交
@@ -55,7 +55,7 @@
 1. **Fork** 本仓库
 2. **Clone** 到本地：
    ```bash
-   git clone https://github.com/<你的用户名>/-skills-.git
+   git clone https://github.com/<你的用户名>/awesome-student-ai-skills.git
    ```
 3. **新建分支**：
    ```bash
@@ -132,7 +132,7 @@ python build.py --data data.json --out output.docx
 
 ## 联系方式
 
-- 提 Issue：[Issues](https://github.com/cuic19053-hue/-skills-/issues)
+- 提 Issue：[Issues](https://github.com/cuic19053-hue/awesome-student-ai-skills/issues)
 - 邮件：通过 GitHub 个人主页联系
 
 ---
