@@ -1,0 +1,14 @@
+# Never publish local project records, uploaded documents, or generated files.
+.agent-data/
+outputs/
+
+# Development-only files.
+.agents/
+skills-lock.json
+.venv/
+.pytest_cache/
+tests/
+__pycache__/
+**/__pycache__/
+mcp_server.py
+server/mcp_server.py

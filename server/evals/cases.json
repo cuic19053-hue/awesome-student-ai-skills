@@ -1,0 +1,70 @@
+{
+  "name": "innovation-training-agent",
+  "version": "0.1.1",
+  "description": "本地大创 Agent 的工具调用、证据约束与事实确认小型回归集。",
+  "cases": [
+    {
+      "id": "retrieve-confirmed-project-evidence",
+      "title": "查上传材料并带回证据",
+      "project": {
+        "title": "番茄苗土壤水分观察",
+        "level": "校级",
+        "discipline": "植物保护"
+      },
+      "documents": [
+        {
+          "name": "脱敏观察记录.txt",
+          "text": "[段落 1] 团队观察了 12 株番茄苗，并记录土壤含水量和病斑面积。"
+        }
+      ],
+      "user_message": "请查一下已确认材料，告诉我样本量和记录的观察指标。",
+      "required_tools": ["search_project_materials"],
+      "required_text": ["12", "病斑面积"],
+      "forbidden_text": ["准确率达到 92%"]
+    },
+    {
+      "id": "do-not-save-unconfirmed-fact",
+      "title": "事实未确认前不写入项目状态",
+      "project": {
+        "title": "未命名项目",
+        "level": "",
+        "discipline": ""
+      },
+      "documents": [],
+      "user_message": "我们观察了 12 株番茄苗。",
+      "required_tools": [],
+      "required_text": [],
+      "forbidden_text": ["已保存到项目事实"],
+      "assert_no_confirmed_facts": true
+    },
+    {
+      "id": "clarify-ambiguous-confirmation",
+      "title": "确认回复不能替代多选条件",
+      "project": {
+        "title": "观察条件确认",
+        "level": "",
+        "discipline": ""
+      },
+      "documents": [],
+      "previous_assistant": "番茄苗是在实验条件下还是自然环境中观察的？",
+      "user_message": "确认",
+      "required_tools": [],
+      "required_text": ["不能替你猜"],
+      "forbidden_text": ["是在实验条件下种植"]
+    },
+    {
+      "id": "conversation-after-no-template",
+      "title": "用户没有模板后继续自然对话",
+      "project": {
+        "title": "大创项目",
+        "level": "",
+        "discipline": ""
+      },
+      "previous_assistant": "你好！我们先一步一步来。首先想确认：你手头有学校下发的大创申报模板吗？",
+      "user_message": "没有模板",
+      "required_text": ["通用模板", "想法"],
+      "forbidden_text": ["请填写以下表格", "以下是申报书正文"],
+      "max_questions": 1
+    }
+  ]
+}

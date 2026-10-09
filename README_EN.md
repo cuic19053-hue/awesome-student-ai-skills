@@ -9,12 +9,15 @@
 
 [简体中文](./README.md) | [English](./README_EN.md)
 
+> **Quick links:** [Agent Workbench setup](./server/README.md) · [35 Skills](./README.md#能写哪些申报书)
+
 ---
 
 ## 📖 Table of Contents
 
 - [What is this?](#what-is-this)
 - [How to Use](#how-to-use)
+- [Agent Workbench (Experimental)](#agent-workbench-experimental)
 - [Architecture & Design](#architecture--design)
 - [List of 35 Skills](#list-of-35-skills)
 - [Contributing](#contributing)
@@ -51,6 +54,14 @@ This project follows the **Agent Skills** specification. It is a combination of 
 
 ### Agent Execution Loop
 The AI will automatically handle intent parsing, dynamic routing, fact validation, and finally invoke the `build.py` script to render the `.docx` document in your local environment.
+
+---
+
+## 🧪 Agent Workbench (Experimental)
+
+The original 35-skill library and IDE workflow remain available. In addition, the repository now includes a browser-based **Agent Workbench**, expanded from the local Innovation Training Agent prototype. It offers natural-language skill routing, material review, section-by-section drafting, and Word draft export.
+
+See [`server/README.md`](./server/README.md) for local setup, model configuration, storage, and known limitations. The workbench is still experimental: skill-specific forms and each `build.py` formatter are being integrated incrementally. Generated documents are drafts and must be checked against current school requirements.
 
 ---
 
