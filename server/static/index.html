@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f172a">
+  <title>Stardust Agent · 大学生申报材料 Agent 工作台</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%236366f1'/%3E%3Cstop offset='50%25' stop-color='%238b5cf6'/%3E%3Cstop offset='100%25' stop-color='%2306b6d4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='48' height='48' rx='14' fill='url(%23g)'/%3E%3Cpath d='M24 7 L27.5 18.5 L39 22 L27.5 25.5 L24 37 L20.5 25.5 L9 22 L20.5 18.5 Z' fill='white'/%3E%3Ccircle cx='35' cy='11' r='2' fill='%23ffffff' opacity='0.85'/%3E%3Ccircle cx='12' cy='34' r='1.5' fill='%23ffffff' opacity='0.75'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <section id="authGate" class="auth-gate hidden" aria-labelledby="authTitle">
+    <div class="auth-card">
+      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">✦</span><span>Stardust Agent</span></div>
+      <div class="eyebrow"><span class="sparkle">✦</span> PRIVATE PROJECT WORKSPACE</div>
+      <h1 id="authTitle">登录你的项目空间</h1>
+      <p>登录后才能访问你的项目与材料；不同账号的数据彼此隔离。</p>
+      <form id="authForm">
+        <label class="field"><span>邮箱</span><input id="authEmail" type="email" autocomplete="email" required placeholder="name@example.com"></label>
+        <label class="field"><span>密码</span><input id="authPassword" type="password" autocomplete="current-password" minlength="8" required placeholder="至少 8 位"></label>
+        <button id="authSubmitBtn" type="submit" class="button button-primary button-large">登录</button>
+      </form>
+      <button type="button" id="authModeToggle" class="auth-mode-toggle">还没有账号？创建账号</button>
+      <div id="authFeedback" class="auth-feedback" role="status"></div>
+      <small class="auth-disclaimer">云端项目数据保存在 Supabase；模型 API Key 仅留在当前标签页会话中。</small>
+    </div>
+  </section>
+
+  <div class="app-shell" id="appShell">
+    <!-- Left Navigation Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">✦</div>
+        <div class="brand-text">
+      <div class="brand-name">Stardust Agent <span class="brand-badge">35 Skills</span></div>
+      <div class="brand-sub">大学生申报材料 Agent 工作台</div>
+        </div>
+      </div>
+
+      <button id="newProjectBtn" class="button button-primary new-project">
+        <span class="plus">✦</span> 开始新建材料
+      </button>
+
+      <div class="sidebar-search">
+        <input id="projectSearchInput" type="text" placeholder="🔍 搜索项目课题…" autocomplete="off">
+      </div>
+
+      <div class="side-label">
+        <span>项目档案库</span>
+        <span id="projectCountBadge" class="side-count">0</span>
+      </div>
+      <div id="projectList" class="project-list"></div>
+
+      <div class="sidebar-footer">
+        <div class="local-badge"><span class="pulse"></span> 本地优先 · 私有项目</div>
+        <p>默认本机保存项目资料；使用远程模型或主动搜索时，相关内容或关键词会发送至对应服务。</p>
+      </div>
+    </aside>
+
+    <!-- Sidebar Resize Handle -->
+    <div id="navResizeHandle" class="resize-handle nav-resize-handle" title="拖动调整侧边栏宽度"></div>
+
+    <!-- Main Content Workspace -->
+    <main class="main" id="mainContainer">
+      <!-- Top Navigation Bar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <div class="breadcrumb">
+            <button type="button" id="homeBreadcrumbBtn" class="breadcrumb-home" title="返回欢迎主页">Agent 工作台</button>
+            <span class="crumb-divider">/</span>
+            <strong id="crumbProject">欢迎</strong>
+            <span id="crumbSkillBadge" class="crumb-skill-badge hidden"></span>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <div id="modelStatus" class="model-status">
+            <span class="status-dot"></span> 正在连接本地推理模型
+          </div>
+          <button type="button" id="modelSettingsBtn" class="model-settings-button">
+            <span class="gear-icon">⚙</span> 模型配置
+          </button>
+          <button type="button" id="quickExportTopBtn" class="button button-small button-primary topbar-export-btn hidden" title="快速导出 Word 草稿">
+            <span>📥 导出草稿</span>
+          </button>
+          <button type="button" id="signOutBtn" class="model-settings-button hidden">退出</button>
+          <button type="button" id="toggleChatBtn" class="toggle-chat-btn" title="展开/收起右侧智能体对话栏">
+            <span>💬 对话助理</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- 1. Welcome / Hero Section -->
+      <section id="welcome" class="welcome">
+        <div class="welcome-copy">
+          <div class="eyebrow"><span class="sparkle">✦</span> STUDENT APPLICATION WORKSPACE</div>
+            <h1>从一个想法开始<br><span>完成你的申报材料</span></h1>
+          <p class="welcome-desc">
+            自动识别申报赛道，按对应 Skill 收集信息、撰写和检查；支持材料核对、逐章编辑，并导出 Word 草稿。
+          </p>
+
+          <!-- 欢迎页直接输入需求卡片 -->
+          <div class="welcome-hero-card" id="welcomeHeroCard">
+            <div class="hero-card-header">
+              <span class="hero-chip">AI 意图识别</span>
+              <span>输入你的申报诉求，自动锁定专家规范</span>
+            </div>
+            <div class="hero-input-box">
+              <textarea id="heroProjectRequest" rows="2" placeholder="例如：我想申请国家励志奖学金；或者：写一份面向智慧农业的大创创新训练申报书…"></textarea>
+              <button type="button" id="heroStartBtn" class="button button-primary hero-submit-btn">
+                <span>立即开启</span>
+                <span class="arrow">→</span>
+              </button>
+            </div>
+            <div id="heroRouteCandidates" class="route-candidates hidden" aria-live="polite"></div>
+            <div class="hero-quick-tags">
+              <span class="tags-title">热门赛道推荐：</span>
+              <button type="button" class="quick-tag-btn" data-query="我要申请国家励志奖学金">🎖️ 国家励志奖学金</button>
+              <button type="button" class="quick-tag-btn" data-query="大学生创新创业训练计划创新训练项目">🔬 大创·创新训练</button>
+              <button type="button" class="quick-tag-btn" data-query="第十九届挑战杯课外学术科技作品申报书">🏆 挑战杯课外科技</button>
+              <button type="button" class="quick-tag-btn" data-query="互联网+大学生创新创业大赛商业计划书">🚀 互联网+商业计划</button>
+              <button type="button" class="quick-tag-btn" data-query="大学生暑期三下乡社会调查立项报告">🌾 三下乡社会调查</button>
+              <button type="button" class="quick-tag-btn" data-query="大学本科生保研推免个人陈述与申请">🎓 保研推免申请</button>
+              <button type="button" class="quick-tag-btn" data-query="本科生校内转专业申请书">📋 转专业申请</button>
+            </div>
+          </div>
+
+          <div class="welcome-actions">
+            <button class="button button-primary button-large" id="welcomeCreateBtn">开始准备材料 <span>→</span></button>
+            <button class="button button-secondary button-large" id="welcomeSetupBtn">选择赛道并填写资料</button>
+          </div>
+          <div class="welcome-points">
+            <div class="point-card">
+              <span class="point-icon">01</span>
+              <div>
+                <strong>自然语言自动路由</strong>
+                <p>直接说出要申请或撰写的材料，系统自动匹配赛道；有歧义时再请你确认。</p>
+              </div>
+            </div>
+            <div class="point-card">
+              <span class="point-icon">02</span>
+              <div>
+                <strong>事实依据可核对</strong>
+                <p>上传材料经你确认后再作为依据；没有证据的信息标为“待补充”，不擅自编造。</p>
+              </div>
+            </div>
+            <div class="point-card">
+              <span class="point-icon">03</span>
+              <div>
+                <strong>逐章编辑与 Word 导出</strong>
+                <p>按赛道规范生成和修改草稿，支持学校模板参考、基础检查与 Word 下载。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="welcome-visual">
+          <div class="visual-glow"></div>
+          <div class="paper-card">
+            <div class="paper-top">
+              <span class="paper-dot"></span><span class="paper-dot"></span><span class="paper-dot"></span>
+              <span class="paper-title">35 个赛道 · Agent 工作台</span>
+            </div>
+            <div class="paper-heading">从需求识别到材料草稿</div>
+            <div class="mini-flow">
+              <div class="mini-node">需求路由</div><i></i><div class="mini-node blue">资料核对</div><i></i><div class="mini-node green">逐章导出</div>
+            </div>
+            <div class="paper-lines">
+              <span></span><span></span><span class="short"></span>
+            </div>
+            <div class="paper-tag">✓ 格式与高校模板对齐 · 可编辑 Word</div>
+          </div>
+          <div class="floating-note">
+            <span class="note-check">✓</span><span>赛道规范与事实来源可核对</span>
+          </div>
+          <div class="floating-photo">
+            <div class="photo-mark">✦</div><span>上传学校模板与证明材料</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. Create Project Panel -->
+      <section id="createPanel" class="create-panel hidden">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow"><span class="sparkle">✦</span> QUICK SETUP</div>
+            <h2>开始准备申报材料</h2>
+            <p>描述你的需求，系统会自动匹配 Skill；也可以手动选择赛道。</p>
+          </div>
+          <button id="closeCreateBtn" class="icon-button" aria-label="关闭">×</button>
+        </div>
+        <form id="createForm" class="create-form">
+          <label class="field">
+            <span>你想准备什么材料？</span>
+            <textarea id="projectRequest" rows="3" placeholder="例如：我想申请国家励志奖学金；或者：帮我准备一份三下乡社会调查立项书"></textarea>
+          </label>
+          <label class="field">
+            <span>申报赛道 <em>自动识别，也可手动选择</em></span>
+            <select id="projectSkill">
+              <option value="">自动识别（根据上方描述匹配）</option>
+            </select>
+          </label>
+          <div id="routeCandidates" class="route-candidates hidden" aria-live="polite"></div>
+          <label class="field">
+            <span>项目 / 申请材料名称 <em>可暂定</em></span>
+            <input id="projectTitle" placeholder="可留空，之后再由 AI 协助拟定">
+          </label>
+          <div class="form-row">
+            <label class="field">
+              <span>申报级别</span>
+              <select id="projectLevel">
+                <option value="">暂未确定（由对话探讨）</option>
+                <option>校级</option>
+                <option>省级</option>
+                <option>国家级</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>所属学科 / 专业</span>
+              <input id="projectDiscipline" placeholder="例如：计算机科学与技术、植物保护、临床医学、自动化">
+            </label>
+          </div>
+          <label class="field">
+            <span>所属高校 <em>可选</em></span>
+            <input id="projectSchool" placeholder="用于查找学校或单位的官方申报要求">
+          </label>
+          <div class="template-choice">
+            <div>
+              <strong>是否已有学校 / 单位模板？</strong>
+              <small>有的话可以上传，生成内容时会参考模板栏目。</small>
+            </div>
+            <div class="choice-buttons">
+              <label><input type="radio" name="hasTemplate" value="yes"><span>已有学校模板</span></label>
+              <label><input type="radio" name="hasTemplate" value="no" checked><span>没有模板（使用通用标准）</span></label>
+            </div>
+          </div>
+          <div class="template-explain" id="templateExplain">
+            没有模板时先使用所选赛道的通用结构；提交前请按当年通知核对要求。
+          </div>
+          <button class="button button-primary button-large" type="submit">开始准备 <span>→</span></button>
+        </form>
+      </section>
+
+      <!-- 3. Main Workspace -->
+      <section id="workspace" class="workspace hidden">
+        <div class="project-heading">
+          <div class="project-title-wrap">
+            <div class="eyebrow"><span class="sparkle">✦</span> <span id="projectSkillName">申报材料工作区</span></div>
+            <div class="project-title-row">
+              <h1 id="projectHeading" title="点击可修改课题名称">我的大创项目</h1>
+              <button type="button" id="renameProjectBtn" class="rename-title-btn" title="修改项目名称">✏️</button>
+            </div>
+            <div class="project-meta">
+              <span id="projectMetaLevel" class="meta-badge">级别暂未确定</span>
+              <span class="meta-sep"></span>
+              <span id="projectMetaDiscipline">学科待补充</span>
+              <span class="meta-sep"></span>
+              <span id="projectMetaSchool">高校待补充</span>
+            </div>
+          </div>
+          <div class="project-heading-actions">
+            <button type="button" id="headingExportBtn" class="button button-small button-secondary">📥 导出 Word</button>
+            <button id="deleteProjectBtn" class="button button-quiet danger-text" title="删除该项目档案">删除档案</button>
+          </div>
+        </div>
+
+        <div id="templateStatus" class="template-status hidden"></div>
+
+        <!-- Workspace Stage Navigation Tabs -->
+        <nav class="workspace-tabs" id="workspaceTabs">
+          <button type="button" class="workspace-tab-btn active" data-target="all">🌟 全景工作台</button>
+          <button type="button" class="workspace-tab-btn" data-target="panel-materials">📁 材料知识库</button>
+          <button type="button" class="workspace-tab-btn" data-target="sources-panel">🔍 学术文献与通知</button>
+          <button type="button" class="workspace-tab-btn" data-target="facts-panel">⚖️ 事实矩阵</button>
+          <button type="button" class="workspace-tab-btn" data-target="outline-panel">📑 申报大纲</button>
+          <button type="button" class="workspace-tab-btn" data-target="draft-panel">✍️ 逐章精修</button>
+          <button type="button" class="workspace-tab-btn" data-target="diagrams-panel">📊 技术路线图</button>
+          <button type="button" class="workspace-tab-btn" data-target="finish-panel">🛡️ 质检与导出</button>
+        </nav>
+
+        <div class="workspace-grid" id="workspaceGrid">
+          <div class="workspace-main" id="workspaceMain">
+            <!-- 1. 项目材料与知识库 -->
+            <section class="panel panel-materials" id="panel-materials">
+              <div class="panel-heading">
+                <div class="panel-icon icon-lilac">📂</div>
+                <div>
+                  <h2>项目参考材料与知识库</h2>
+                  <p>上传你的实验记录、已有阶段报告或学校模板；经你确认识别文字后才作为 RAG 检索依据。</p>
+                </div>
+              </div>
+              <div class="upload-tabs" role="tablist">
+                <button class="upload-tab active" data-kind="source">项目资料</button>
+                <button class="upload-tab" data-kind="template">学校模板</button>
+                <button class="upload-tab" data-kind="photo">实验照片</button>
+              </div>
+              <div class="upload-zone" id="dropZone">
+                <input type="file" id="fileInput" multiple hidden accept=".docx,.pdf,.txt,.md,.png,.jpg,.jpeg,.webp">
+                <div class="upload-icon">⇪</div>
+                <div class="upload-title" id="uploadTitle">拖拽文件至此处，或点击浏览选择</div>
+                <div class="upload-hint" id="uploadHint">Word、PDF、扫描件或照片 · 单个文件最大 20 MB</div>
+                <button type="button" class="button button-secondary" id="chooseFileBtn">选择本机文件</button>
+              </div>
+              <div id="documentsList" class="documents-list"></div>
+              <div class="privacy-note">
+                <span>✦</span> 本机沙箱保障：上传材料提取后需经你核验确认，才会进入本项目向量库与提示词上下文。
+              </div>
+            </section>
+
+            <!-- 2. 可核验学术来源与官方通知 -->
+            <section class="panel sources-panel" id="sources-panel">
+              <div class="panel-heading">
+                <div class="panel-icon icon-blue">⌕</div>
+                <div>
+                  <h2>学术文献检索与官方立项依据</h2>
+                  <p>通过 Crossref 检索真实前沿文献；通过白名单检索 edu.cn / gov.cn 官方立项文件。</p>
+                </div>
+              </div>
+              <div class="source-search-row">
+                <input id="paperQuery" placeholder="输入学术检索词，例如：多模态语义分割、农业病害识别、边缘计算">
+                <button id="paperSearchBtn" class="button button-secondary button-small">检索学术论文</button>
+              </div>
+              <div class="source-search-row">
+                <input id="officialQuery" placeholder="输入学校、赛道或当年申报通知关键词">
+                <button id="officialSearchBtn" class="button button-secondary button-small">查官方指南</button>
+              </div>
+              <div class="source-search-row">
+                <input id="officialUrl" placeholder="如搜索受限，可直接粘贴学校官网通知 HTTPS 链接">
+                <button id="officialUrlBtn" class="button button-secondary button-small">直接抓取原文</button>
+              </div>
+              <div id="sourceResults" class="source-results"></div>
+              <div id="confirmedSources" class="confirmed-sources"></div>
+            </section>
+
+            <!-- 3. 项目事实矩阵 -->
+            <section class="panel facts-panel" id="facts-panel">
+              <div class="panel-heading">
+                <div class="panel-icon icon-mint">⚖</div>
+                <div>
+                  <h2>材料事实与信息</h2>
+                  <p>明确核准的信息可用于后续草稿；赛道专属信息可添加自定义字段。</p>
+                </div>
+                <div class="panel-actions">
+                  <button id="proposeFactsBtn" class="button button-small button-secondary">从对话提取候选事实</button>
+                  <button id="editFactsBtn" class="button button-small button-quiet">编辑全部字段</button>
+                </div>
+              </div>
+              <div id="factsSummary" class="facts-summary"></div>
+              <div id="factCandidates" class="fact-candidates"></div>
+              <div id="factsEditor" class="facts-editor hidden">
+                <div class="facts-grid">
+                  <label class="field"><span>项目名称</span><input data-fact="project_name" placeholder="可暂定，后续还能修改"></label>
+                </div>
+                <div class="facts-grid">
+                  <label class="field"><span>申报级别</span><select data-project="level"><option value="">暂未确定</option><option>校级</option><option>省级</option><option>国家级</option></select></label>
+                  <label class="field"><span>专业 / 学科</span><input data-project="discipline"></label>
+                  <label class="field"><span>学校</span><input data-project="school"></label>
+                </div>
+                <div class="facts-grid">
+                  <label class="field"><span>要解决的问题</span><textarea data-fact="problem" rows="2"></textarea></label>
+                  <label class="field"><span>服务对象 / 场景</span><textarea data-fact="target_user" rows="2"></textarea></label>
+                  <label class="field"><span>拟采用的方法</span><textarea data-fact="method" rows="2"></textarea></label>
+                  <label class="field"><span>现有基础 / 资源</span><textarea data-fact="foundation" rows="2"></textarea></label>
+                  <label class="field"><span>目标 / 预期产出</span><textarea data-fact="expected_output" rows="2"></textarea></label>
+                  <label class="field"><span>时间、设备等限制</span><textarea data-fact="constraints" rows="2"></textarea></label>
+                  <label class="field"><span>项目周期</span><input data-fact="duration" placeholder="例如：2026.10—2027.09"></label>
+                  <label class="field"><span>经费预算</span><input data-fact="budget" placeholder="金额和估算依据；不确定可写待补充"></label>
+                  <label class="field"><span>负责人</span><input data-fact="leader_name"></label>
+                  <label class="field"><span>指导教师</span><input data-fact="advisor_name"></label>
+                  <label class="field"><span>团队与分工</span><textarea data-fact="team" rows="2"></textarea></label>
+                </div>
+                <div id="dynamicFactsGrid" class="facts-grid"></div>
+                <button id="addFactBtn" type="button" class="button button-secondary button-small">添加赛道专属信息</button>
+                <button id="saveFactsBtn" class="button button-primary button-small">保存已确认信息</button>
+              </div>
+            </section>
+
+            <!-- 4. 申报书章节蓝图 -->
+            <section class="panel outline-panel" id="outline-panel">
+              <div class="panel-heading">
+                <div class="panel-icon icon-peach">📑</div>
+                <div>
+                  <h2>材料结构</h2>
+                  <p>Stardust Agent 按所选赛道拟定目录；你可以调整并确认后再逐章写作。</p>
+                </div>
+                <button id="generateOutlineBtn" class="button button-secondary button-small">拟一份目录</button>
+              </div>
+              <div id="outlineList" class="outline-list empty-note">还没有目录。点击“拟一份目录”开始；暂未连接模型时会给可编辑通用目录。</div>
+              <div id="outlineActions" class="outline-actions hidden">
+                <button id="saveOutlineBtn" class="button button-primary button-small">确认并保存目录</button>
+                <span id="outlineWarning" class="inline-hint"></span>
+              </div>
+            </section>
+
+            <!-- 5. 逐章撰写 -->
+            <section class="panel draft-panel" id="draft-panel">
+              <div class="panel-heading">
+                <div class="panel-icon icon-blue">✍</div>
+                <div>
+                  <h2>逐章精修与正文生成</h2>
+                  <p>每个章节均可独立生成与修改；严格遵循已确认材料，缺失依据时如实标注“待补充”。</p>
+                </div>
+              </div>
+              <div id="draftSections" class="draft-sections">
+                <div class="empty-note">确认目录后，这里会出现章节编辑器。</div>
+              </div>
+            </section>
+
+            <!-- 6. 路线图与进度图表 -->
+            <section class="panel diagrams-panel" id="diagrams-panel">
+              <div class="panel-heading">
+                <div class="panel-icon icon-yellow">📊</div>
+                <div>
+                  <h2>技术路线与流程图</h2>
+                  <p>Agent 梳理关键实施节点与路线；确认节点后生成高保真可视化图表并自动嵌入 Word。</p>
+                </div>
+              </div>
+              <div class="diagram-controls">
+                <select id="diagramType">
+                  <option>技术路线图</option>
+                  <option>项目进度图</option>
+                  <option>研究流程图</option>
+                </select>
+                <button id="proposeDiagramBtn" class="button button-secondary button-small">请 Agent 提建议</button>
+              </div>
+              <div id="diagramEditor" class="diagram-editor hidden">
+                <label class="field"><span>图表标题</span><input id="diagramTitle"></label>
+                <label class="field"><span>步骤（每行一项，可改）</span><textarea id="diagramNodes" rows="5"></textarea></label>
+                <div class="diagram-actions"><button id="saveDiagramBtn" class="button button-primary button-small">确认并生成图</button></div>
+              </div>
+              <div id="diagramGallery" class="diagram-gallery"></div>
+            </section>
+
+            <!-- 7. 导出前检查与导出 -->
+            <section class="panel finish-panel" id="finish-panel">
+              <div class="panel-heading">
+                <div class="panel-icon icon-mint">🛡</div>
+                <div>
+                  <h2>合规质检与 Word 交付</h2>
+                  <p>执行完整性自检；可选体验模拟专家评审；一键导出标准 `.docx` 格式申报书。</p>
+                </div>
+                <button id="validateBtn" class="button button-secondary button-small">执行完整性检查</button>
+              </div>
+              <div id="validationResult" class="validation-result hidden"></div>
+              <div class="optional-review-row">
+                <div>
+                  <strong>可选环节：国家级大创立项模拟评审</strong>
+                  <small>基于国赛评审指标模拟打分与修改建议；仅供参考，点击后方开始。</small>
+                </div>
+                <button id="reviewBtn" class="button button-secondary button-small">开启模拟评审</button>
+              </div>
+              <div id="reviewResult" class="review-result hidden"></div>
+              <div class="export-row">
+                <div>
+                  <strong>导出完整申报书</strong>
+                  <small id="exportHint">缺失内容保留“待补充”，无实验图保留标准化占位线框。</small>
+                </div>
+                <button id="exportBtn" class="button button-primary button-large">生成并下载 Word 申报书 <span>↓</span></button>
+              </div>
+              <div id="exportResult" class="export-result"></div>
+            </section>
+          </div>
+
+          <!-- Workspace Splitter Handle between Panels and Copilot -->
+          <div id="workspaceResizeHandle" class="resize-handle workspace-resize-handle" title="拖动调整对话栏宽度"></div>
+
+          <!-- 右侧对话助理栏 -->
+          <aside class="assistant-column" id="assistantColumn">
+            <section class="panel chat-panel" id="chatPanel">
+              <div class="chat-header" id="chatHeader">
+                <div class="agent-avatar">✦</div>
+                <div class="chat-header-info">
+                  <strong>Stardust Agent</strong>
+                  <small><span class="status-dot"></span> 申报材料协作 · 赛道专家</small>
+                </div>
+                <button id="clearChatBtn" class="icon-button" title="查看对话记录存储说明">···</button>
+              </div>
+              <div id="chatMessages" class="chat-messages">
+                <div class="message assistant">
+                  <div class="message-avatar">✦</div>
+                  <div class="message-bubble">
+                    你好！我是 <strong>Stardust Agent</strong> 申报材料助手。<br><br>
+                    说说你想申请或撰写什么材料，我会先识别赛道，再按对应要求协助你准备。
+                  </div>
+                </div>
+              </div>
+              <div id="templateQuickActions" class="template-quick-actions hidden">
+                <span>模板确认：</span>
+                <button data-template-answer="有模板">有学校模板</button>
+                <button data-template-answer="没有模板">没有模板（按通用标准）</button>
+              </div>
+              <div class="chat-tools" id="chatTools">
+                <button data-prompt="请根据我已确认的项目材料，找出与当前项目相关的依据，并标明文件和页码。">⌕ 查项目材料</button>
+                <button data-prompt="请搜索与当前项目方向相关的真实论文，给出标题、作者、年份、DOI/链接和摘要；不要编造。">⌕ 查相关论文</button>
+                <button data-prompt="请查找当前学校或官方机构发布的大创申报通知，给出年份、来源链接；没有结果就明确说查不到。">⌕ 查官方通知</button>
+                <button data-prompt="请根据当前研究构思，帮我提炼项目的核心科学挑战与技术难点。">💡 提炼技术难点</button>
+                <button data-prompt="请帮我拟订一个为期一年的实施进度安排与甘特图里程碑节点。">⏰ 规划一年进度</button>
+              </div>
+              <form id="chatForm" class="chat-compose">
+                <textarea id="chatInput" rows="2" placeholder="描述你的研究想法，或回答 Agent 的启发式提问…" maxlength="12000"></textarea>
+                <input type="file" id="chatFileInput" multiple hidden>
+                <div class="compose-footer">
+                  <div class="compose-attachments">
+                    <button type="button" id="chatAttachBtn" class="attach-button">＋ 添加材料</button>
+                    <select id="chatUploadKind" aria-label="选择材料类型">
+                      <option value="source">项目信息</option>
+                      <option value="template">学校模板</option>
+                      <option value="photo">实验 / 调研照片</option>
+                    </select>
+                  </div>
+                  <span class="compose-help">Enter 发送 · Shift+Enter 换行</span>
+                  <button type="submit" class="send-button" id="sendBtn" aria-label="发送">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+                  </button>
+                </div>
+              </form>
+            </section>
+            <div class="assistant-safety">
+              <span class="safety-icon">✦</span>
+              <span>严谨学术事实对齐：所有申报草稿均受用户核验材料约束，学术论证绝不编造无依据结论。</span>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- 模型设置弹窗 -->
+  <dialog id="modelSettingsDialog" class="model-settings-dialog">
+    <div class="model-settings-head">
+      <div>
+        <div class="eyebrow"><span class="sparkle">✦</span> LLM RUNTIME ENGINE</div>
+        <h2>模型与推理配置</h2>
+      </div>
+      <button type="button" id="closeModelSettingsBtn" class="icon-button" aria-label="关闭">×</button>
+    </div>
+    <p class="model-settings-intro">
+      支持本地零成本纯离线推理（Ollama），或使用具备强大推理能力的云端模型（OpenAI Chat Completions 兼容协议，支持 DeepSeek / Qwen / GPT / Claude 代理等）。
+    </p>
+    <div class="model-provider-options">
+      <label class="model-provider-option">
+        <input type="radio" name="llmProvider" value="ollama" id="providerOllama">
+        <span>
+          <strong>本地离线引擎 (Ollama)</strong>
+          <small>本地主机直接推理，数据完全不出网；需安装并运行 Ollama 桌面应用。</small>
+        </span>
+      </label>
+      <label class="model-provider-option">
+        <input type="radio" name="llmProvider" value="openai_compatible" id="providerCustom">
+        <span>
+          <strong>自定义 API (BYOK)</strong>
+          <small>兼容 DeepSeek / OpenAI / Qwen / Claude 代理等任何标准接口，自带 API Key。</small>
+        </span>
+      </label>
+    </div>
+    <div id="localModelFields" class="model-config-fields">
+      <label class="field">
+        <span>Ollama 模型名称 (Tag)</span>
+        <input id="localModelName" value="qwen2.5:7b" placeholder="例如 qwen2.5:7b, qwen2.5:14b, deepseek-r1:8b">
+      </label>
+      <small>本地推理模式零外部网络调用开销，无需 API Key。</small>
+    </div>
+    <div id="customModelFields" class="model-config-fields hidden">
+      <label class="field">
+        <span>API Base URL (HTTPS)</span>
+        <input id="customModelBase" type="url" placeholder="https://api.deepseek.com/v1" autocomplete="url">
+      </label>
+      <label class="field">
+        <span>模型名称 (Model Identifier)</span>
+        <input id="customModelName" placeholder="例如 deepseek-chat, gpt-4o-mini, qwen-plus" autocomplete="off">
+      </label>
+      <label class="field">
+        <span>API Key 访问密钥</span>
+        <input id="customModelKey" type="password" placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="new-password">
+      </label>
+      <small>密钥安全机制：仅临时保存在当前浏览器的 sessionStorage 会话中，不存入任何后端持久化数据库。要求模型支持 Function Calling（工具调用）。</small>
+    </div>
+    <div id="modelConfigFeedback" class="model-config-feedback" role="status"></div>
+    <div class="model-settings-actions">
+      <button type="button" id="testModelConfigBtn" class="button button-secondary">测试连通性</button>
+      <span class="model-settings-spacer"></span>
+      <button type="button" id="saveModelConfigBtn" class="button button-primary">保存并启用</button>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast hidden" role="status"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

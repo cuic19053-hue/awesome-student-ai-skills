@@ -52,3 +52,18 @@ CLAUDE.md
 .pytest_cache/
 .coverage
 htmlcov/
+
+# ===== 本机申报 Agent 数据（含用户上传材料，不可提交）=====
+.agent-data/
+
+# ===== 本地工具/生成物与部署元数据 =====
+.agents/
+skills-lock.json
+outputs/
+.vercel/
+.supabase/
+.supabase
+supabase/.temp/
+.vercel
+.env*
+!.env.example
