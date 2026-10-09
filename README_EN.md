@@ -2,6 +2,7 @@
 
 [![Awesome](https://awesome.re/badge.svg)](https://awesome.re)
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-Compatible-6e3bf0)](https://agentskills.io/specification)
+[![Online Demo](https://img.shields.io/badge/Online_Demo-agent.stardust.website-brightgreen)](https://agent.stardust.website)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
 
@@ -9,7 +10,9 @@
 
 [简体中文](./README.md) | [English](./README_EN.md)
 
-> **Quick links:** [Agent Workbench setup](./server/README.md) · [35 Skills](./README.md#能写哪些申报书)
+> 🌐 **Try it online:** [agent.stardust.website](https://agent.stardust.website) (Zero setup, instant browser access)
+>
+> 🚀 **Quick links:** 🌐 [agent.stardust.website](https://agent.stardust.website) · [Quick Start](#-how-to-use) · [Local Deployment](./server/README.md) · [35 Skills](./README.md#能写哪些申报书) · [Architecture](./ARCHITECTURE.md)
 
 ---
 
@@ -44,9 +47,30 @@ By feeding these 35 `SKILL.md` files into any Agent-compatible AI tool, the AI a
 
 ## 🚀 How to Use
 
-This project follows the **Agent Skills** specification. It is a combination of an **Expert Prompt Library + Automated Python Formatting Scripts**. You don't need to write any code, you just need an AI tool that supports local Agent capabilities.
+We provide **three ways** to use this project depending on your needs:
 
-### Core Workflow
+| Mode | Best For | Key Features | Quick Access |
+| :--- | :--- | :--- | :--- |
+| 🌐 **Online Workbench** *(Recommended)* | End Users / Quick Drafting | Zero installation, browser-based, visual chapter editing & export | 👉 **[agent.stardust.website](https://agent.stardust.website)** |
+| 💻 **Local Agent IDE** | Developers / Power Users | Integrated with Claude Code / Cursor / Codex, privacy-first offline | See [Local Workflow](#mode-2-local-agent-ide-workflow) |
+| 🛠️ **Self-Hosted Instance** | Privacy / Offline LLMs | Run local full-stack WebUI with Ollama backend | See [`server/README.md`](./server/README.md) |
+
+---
+
+### Mode 1: Online Agent Workbench (Zero-Setup, Recommended)
+
+> 🌐 **Online entry:** [agent.stardust.website](https://agent.stardust.website)  
+> 📖 **Deployment & configuration guide:** [`server/README.md`](./server/README.md)
+
+No local Python environment required. Directly interact in your browser to experience full Agent capabilities:
+- **Dynamic Intent Routing**: Natural-language routing across 35 competition & proposal tracks.
+- **Fact-Grounding & Anti-Hallucination**: Material verification & OCR, automatically marking unverifiable claims as "to be supplemented".
+- **Collaborative Chapter Drafting**: Section-by-section iterative polishing and customization.
+- **One-Click Word Export**: Generates compliant `.docx` drafts directly.
+
+---
+
+### Mode 2: Local Agent IDE Workflow
 1. **Prepare Environment**: Download an AI Agent IDE that supports local Python execution (e.g., **WorkBuddy, Codex, Claude Code, Trae Work**).
 2. **Clone the Project**: Clone this project locally and run `pip install -r utils/requirements.txt` in your terminal (to install underlying dependencies like `python-docx`).
 3. **Load the Skill**: In your AI tool, feed the root `SKILL.md` (or a specific subskill like `subskills/innovation-research/SKILL.md`) into the AI as the **System Prompt**.
@@ -59,9 +83,10 @@ The AI will automatically handle intent parsing, dynamic routing, fact validatio
 
 ## 🧪 Agent Workbench (Experimental)
 
-The original 35-skill library and IDE workflow remain available. In addition, the repository now includes a browser-based **Agent Workbench**, expanded from the local Innovation Training Agent prototype. It offers natural-language skill routing, material review, section-by-section drafting, and Word draft export.
+> 🌐 **Try it online:** [agent.stardust.website](https://agent.stardust.website)  
+> 📖 **Self-Hosting & Development:** [`server/README.md`](./server/README.md)
 
-🌐 **Try it online:** [Agent Workbench](https://agent.stardust.website)
+The original 35-skill library and IDE workflow remain available. In addition, the repository now includes a browser-based **Agent Workbench**, expanded from the local Innovation Training Agent prototype. It offers natural-language skill routing, material review, section-by-section drafting, and Word draft export.
 
 See [`server/README.md`](./server/README.md) for local setup, model configuration, storage, and known limitations. The workbench is still experimental: skill-specific forms and each `build.py` formatter are being integrated incrementally. Generated documents are drafts and must be checked against current school requirements.
 
