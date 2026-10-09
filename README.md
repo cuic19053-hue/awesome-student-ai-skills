@@ -59,7 +59,7 @@
 
 除了原有的 `SKILL.md` + Agent IDE 使用方式，仓库新增了一个浏览器可用的 **Agent 工作台**。它基于现有大创 Agent 初版扩展，提供自然语言赛道路由、材料核对、逐章编辑和 Word 草稿导出；原来的 35 个 Skill 与 IDE 使用方法继续保留。
 
-🌐 **在线入口：**[agent.stardust.website](https://agent.stardust.website)（Vercel 部署已完成；阿里云 DNS 的 `agent` CNAME 记录尚待配置，完成后即可直接访问。）
+🌐 **在线体验：**[Agent 工作台](https://agent.stardust.website)
 
 本地启动、模型设置及数据存储说明见 [`server/README.md`](./server/README.md)。本地 Ollama 模式需要在运行该工作台的电脑上安装并启动 Ollama；使用云端模型时需要配置兼容 API。当前 Web 版仍在逐赛道完善，导出草稿需按学校要求人工核对。
 
@@ -78,7 +78,7 @@
 
 在保留原有 **35 个 Agent Skills** 的基础上，仓库增加了本地优先的 **Agent 工作台**。工作台支持自然语言自动路由、赛道手动选择、材料上传与确认、OCR、项目内检索、逐章编辑、图表、基础检查和 Word 草稿导出。项目资料默认保存在本机 `.agent-data/`；未确认材料不进入检索，没有事实依据时应标“待补充”，不自动编造。
 
-在线入口：[agent.stardust.website](https://agent.stardust.website)（DNS 配置完成后开放访问）。
+在线体验：[Agent 工作台](https://agent.stardust.website)。
 
 目前不同赛道共用工作流和通用导出流程，各 `build.py` 的专属排版与校验仍在逐步接入；导出的是草稿，提交前请核对学校通知、事实及格式。模型 API Key 仅在当前浏览器标签页会话中保存。工作台的启动方法、数据库配置、MCP 工具及已知限制见 [`server/README.md`](./server/README.md)。实验版尚不适合未经身份验证和数据隔离审查后直接作为多人公网服务。
 
