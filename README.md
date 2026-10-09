@@ -2,6 +2,7 @@
 
 [![Awesome](https://awesome.re/badge.svg)](https://awesome.re)
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-Compatible-6e3bf0)](https://agentskills.io/specification)
+[![Online Demo](https://img.shields.io/badge/Online_Demo-agent.stardust.website-brightgreen)](https://agent.stardust.website)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue)](#)
 [![Subskills](https://img.shields.io/badge/Subskills-35-blue)](#能写哪些申报书)
 [![License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
@@ -14,7 +15,9 @@
 
 [简体中文](./README.md) | [English](./README_EN.md)
 
-> **快速入口：**[Agent 工作台启动与配置](./server/README.md) · [查看 35 个赛道](#能写哪些申报书)
+> 🌐 **在线体验：** [agent.stardust.website](https://agent.stardust.website) （免安装，浏览器开箱即用）
+>
+> 🚀 **快速通道：** 🌐 [agent.stardust.website](https://agent.stardust.website) · [快速上手](#-如何使用-how-to-use) · [本地部署](./server/README.md) · [35 赛道清单](#能写哪些申报书) · [常见问题](#-常见问题-faq)
 
 ---
 
@@ -53,17 +56,30 @@
 
 ## 🚀 如何使用 (How to Use)
 
-本项目遵循 **Agent Skills** 规范，本质是“**专家提示词库 + 自动化 Python 格式刷包**”的结合体。你不需要编写任何代码，只需要一个支持 Agent 能力的 AI 工具即可使用。
+本项目提供 **三种使用方式**，可根据实际需求选择：
 
-### 新增：Agent 工作台模式（适合普通用户）
+| 模式 | 适用场景 | 核心特点 | 快速入口 |
+| :--- | :--- | :--- | :--- |
+| 🌐 **在线工作台** *(推荐)* | 普通学生 / 快速申报 | 零环境配置、开箱即用、支持材料确认与逐章生成 | 👉 **[agent.stardust.website](https://agent.stardust.website)** |
+| 💻 **本地 Agent 模式** | IDE 用户 / 离线撰写 | 配合 Cursor / Claude Code / Codex，本地直接调用 Skill | 参见下方 [本地使用流程](#模式二本地-agent-ide-使用流程) |
+| 🛠️ **私有化本地部署** | 开发者 / 局域网自建 | 本地部署 WebUI 与 Ollama 本地模型，数据完全不出内网 | 参见 [`server/README.md`](./server/README.md) |
 
-除了原有的 `SKILL.md` + Agent IDE 使用方式，仓库新增了一个浏览器可用的 **Agent 工作台**。它基于现有大创 Agent 初版扩展，提供自然语言赛道路由、材料核对、逐章编辑和 Word 草稿导出；原来的 35 个 Skill 与 IDE 使用方法继续保留。
+---
 
-🌐 **在线体验：**[Agent 工作台](https://agent.stardust.website)
+### 模式一：在线 Agent 工作台（零门槛，免安装）
 
-本地启动、模型设置及数据存储说明见 [`server/README.md`](./server/README.md)。本地 Ollama 模式需要在运行该工作台的电脑上安装并启动 Ollama；使用云端模型时需要配置兼容 API。当前 Web 版仍在逐赛道完善，导出草稿需按学校要求人工核对。
+> 🌐 **在线入口：** [agent.stardust.website](https://agent.stardust.website)  
+> 📖 **本地部署与配置说明：** [`server/README.md`](./server/README.md)
 
-### 核心使用流程
+无需配置任何 Python 环境，直接在浏览器中体验完整的工作台功能：
+- **智能意图路由**：自然语言输入即可自动匹配 35 个赛道；
+- **事实依据防幻觉**：材料核验与 OCR 识别，无依据处自动标记“待补充”；
+- **逐章协同编辑**：支持针对各章节单独润色与修改；
+- **一键导出 Word**：直接生成符合排版规范的 `.docx` 草稿。
+
+---
+
+### 模式二：本地 Agent IDE 使用流程
 1. **准备环境**：下载支持本地执行 Python 的 AI Agent IDE（例如：**WorkBuddy、Codex、Claude Code、Trae Work** 等）。
 2. **克隆项目**：将本项目 clone 到本地，并使用终端执行 `pip install -r utils/requirements.txt`（以安装 `python-docx` 等底层依赖）。
 3. **加载 Skill**：在你的 AI 工具中，将根目录的 `SKILL.md`（或具体某个赛道的 `subskills/innovation-research/SKILL.md`）作为**系统提示词 (System Prompt)** 喂给 AI。
@@ -76,9 +92,10 @@
 
 ## 🧪 Agent 工作台（实验版）
 
-在保留原有 **35 个 Agent Skills** 的基础上，仓库增加了本地优先的 **Agent 工作台**。工作台支持自然语言自动路由、赛道手动选择、材料上传与确认、OCR、项目内检索、逐章编辑、图表、基础检查和 Word 草稿导出。项目资料默认保存在本机 `.agent-data/`；未确认材料不进入检索，没有事实依据时应标“待补充”，不自动编造。
+> 🌐 **在线体验：** [agent.stardust.website](https://agent.stardust.website)  
+> 📖 **部署与开发文档：** [`server/README.md`](./server/README.md)
 
-在线体验：[Agent 工作台](https://agent.stardust.website)。
+在保留原有 **35 个 Agent Skills** 的基础上，仓库增加了本地优先的 **Agent 工作台**。工作台支持自然语言自动路由、赛道手动选择、材料上传与确认、OCR、项目内检索、逐章编辑、图表、基础检查和 Word 草稿导出。项目资料默认保存在本机 `.agent-data/`；未确认材料不进入检索，没有事实依据时应标“待补充”，不自动编造。
 
 目前不同赛道共用工作流和通用导出流程，各 `build.py` 的专属排版与校验仍在逐步接入；导出的是草稿，提交前请核对学校通知、事实及格式。模型 API Key 仅在当前浏览器标签页会话中保存。工作台的启动方法、数据库配置、MCP 工具及已知限制见 [`server/README.md`](./server/README.md)。实验版尚不适合未经身份验证和数据隔离审查后直接作为多人公网服务。
 
