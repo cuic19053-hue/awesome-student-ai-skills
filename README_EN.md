@@ -61,7 +61,7 @@ The AI will automatically handle intent parsing, dynamic routing, fact validatio
 
 The original 35-skill library and IDE workflow remain available. In addition, the repository now includes a browser-based **Agent Workbench**, expanded from the local Innovation Training Agent prototype. It offers natural-language skill routing, material review, section-by-section drafting, and Word draft export.
 
-🌐 **Online entry:** [agent.stardust.website](https://agent.stardust.website) (Vercel deployment is ready; the `agent` CNAME record in Alibaba Cloud DNS is still pending, so the domain is not reachable yet.)
+🌐 **Try it online:** [Agent Workbench](https://agent.stardust.website)
 
 See [`server/README.md`](./server/README.md) for local setup, model configuration, storage, and known limitations. The workbench is still experimental: skill-specific forms and each `build.py` formatter are being integrated incrementally. Generated documents are drafts and must be checked against current school requirements.
 
