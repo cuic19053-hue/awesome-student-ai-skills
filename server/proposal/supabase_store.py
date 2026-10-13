@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .storage import new_id
+from .storage import CreditRateLimitError, InsufficientCreditsError, PendingUsageError, new_id
 
 
 request_identity: ContextVar[dict[str, str] | None] = ContextVar(
@@ -32,9 +32,16 @@ class SupabaseStore:
         project_url: str,
         publishable_key: str,
         data_dir: str | Path | None = None,
+        service_role_key: str | None = None,
     ):
         self.project_url = project_url.rstrip("/")
         self.publishable_key = publishable_key
+        self.service_role_key = (
+            service_role_key
+            if service_role_key is not None
+            else os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+        ).strip()
+        self.backend_secret = os.environ.get("WORKBENCH_BACKEND_SECRET", "").strip()
         configured = data_dir or os.environ.get("PROPOSAL_AGENT_TEMP_DIR", "/tmp/stardust-agent")
         self.data_dir = Path(configured).expanduser().resolve()
         self.files_dir = self.data_dir / "projects"
@@ -95,6 +102,80 @@ class SupabaseStore:
             raise RuntimeError(f"云端数据请求失败（HTTP {exc.code}）。") from exc
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             raise RuntimeError("无法连接 Supabase 云端数据库。") from exc
+
+    def _service_rpc(self, function: str, payload: dict[str, Any]) -> Any:
+        if self.service_role_key:
+            headers = {
+                "apikey": self.service_role_key,
+                "Authorization": f"Bearer {self.service_role_key}",
+                "Content-Type": "application/json",
+                "Content-Profile": "public",
+                "Accept-Profile": "public",
+            }
+        elif self.backend_secret and function in {
+            "workbench_lookup_paired_voucher", "workbench_begin_card_redemption",
+            "workbench_complete_paired_voucher", "workbench_set_card_redemption_status",
+            "workbench_reserve_usage", "workbench_settle_usage", "workbench_refund_usage",
+            "workbench_get_intent",
+        }:
+            headers = self._headers({
+                "Content-Type": "application/json",
+                "Content-Profile": "public",
+                "Accept-Profile": "public",
+            })
+            payload = {**payload, "p_server_secret": self.backend_secret}
+            function = function.replace("workbench_", "workbench_backend_", 1)
+        else:
+            raise RuntimeError("云端积分账本未配置服务端密钥。")
+        url = f"{self.project_url}/rest/v1/rpc/{urllib.parse.quote(function, safe='')}"
+        request = urllib.request.Request(
+            url,
+            data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+            headers=headers,
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=20) as response:
+                data = response.read()
+            return json.loads(data.decode("utf-8")) if data else None
+        except urllib.error.HTTPError as exc:
+            try:
+                error_data = json.loads(exc.read().decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                error_data = {}
+            if isinstance(error_data, dict) and error_data.get("code") == "54000":
+                raise CreditRateLimitError("卡密兑换过于频繁，请一小时后再试。") from exc
+            if isinstance(error_data, dict) and error_data.get("code") == "23514":
+                raise InsufficientCreditsError("积分不足。请兑换卡密或切换自带 API Key。") from exc
+            if isinstance(error_data, dict) and error_data.get("code") == "55000" and "reserve_usage" in function:
+                raise PendingUsageError("有一笔模型用量正在核对，请稍后重试。") from exc
+            if isinstance(error_data, dict) and error_data.get("code") == "42501":
+                raise PermissionError("登录身份或服务端授权无效。") from exc
+            raise RuntimeError(f"云端积分账本请求失败（HTTP {exc.code}）。") from exc
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            raise RuntimeError("无法连接 Supabase 积分账本。") from exc
+
+    @staticmethod
+    def _rpc_result(result: Any) -> dict[str, Any]:
+        if isinstance(result, list) and result:
+            result = result[0]
+        if not isinstance(result, dict):
+            raise RuntimeError("云端积分账本返回格式无法识别。")
+        return result
+
+    def grant_workbench_payment_credits(
+        self, user_id: str, event_id: str, amount_micro_cny: int
+    ) -> dict[str, Any]:
+        return self._rpc_result(
+            self._service_rpc(
+                "workbench_grant_payment_credits",
+                {
+                    "p_user_id": user_id,
+                    "p_event_id": event_id,
+                    "p_amount_micro_cny": int(amount_micro_cny),
+                },
+            )
+        )
 
     def _storage(
         self,
@@ -535,3 +616,226 @@ class SupabaseStore:
             {"task_type": key, **value} for key, value in by_task.items()
         ]
         return summary
+
+    def get_workbench_credit_balance(self, user_id: str | None = None) -> dict[str, Any]:
+        identity = self._identity()
+        owner_id = user_id or identity["user_id"]
+        if owner_id != identity["user_id"]:
+            raise PermissionError("不能查看其他用户的积分余额。")
+        rows = self._rest(
+            "workbench_credit_wallets",
+            params=[
+                ("select", "user_id,balance_micro_cny,total_credited_micro_cny,total_spent_micro_cny,updated_at"),
+                ("user_id", f"eq.{owner_id}"),
+                ("limit", "1"),
+            ],
+        )
+        if rows:
+            return rows[0]
+        return {
+            "user_id": owner_id,
+            "balance_micro_cny": 0,
+            "total_credited_micro_cny": 0,
+            "total_spent_micro_cny": 0,
+            "updated_at": None,
+        }
+
+    def get_workbench_credit_transactions(self, user_id: str, limit: int = 30) -> list[dict[str, Any]]:
+        identity = self._identity()
+        if str(user_id) != identity["user_id"]:
+            raise PermissionError("不能查看其他用户的积分流水。")
+        return self._rest(
+            "workbench_credit_transactions",
+            params=[
+                ("select", "id,delta_micro_cny,balance_after_micro_cny,kind,reference_id,model,request_id,created_at"),
+                ("user_id", f"eq.{user_id}"),
+                ("order", "created_at.desc"),
+                ("limit", str(max(1, min(100, int(limit))))),
+            ],
+        )
+
+    def redeem_workbench_voucher(self, user_id: str, code: str) -> dict[str, Any]:
+        identity = self._identity()
+        if str(user_id) != identity["user_id"]:
+            raise PermissionError("用户身份不匹配。")
+        request = urllib.request.Request(
+            f"{self.project_url}/rest/v1/rpc/workbench_redeem_voucher",
+            data=json.dumps({"p_code": code}, ensure_ascii=False).encode("utf-8"),
+            headers=self._headers(
+                {"Content-Type": "application/json", "Accept-Profile": "public"}
+            ),
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=20) as response:
+                return self._rpc_result(json.loads(response.read().decode("utf-8")))
+        except urllib.error.HTTPError as exc:
+            try:
+                body = json.loads(exc.read().decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                body = {}
+            code_name = body.get("code") if isinstance(body, dict) else None
+            if code_name in {"P0002", "22023", "23505", "55000"}:
+                raise ValueError("卡密无效、尚未启用或已被兑换。") from exc
+            if code_name == "42501" or exc.code in {401, 403}:
+                raise PermissionError("登录已失效，请重新登录。") from exc
+            raise RuntimeError(f"云端卡密兑换失败（HTTP {exc.code}）。") from exc
+        except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+            raise RuntimeError("暂时无法连接工作台卡密账本，请稍后查询余额。") from exc
+
+    def lookup_paired_voucher(self, code_hash: bytes) -> dict[str, Any]:
+        result = self._rpc_result(self._service_rpc(
+            "workbench_lookup_paired_voucher", {"p_code_hash": "\\x" + code_hash.hex()}
+        ))
+        result["provider_code_ciphertext"] = bytes.fromhex(result["provider_code_ciphertext"])
+        return result
+
+    def complete_paired_voucher(
+        self, intent_id: str, face_value_micro_cny: int, provider_user_id: int
+    ) -> dict[str, Any]:
+        return self._rpc_result(self._service_rpc(
+            "workbench_complete_paired_voucher",
+            {"p_intent_id": intent_id, "p_face_value_micro_cny": face_value_micro_cny,
+             "p_provider_user_id": provider_user_id},
+        ))
+
+    def begin_workbench_card_redemption(
+        self, user_id: str, code_hash: bytes, code_ciphertext: bytes
+    ) -> dict[str, Any]:
+        identity = self._identity()
+        if str(user_id) != identity["user_id"]:
+            raise PermissionError("用户身份不匹配。")
+        result = self._rpc_result(
+            self._service_rpc(
+                "workbench_begin_card_redemption",
+                {
+                    "p_user_id": user_id,
+                    "p_code_hash": "\\x" + code_hash.hex(),
+                    "p_code_ciphertext": "\\x" + code_ciphertext.hex(),
+                },
+            )
+        )
+        # The SQL RPC returns `intent_id`; keep the storage contract identical
+        # to SQLite, whose callers use the canonical `id` field.
+        if "id" not in result and result.get("intent_id"):
+            result["id"] = result["intent_id"]
+        return result
+
+    def get_workbench_redemption_intent(self, intent_id: str, user_id: str) -> dict[str, Any] | None:
+        if not self.service_role_key and self.backend_secret:
+            row = self._rpc_result(self._service_rpc(
+                "workbench_get_intent",
+                {"p_intent_id": intent_id, "p_user_id": user_id},
+            ))
+            if not row:
+                return None
+            encoded = row.get("code_ciphertext")
+            if isinstance(encoded, str):
+                row["code_ciphertext"] = bytes.fromhex(encoded.removeprefix("\\x"))
+            return row
+        if not self.service_role_key:
+            raise RuntimeError("云端积分账本未配置服务端密钥。")
+        url = (
+            f"{self.project_url}/rest/v1/workbench_card_redemptions"
+            f"?select=id,user_id,code_ciphertext,status,face_value_micro_cny,safe_message,created_at"
+            f"&id=eq.{urllib.parse.quote(intent_id)}&user_id=eq.{urllib.parse.quote(user_id)}&limit=1"
+        )
+        request = urllib.request.Request(
+            url,
+            headers={
+                "apikey": self.service_role_key,
+                "Authorization": f"Bearer {self.service_role_key}",
+                "Accept-Profile": "public",
+            },
+            method="GET",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=15) as response:
+                rows = json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            raise RuntimeError(f"兑换请求查询失败（HTTP {exc.code}）。") from exc
+        except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+            raise RuntimeError("无法查询云端兑换记录。") from exc
+        if not rows:
+            return None
+        row = rows[0]
+        encoded = row.get("code_ciphertext")
+        if isinstance(encoded, str) and encoded.startswith("\\x"):
+            row["code_ciphertext"] = bytes.fromhex(encoded[2:])
+        return row
+
+    def complete_workbench_card_redemption(
+        self, intent_id: str, face_value_micro_cny: int, provider_user_id: int | None = None
+    ) -> dict[str, Any]:
+        return self._rpc_result(
+            self._service_rpc(
+                "workbench_complete_card_redemption",
+                {
+                    "p_intent_id": intent_id,
+                    "p_face_value_micro_cny": int(face_value_micro_cny),
+                    "p_provider_user_id": provider_user_id,
+                },
+            )
+        )
+
+    def set_workbench_card_redemption_status(
+        self, intent_id: str, status: str, safe_message: str
+    ) -> None:
+        self._service_rpc(
+            "workbench_set_card_redemption_status",
+            {"p_intent_id": intent_id, "p_status": status, "p_safe_message": safe_message[:240]},
+        )
+
+    def reserve_workbench_usage(
+        self, user_id: str, request_id: str, model: str, reserve_micro_cny: int,
+        api_key_id: int | None = None,
+    ) -> dict[str, Any]:
+        identity = self._identity()
+        if str(user_id) != identity["user_id"]:
+            raise PermissionError("用户身份不匹配。")
+        return self._rpc_result(
+            self._service_rpc(
+                "workbench_reserve_usage",
+                {
+                    "p_user_id": user_id,
+                    "p_request_id": request_id,
+                    "p_model": model,
+                    "p_reserved_micro_cny": int(reserve_micro_cny),
+                    "p_api_key_id": api_key_id,
+                },
+            )
+        )
+
+    def settle_workbench_usage(
+        self, request_id: str, actual_micro_cny: int, provider_request_id: str = ""
+    ) -> dict[str, Any]:
+        return self._rpc_result(
+            self._service_rpc(
+                "workbench_settle_usage",
+                {
+                    "p_request_id": request_id,
+                    "p_actual_micro_cny": int(actual_micro_cny),
+                    "p_provider_request_id": provider_request_id or None,
+                },
+            )
+        )
+
+    def pending_workbench_usage(self, user_id: str, limit: int = 20) -> list[dict[str, Any]]:
+        identity = self._identity()
+        if str(user_id) != identity["user_id"]:
+            raise PermissionError("用户身份不匹配。")
+        return self._rest("workbench_usage_events", params=[
+            ("select", "request_id,model,api_key_id"),
+            ("user_id", f"eq.{user_id}"),
+            ("status", "eq.reserved"),
+            ("order", "created_at.asc"),
+            ("limit", str(max(1, min(limit, 20)))),
+        ])
+
+    def refund_workbench_usage(self, request_id: str, reason: str = "provider_error") -> dict[str, Any]:
+        return self._rpc_result(
+            self._service_rpc(
+                "workbench_refund_usage",
+                {"p_request_id": request_id, "p_reason": reason[:120]},
+            )
+        )

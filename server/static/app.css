@@ -2995,3 +2995,424 @@ button:disabled {
 .draft-section.generating textarea {
   background: #fafafe;
 }
+
+/* ==================== 积分徽章与充值收银台 ==================== */
+.credits-badge-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, rgba(142, 70, 240, 0.1), rgba(217, 70, 239, 0.15));
+  color: #7e22ce;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: var(--radius-full);
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.credits-badge-btn:hover {
+  background: linear-gradient(135deg, rgba(142, 70, 240, 0.2), rgba(217, 70, 239, 0.25));
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(168, 85, 247, 0.2);
+}
+.gem-icon {
+  font-size: 14px;
+  animation: pulse-gem 2s infinite ease-in-out;
+}
+@keyframes pulse-gem {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+/* 充值弹窗 */
+.recharge-dialog {
+  width: 90%;
+  max-width: 600px;
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+.recharge-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+}
+.recharge-balance-banner {
+  background: linear-gradient(135deg, #f5f3ff 0%, #fae8ff 100%);
+  border: 1px solid #e9d5ff;
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  margin: 16px 0 20px;
+}
+.balance-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.balance-label {
+  font-size: 13px;
+  color: #6b21a8;
+  font-weight: 500;
+}
+.balance-val {
+  font-size: 26px;
+  color: #581c87;
+}
+.balance-val strong {
+  font-weight: 800;
+}
+.balance-val small {
+  font-size: 13px;
+  font-weight: 500;
+  margin-left: 4px;
+}
+.balance-sub {
+  font-size: 11px;
+  color: #7e22ce;
+  margin-top: 4px;
+}
+
+.recharge-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-heading);
+  margin-bottom: 12px;
+}
+
+.recharge-plans-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+@media (max-width: 600px) {
+  .recharge-plans-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.plan-card {
+  position: relative;
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 16px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #ffffff;
+}
+.plan-card:hover {
+  border-color: #a855f7;
+  transform: translateY(-2px);
+}
+.plan-card.active {
+  border-color: #9333ea;
+  background: #faf5ff;
+  box-shadow: 0 4px 12px rgba(147, 51, 234, 0.15);
+}
+.plan-badge {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #9333ea;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.plan-name {
+  font-size: 13px;
+  font-weight: 700;
+  margin-top: 4px;
+  color: var(--text-heading);
+}
+.plan-price {
+  font-size: 20px;
+  font-weight: 800;
+  color: #9333ea;
+  margin: 6px 0;
+}
+.plan-price small {
+  font-size: 12px;
+  font-weight: 500;
+}
+.plan-credits {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.pay-method-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #f8fafc;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 20px;
+}
+.pay-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+.pay-radio {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.recharge-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.button-large {
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 700;
+  flex: 1;
+  margin-right: 12px;
+}
+
+.redeem-box {
+  border-top: 1px dashed var(--border-light);
+  padding-top: 16px;
+  margin-top: 16px;
+}
+.redeem-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.redeem-row {
+  display: flex;
+  gap: 8px;
+}
+.redeem-row input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+
+.recharge-footer-note {
+  font-size: 11px;
+  color: #94a3b8;
+  text-align: center;
+  margin-top: 16px;
+}
+
+.credit-history {
+  margin-top: 20px;
+}
+.credit-transactions {
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 0 12px;
+}
+.credit-transaction-row {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 12px;
+}
+.credit-transaction-row:last-child {
+  border-bottom: 0;
+}
+.credit-transaction-row time {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.credit-positive {
+  color: #15803d;
+}
+
+/* 平台融合模型包说明卡 */
+.preset-model-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-top: 6px;
+}
+.preset-model-card {
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  cursor: default;
+  background: #ffffff;
+}
+.preset-model-card.active {
+  border-color: #9333ea;
+  background: #fdf4ff;
+  box-shadow: 0 0 0 1px #9333ea;
+}
+.preset-model-card.unavailable {
+  border-color: var(--border-light);
+  background: #f8fafc;
+  box-shadow: none;
+}
+.preset-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.preset-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+.preset-card-cost {
+  font-size: 11px;
+  font-weight: 700;
+  background: #f3e8ff;
+  color: #7e22ce;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+.preset-card-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* ==================== 用量明细按钮与弹窗 ==================== */
+.usage-logs-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f1f5f9;
+  color: var(--text-body);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-full);
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.usage-logs-btn:hover {
+  background: #e2e8f0;
+  color: var(--text-heading);
+}
+.chart-icon {
+  font-size: 14px;
+}
+
+.usage-dialog {
+  width: 92%;
+  max-width: 860px;
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+.usage-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.usage-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 16px 0 20px;
+}
+.stat-card {
+  background: #f8fafc;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 14px 12px;
+  text-align: center;
+}
+.stat-num {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.2;
+}
+.stat-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.usage-sub-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-heading);
+  margin: 16px 0 8px;
+}
+
+.usage-model-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.usage-tag {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.usage-tag small {
+  color: #60a5fa;
+  margin-left: 4px;
+}
+
+.usage-table-wrapper {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  margin-top: 8px;
+}
+.usage-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: left;
+}
+.usage-table th {
+  background: #f8fafc;
+  padding: 10px 12px;
+  font-weight: 700;
+  color: var(--text-heading);
+  border-bottom: 1px solid var(--border-light);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.usage-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  color: var(--text-body);
+}
+.usage-table tr:hover td {
+  background: #f8fafc;
+}
+.text-center {
+  text-align: center;
+}

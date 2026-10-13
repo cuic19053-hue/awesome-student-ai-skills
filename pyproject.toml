@@ -9,6 +9,7 @@ dependencies = [
     "python-docx>=1.1",
     "pypdf>=4",
     "ddgs>=9.0,<10",
+    "cryptography>=44,<51",
 ]
 
 [tool.vercel]

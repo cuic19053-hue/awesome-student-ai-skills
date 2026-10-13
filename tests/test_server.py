@@ -174,6 +174,11 @@ def test_app_config_exposes_only_supabase_publishable_configuration(client, monk
         "cloud_mode": True,
         "supabase_url": "https://example.supabase.co",
         "supabase_publishable_key": "sb_publishable_public",
+        "payment_enabled": False,
+        "card_redemption_enabled": False,
+        "voucher_redemption_enabled": False,
+        "card_shop_url": "",
+        "preset_enabled": False,
     }
     assert "service_role" not in response.text
 

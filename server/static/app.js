@@ -2,15 +2,16 @@
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
   const llmConfigKey = "innovation-proposal-agent-llm-config";
+  const MICRO_CNY_PER_CREDIT = 100000; // ¥1 = 10 workbench credits
 
   const activeProjectKey = "stardust-agent-active-project-id";
 
   function readSavedLlmConfig() {
-    const fallback = { provider: "ollama", model: "qwen2.5:7b", base_url: "", api_key: "" };
+    const fallback = { provider: "preset", model: "workbench-bundle", base_url: "", api_key: "" };
     try {
       localStorage.removeItem(llmConfigKey);
       const saved = JSON.parse(sessionStorage.getItem(llmConfigKey) || "null");
-      if (saved && ["ollama", "openai_compatible"].includes(saved.provider)) return { ...fallback, ...saved };
+      if (saved && ["ollama", "openai_compatible", "preset"].includes(saved.provider)) return { ...fallback, ...saved };
     } catch {}
     return fallback;
   }
@@ -27,6 +28,10 @@
     llmConfig: readSavedLlmConfig(),
     chatCollapsed: false,
     cloudMode: false,
+    userCredits: 0,
+    cardRedemptionEnabled: false,
+    presetModels: [],
+    rechargePlans: [],
     authClient: null,
     authSession: null,
     authMode: "signin",
@@ -162,6 +167,17 @@
 
   function showModelStatus(localStatus) {
     const status = $("#modelStatus");
+    if (state.llmConfig.provider === "preset") {
+      status.textContent = "平台融合模型 · DeepSeek Flash + GPT Image";
+      status.classList.remove("offline");
+      status.classList.add("remote-warning");
+      const privacy = $(".privacy-note");
+      if (privacy) {
+        privacy.classList.add("remote-warning");
+        privacy.lastChild.textContent = "平台模型调用会将本次必要的材料内容发送至中转站；积分按实际用量结算。";
+      }
+      return;
+    }
     if (state.llmConfig.provider === "openai_compatible") {
       status.textContent = `自定义 API · ${state.llmConfig.model || "未设置模型"}`;
       status.classList.remove("offline");
@@ -202,7 +218,15 @@
   }
 
   function selectedLlmConfig() {
-    const provider = $('input[name="llmProvider"]:checked')?.value || "ollama";
+    const provider = $('input[name="llmProvider"]:checked')?.value || "preset";
+    if (provider === "preset") {
+      return {
+        provider,
+        model: "workbench-bundle",
+        base_url: "",
+        api_key: "",
+      };
+    }
     if (provider === "ollama") {
       return {
         provider,
@@ -221,6 +245,7 @@
 
   function syncModelSettingsForm() {
     const config = state.llmConfig;
+    if ($("#providerPreset")) $("#providerPreset").checked = config.provider === "preset";
     $("#providerOllama").checked = config.provider === "ollama";
     $("#providerCustom").checked = config.provider === "openai_compatible";
     $("#localModelName").value = config.provider === "ollama" ? config.model : "qwen2.5:7b";
@@ -233,8 +258,12 @@
   }
 
   function updateModelFields() {
-    const custom = $("#providerCustom").checked;
-    $("#localModelFields").classList.toggle("hidden", custom);
+    const provider = $('input[name="llmProvider"]:checked')?.value || "preset";
+    const isPreset = provider === "preset";
+    const isOllama = provider === "ollama";
+    const custom = provider === "openai_compatible";
+    if ($("#presetModelFields")) $("#presetModelFields").classList.toggle("hidden", !isPreset);
+    $("#localModelFields").classList.toggle("hidden", !isOllama);
     $("#customModelFields").classList.toggle("hidden", !custom);
   }
 
@@ -273,6 +302,11 @@
 
   function saveSelectedLlmConfig() {
     const config = selectedLlmConfig();
+    if (config.provider === "preset" && !state.presetModels.some((model) => model.id === "workbench-bundle" && model.available)) {
+      $("#modelConfigFeedback").textContent = "平台融合模型尚未接通，请先使用自带 Key 或本地模型。";
+      $("#modelConfigFeedback").className = "model-config-feedback error";
+      return;
+    }
     if (config.provider === "openai_compatible" && (!config.base_url || !config.model || !config.api_key)) {
       $("#modelConfigFeedback").textContent = "请填写 API 地址、模型名称和 API Key。";
       $("#modelConfigFeedback").className = "model-config-feedback error";
@@ -280,7 +314,194 @@
     }
     storeLlmConfig(config);
     $("#modelSettingsDialog").close();
-    toast(`已切换为${config.provider === "ollama" ? "本地模型" : "自定义 API"}：${config.model}`);
+    const provName = config.provider === "preset" ? "平台融合模型包" : config.provider === "ollama" ? "本地模型" : "自定义 API";
+    toast(`已切换为${provName}：${config.model}`);
+  }
+
+  async function loadUserBalance() {
+    try {
+      const data = await api("/api/user/balance");
+      state.userCredits = data.credits;
+      if ($("#userCreditsValue")) $("#userCreditsValue").textContent = data.credits;
+      if ($("#rechargeModalCredits")) $("#rechargeModalCredits").textContent = data.credits;
+      if ($("#presetDialogCredits")) $("#presetDialogCredits").textContent = data.credits;
+      renderCreditTransactions(data.transactions || []);
+    } catch (e) {
+      console.warn("加载用户积分失败", e);
+    }
+  }
+
+  function renderCreditTransactions(transactions) {
+    const container = $("#creditTransactions");
+    if (!container) return;
+    container.replaceChildren();
+    if (!transactions.length) {
+      const empty = document.createElement("p");
+      empty.className = "balance-sub";
+      empty.textContent = "暂无积分流水";
+      container.appendChild(empty);
+      return;
+    }
+    transactions.slice(0, 10).forEach((tx) => {
+      const row = document.createElement("div");
+      row.className = "credit-transaction-row";
+      const label = document.createElement("span");
+      label.textContent = tx.kind === "card_redeem" ? "卡密充值"
+        : tx.kind === "usage_reserve" ? `模型调用 · ${tx.model || "平台模型"}`
+          : tx.kind === "usage_refund" || tx.kind === "usage_settle" ? "用量结算"
+            : "积分变动";
+      const amount = document.createElement("strong");
+      const delta = Number(tx.delta_micro_cny || 0) / MICRO_CNY_PER_CREDIT;
+      amount.textContent = `${delta > 0 ? "+" : ""}${delta.toFixed(4)} 点`;
+      amount.classList.toggle("credit-positive", delta > 0);
+      const time = document.createElement("time");
+      time.textContent = (tx.created_at || "").replace("T", " ").slice(0, 16);
+      row.append(label, amount, time);
+      container.appendChild(row);
+    });
+  }
+
+  async function openUsageDialog() {
+    try {
+      const data = await api("/api/admin/usage-details");
+      const stats = data.stats || {};
+      const logs = data.logs || [];
+
+      if ($("#statCallCount")) $("#statCallCount").textContent = (stats.call_count || 0).toLocaleString();
+      if ($("#statGrandTokens")) $("#statGrandTokens").textContent = (stats.grand_total_tokens || 0).toLocaleString();
+      if ($("#statAvgLatency")) $("#statAvgLatency").textContent = `${Math.round(stats.avg_latency_ms || 0)} ms`;
+      if ($("#statEstimatedCost")) {
+        $("#statEstimatedCost").textContent = data.billing_status === "provider_cost_reconciled"
+          ? `¥${Number(data.actual_provider_cost || 0).toFixed(2)}`
+          : "待核对";
+      }
+
+      // 模型分布标签
+      const tagsContainer = $("#usageModelTags");
+      if (tagsContainer) {
+        tagsContainer.innerHTML = "";
+        const byModel = stats.by_model || [];
+        if (byModel.length === 0) {
+          tagsContainer.innerHTML = '<span class="text-muted" style="font-size:12px;">暂无模型调用数据</span>';
+        } else {
+          byModel.forEach((bm) => {
+            const tag = document.createElement("span");
+            tag.className = "usage-tag";
+            tag.innerHTML = `${bm.model || "未知"} · ${bm.count} 次 <small>(${bm.tokens.toLocaleString()} tokens)</small>`;
+            tagsContainer.appendChild(tag);
+          });
+        }
+      }
+
+      // 流水表格
+      const tbody = $("#usageTableBody");
+      if (tbody) {
+        tbody.innerHTML = "";
+        if (logs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">暂无调用明细</td></tr>';
+        } else {
+          logs.forEach((log) => {
+            const tr = document.createElement("tr");
+            const timeStr = (log.created_at || "").replace("T", " ").slice(5, 19);
+            tr.innerHTML = `
+              <td style="color:var(--text-muted);">${timeStr}</td>
+              <td><strong>${log.project_title || log.project_id || "全局"}</strong></td>
+              <td><span style="background:#f1f5f9;padding:2px 6px;border-radius:4px;">${log.task_type || "chat"}</span></td>
+              <td><span style="font-family:monospace;color:#7e22ce;">${log.model}</span></td>
+              <td>${(log.prompt_tokens || 0).toLocaleString()}</td>
+              <td>${(log.completion_tokens || 0).toLocaleString()}</td>
+              <td><strong>${(log.total_tokens || 0).toLocaleString()}</strong></td>
+              <td style="color:var(--text-muted);">${log.latency_ms || 0} ms</td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
+      }
+
+      $("#usageDialog")?.showModal();
+    } catch (e) {
+      toast(e.message || "加载用量明细失败", true);
+    }
+  }
+
+  async function loadPresetModelsAndPlans() {
+    try {
+      const data = await api("/api/models/preset");
+      state.presetModels = data.models || [];
+      renderPresetModelCards();
+    } catch (e) {
+      console.warn("加载模型及套餐失败", e);
+    }
+  }
+
+  function renderPresetModelCards() {
+    const container = $("#presetModelCards");
+    if (!container) return;
+    container.replaceChildren();
+    const bundle = state.presetModels.find((model) => model.id === "workbench-bundle");
+    const card = document.createElement("div");
+    card.className = `preset-model-card active${bundle?.available ? "" : " unavailable"}`;
+    const top = document.createElement("div");
+    top.className = "preset-card-top";
+    const title = document.createElement("span");
+    title.className = "preset-card-title";
+    title.textContent = "DeepSeek Flash 写作 + GPT Image 生图";
+    const cost = document.createElement("span");
+    cost.className = "preset-card-cost";
+    cost.textContent = bundle?.available ? "按实际用量计费" : "尚未开通";
+    top.append(title, cost);
+    const description = document.createElement("div");
+    description.className = "preset-card-desc";
+    description.textContent = bundle?.available
+      ? "Agent 会按任务自动路由两种能力，统一从当前账户积分扣费。"
+      : "服务账户、卡密核验与成本结算尚未全部接通；当前不会调用或扣费。";
+    card.append(top, description);
+    container.appendChild(card);
+  }
+
+  async function handleRedeemCode() {
+    const input = $("#redeemCodeInput");
+    const code = input ? input.value.trim() : "";
+    if (!code) {
+      toast("请输入有效的兑换卡密", true);
+      return;
+    }
+    const btn = $("#submitRedeemBtn");
+    btn.disabled = true;
+    try {
+      const res = await api("/api/pay/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      if (res.pending) {
+        toast(res.message || "兑换正在核对，请勿重复提交。", true);
+        return;
+      }
+      toast(res.message || "兑换成功！");
+      if (input) input.value = "";
+      await loadUserBalance();
+    } catch (e) {
+      toast(e.message || "兑换失败", true);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function makePilotFingerprint() {
+    const code = $("#redeemCodeInput").value.trim();
+    if (!code) return toast("请先粘贴已购买的卡密", true);
+    try {
+      const result = await api("/api/pay/card-fingerprint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      $("#pilotFingerprintOutput").value = result.fingerprint;
+      toast("已生成核对编号；这一步未兑换、未消耗卡密。");
+    } catch (error) {
+      toast(error.message, true);
+    }
   }
 
   function showAuthGate(message = "") {
@@ -327,18 +548,23 @@
     }
     const modelIntro = $(".model-settings-intro");
     if (modelIntro) {
-      modelIntro.textContent = "云端版通过用户自备的 OpenAI 兼容 API 推理；模型服务费用由你与提供商结算。";
+      modelIntro.textContent = config.preset_enabled
+        ? "默认使用平台融合模型，按当前账号积分结算；也可选择自带 Key。"
+        : "云端版通过用户自备的 OpenAI 兼容 API 推理；模型服务费用由你与提供商结算。";
     }
     if (!window.supabase?.createClient) {
       showAuthGate("登录组件暂不可用，请刷新页面后重试。");
       return;
     }
-    state.llmConfig = {
-      provider: "openai_compatible",
-      model: "",
-      base_url: "",
-      api_key: "",
-    };
+    if (config.preset_enabled) {
+      // Preserve an intentional BYOK choice for this tab; otherwise the
+      // platform bundle is the zero-configuration default.
+      if (state.llmConfig.provider !== "openai_compatible" || !state.llmConfig.api_key) {
+        storeLlmConfig({ provider: "preset", model: "workbench-bundle", base_url: "", api_key: "" });
+      }
+    } else {
+      state.llmConfig = { provider: "openai_compatible", model: "", base_url: "", api_key: "" };
+    }
     $("#providerOllama").closest(".model-provider-option")?.classList.add("hidden");
     state.authClient = window.supabase.createClient(
       config.supabase_url,
@@ -354,8 +580,11 @@
       state.authSession = session;
       if (session && !state.appStarted) {
         void startApplication(session);
+        void loadUserBalance();
       } else if (!session && event === "SIGNED_OUT") {
         state.appStarted = false;
+        state.userCredits = 0;
+        if ($("#userCreditsValue")) $("#userCreditsValue").textContent = "0";
         state.project = null;
         state.messages = [];
         state.documents = [];
@@ -547,6 +776,7 @@
       renderMessages();
       updateTemplateQuickActions(project);
       await refreshProjects();
+      if (state.llmConfig.provider === "preset") await loadUserBalance();
     } catch (error) {
       toast(error.message, true);
     }
@@ -1604,6 +1834,31 @@
     }
   }
 
+  async function generateWorkbenchImage() {
+    if (!state.project) return toast("请先打开项目", true);
+    const prompt = $("#workbenchImagePrompt").value.trim();
+    if (prompt.length < 5) return toast("请补充具体的配图描述", true);
+    const btn = $("#generateWorkbenchImageBtn");
+    btn.disabled = true;
+    try {
+      const result = await api(`/api/projects/${state.project.id}/images/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+      state.project.diagrams = [...(state.project.diagrams || []), result.diagram];
+      state.diagrams = state.project.diagrams;
+      renderDiagrams();
+      await loadUserBalance();
+      toast("配图已生成并保存到项目。");
+    } catch (error) {
+      toast(error.message, true);
+      await loadUserBalance();
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
   function renderDiagrams() {
     const gallery = $("#diagramGallery");
     gallery.replaceChildren();
@@ -1700,6 +1955,7 @@
       const projectId = state.project.id;
       await loadProject(projectId);
       appendMessage("assistant", `暂时无法完成：${error.message}`);
+      if (state.llmConfig.provider === "preset") await loadUserBalance();
     }
   }
 
@@ -1987,6 +2243,8 @@
     $("#saveOutlineBtn").addEventListener("click", saveOutline);
     $("#proposeDiagramBtn").addEventListener("click", proposeDiagram);
     $("#saveDiagramBtn").addEventListener("click", saveDiagram);
+    $("#generateWorkbenchImageBtn").addEventListener("click", generateWorkbenchImage);
+    $("#pilotFingerprintBtn").addEventListener("click", makePilotFingerprint);
     $("#chatForm").addEventListener("submit", sendChat);
     $("#chatInput").addEventListener("keydown", (event) => {
       if (event.key === "Enter" && !event.shiftKey) {
@@ -2023,6 +2281,15 @@
     $$('input[name="llmProvider"]').forEach((input) => input.addEventListener("change", updateModelFields));
     $("#testModelConfigBtn").addEventListener("click", testSelectedLlmConfig);
     $("#saveModelConfigBtn").addEventListener("click", saveSelectedLlmConfig);
+    $("#creditsBadgeBtn")?.addEventListener("click", () => {
+      loadUserBalance();
+      $("#rechargeDialog")?.showModal();
+    });
+    $("#closeRechargeBtn")?.addEventListener("click", () => $("#rechargeDialog")?.close());
+    $("#usageLogsBtn")?.addEventListener("click", openUsageDialog);
+    $("#closeUsageBtn")?.addEventListener("click", () => $("#usageDialog")?.close());
+    $("#refreshUsageBtn")?.addEventListener("click", openUsageDialog);
+    $("#submitRedeemBtn")?.addEventListener("click", handleRedeemCode);
     $("#authForm").addEventListener("submit", submitAuthForm);
     $("#authModeToggle").addEventListener("click", () => {
       state.authMode = state.authMode === "signin" ? "signup" : "signin";
@@ -2043,8 +2310,37 @@
     updateTemplateExplain();
     $("#chatFileInput").accept = chatUploadAccept($("#chatUploadKind").value);
     await loadSkills();
+    await loadPresetModelsAndPlans();
     const config = await api("/api/config");
+    $("#pilotFingerprintBox")?.classList.toggle(
+      "hidden", new URLSearchParams(window.location.search).get("pilot") !== "1"
+    );
+    $("#workbenchImageControls")?.classList.toggle("hidden", !config.preset_enabled);
+    state.cardRedemptionEnabled = Boolean(config.card_redemption_enabled);
+    const redeemButton = $("#submitRedeemBtn");
+    if (redeemButton) {
+      redeemButton.disabled = !state.cardRedemptionEnabled;
+      redeemButton.textContent = state.cardRedemptionEnabled ? "立即兑换" : "代兑暂未开通";
+    }
+    const shopLink = $("#cardShopLink");
+    const shopUnavailable = $("#cardShopUnavailable");
+    if (shopLink && state.cardRedemptionEnabled && config.card_shop_url) {
+      shopLink.href = config.card_shop_url;
+      shopLink.classList.remove("hidden");
+      shopUnavailable?.classList.add("hidden");
+    }
+    if (!config.preset_enabled && state.llmConfig.provider === "preset") {
+      storeLlmConfig({ provider: config.cloud_mode ? "openai_compatible" : "ollama",
+        model: config.cloud_mode ? "" : "qwen2.5:7b", base_url: "", api_key: "" });
+    }
+    if (!config.preset_enabled) {
+      $("#providerPreset")?.closest(".model-provider-option")?.classList.add("hidden");
+      if (state.llmConfig.provider === "preset") updateModelFields();
+    }
     await initializeCloudAuth(config);
+    // In cloud mode the auth gate initializes the Supabase session first; only
+    // then can the server bind the balance request to the verified user ID.
+    if (!config.cloud_mode || state.authSession?.access_token) await loadUserBalance();
   }
 
   document.addEventListener("DOMContentLoaded", () => {

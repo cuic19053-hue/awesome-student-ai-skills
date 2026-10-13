@@ -2,6 +2,20 @@
 
 这是 Skills 仓库上的本地优先网页 Agent。工作台目录包含仓库中的 35 个 Skill，支持自然语言自动路由和手动选赛道；对话、资料确认、逐章编辑、校验与 Word 草稿导出复用同一套工作流。模型默认使用 Ollama，也可在“模型配置”中选择用户自备的 OpenAI Chat Completions 兼容 API。
 
+## 工作台付费链路（生产状态）
+
+目标流程：用户仅登录工作台 → 从 [Wopally 的 CatFK 店铺](https://catfk.com/shop/KGFPJI42) 购买 `AGT1-` 工作台专用卡密 → 工作台核验并绑定当前 Supabase 用户 → 后端使用配对的私密余额码兑入低权限 `github-skills` 中转站账户 → 用户获得 ¥1＝10 积分 → DeepSeek Flash 写作/GPT Image 生图按实际站内费用的 3 倍结算。用户无需登录中转站、选择模型或接触服务端 Key。BYOK/Ollama 独立且不扣积分。
+
+**2026-10-13 应用户要求已开放入口，但真实付费链路仍待首单验收。** Supabase 中同批 500 张码已激活；中转站私密配对余额码尚未使用，总面值 ¥8600。`github-skills` 专用 Key 属分组 127，服务账户当前仍为 0 元、无模型调用。服务端登录、用量查询和 Key 绑定的只读探测通过；成功兑换、DeepSeek/GPT Image 生成与实际费用结算尚未通过真实付费验证。不能把“入口已开放”等同于“付款后一定可用”。
+
+两个系统无法共享数据库事务：工作台先创建唯一兑换意向，中转站确认私密余额码实际面值与服务账户后，Supabase 在一笔事务内给该用户加积分并将店铺码标为已兑；超时或本地入账失败保留待核对，重试只查该账户的兑换历史，不盲目重复向中转站提交。零余额在请求前拦截；每个上游调用独立预留，查中转站 `usage` 中唯一 User-Agent 标识对应的 `actual_cost`，按 3 倍结算、多预留退回，费用无法确认则暂时保留预留并阻止该用户继续调用。图片一次仅生成一张 PNG，服务端 Key 不下发浏览器。
+
+部署配置见 `.env.example`：`WORKBENCH_BACKEND_SECRET` 是 Supabase 专用的窄权限能力密钥，不是 project-wide `service_role`；`WORKBENCH_REDEEM_ENCRYPTION_KEY` 解密已配对的私密站内码。`WOPALLY_SERVICE_EMAIL/PASSWORD` 仅为 `github-skills` 低权限登录；`WOPALLY_WORKBENCH_API_KEY` 仅在服务端调用分组 127。`WOPALLY_ORIGIN_IP` 仅用于源站固定 IP 连接，TLS 仍校验 `api.wopally.cn` 证书。不应在代码仓库、浏览器或日志中输出任何明文卡密和密钥。
+
+**首单必须立即验收：** 用真实已付款的 ¥1 店铺码登录工作台兑换，核对当前用户获得 10 积分、专用账户增加 ¥1，随后各执行一次 DeepSeek 与 GPT Image 请求并对照站内用量、余额和工作台扣点；再验证失败退费、重复兑换与零余额拦截。任何一项不符，立刻将 `WORKBENCH_MODEL_BUNDLE_PAUSED=true` 与 `WORKBENCH_VOUCHERS_PAUSED=true` 写入 Vercel 生产环境并重新部署，必要时先停用专用 Key 692。利润报表不作为自动转账依据。
+
+安全提醒：绝不可把用户输入传给 Sub2API 管理端 `create-and-redeem`；该端点对不存在的码可能先创建再充值。店铺码与站内码分离，用户只能接触店铺码。
+
 ## 启动网页
 
 要求 Python 3.11+；在仓库根目录执行：

@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import hmac
 import ipaddress
+import logging
 import os
 import re
 import sys
 import urllib.parse
 import urllib.request
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Callable, Literal, TypeVar
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
@@ -19,6 +23,7 @@ from pydantic import BaseModel, Field
 ROOT = Path(__file__).resolve().parents[1]
 SERVER_DIR = Path(__file__).resolve().parent
 STATIC_DIR = SERVER_DIR / "static"
+MICRO_CNY_PER_CREDIT = 100_000  # 1 CNY = 10 workbench credits
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 if str(SERVER_DIR) not in sys.path:
@@ -27,11 +32,24 @@ if str(SERVER_DIR) not in sys.path:
 from proposal.agent import ModelUnavailable, OllamaAgent
 from proposal.documents import ALLOWED_EXTENSIONS, MAX_UPLOAD_BYTES, Extraction, extract_file
 from proposal.exporter import export_project
+from proposal.credit_security import (
+    CreditSecurityConfigError,
+    card_code_digest,
+    decrypt_card_code,
+    encrypt_card_code,
+    normalize_card_code,
+    workbench_voucher_digest,
+)
 from proposal.retrieval import ProjectRetriever
-from proposal.storage import Store
+from proposal.storage import CreditRateLimitError, InsufficientCreditsError, PendingUsageError, Store
 from proposal.supabase_store import SupabaseStore, request_identity
+from proposal.workbench_metering import WorkbenchMeter
+from proposal.workbench_images import generate_image
+from proposal.wopally_usage import UsageUnavailable, WopallyUsage
+from proposal.wopally_transport import wopally_urlopen
 from proposal.tools import ProposalTools
 from proposal.skills import normalize_skill_id, registry as skill_registry, valid_fact_key
+from proposal.wopally_client import WopallyCardRejected, WopallyClient, WopallyUnavailable
 
 try:
     from utils.dispatcher import Dispatcher
@@ -54,8 +72,8 @@ class RouteRequest(BaseModel):
 
 
 class LLMConfigInput(BaseModel):
-    provider: Literal["ollama", "openai_compatible"] = "ollama"
-    model: str = Field(default="", max_length=160)
+    provider: Literal["ollama", "openai_compatible", "preset"] = "preset"
+    model: str = Field(default="deepseek-chat", max_length=160)
     base_url: str = Field(default="", max_length=500)
     api_key: str = Field(default="", max_length=1000)
 
@@ -80,6 +98,10 @@ class StorageDocumentInput(BaseModel):
 class DiagramProposalInput(BaseModel):
     title: str = Field(default="技术路线图", max_length=100)
     llm_config: LLMConfigInput | None = None
+
+
+class GenerateImageInput(BaseModel):
+    prompt: str = Field(min_length=5, max_length=2000)
 
 
 class ConfirmDocument(BaseModel):
@@ -159,6 +181,7 @@ app = FastAPI(
     redoc_url=None if CLOUD_MODE else "/redoc",
     openapi_url=None if CLOUD_MODE else "/openapi.json",
 )
+logger = logging.getLogger("proposal_agent.credits")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
@@ -169,7 +192,10 @@ async def require_supabase_session(request: Request, call_next):
     path = request.url.path
     if (
         path == "/"
-        or path in {"/health", "/api/health", "/api/config", "/api/skills", "/api/route"}
+        or path in {
+            "/health", "/api/health", "/api/config", "/api/skills", "/api/route",
+            "/api/models/preset", "/api/pay/notify", "/api/admin/provider-health",
+        }
         or path.startswith("/static/")
     ):
         return await call_next(request)
@@ -206,10 +232,41 @@ async def require_supabase_session(request: Request, call_next):
         request_identity.reset(context_token)
 
 
-def _agent_for_config(config: LLMConfigInput | None) -> OllamaAgent:
+class CreatePayOrderInput(BaseModel):
+    plan_id: str
+    pay_type: Literal["alipay", "wxpay"] = "alipay"
+
+
+class RedeemCodeInput(BaseModel):
+    code: str = Field(min_length=8, max_length=128)
+
+
+class Sub2PaymentNotification(BaseModel):
+    event_id: str = Field(min_length=8, max_length=160)
+    workbench_user_id: str = Field(min_length=1, max_length=128)
+    amount_cny: Decimal
+    currency: Literal["CNY"] = "CNY"
+    status: Literal["paid"]
+
+
+def _agent_for_config(
+    config: LLMConfigInput | None, request: Request | None = None, project_id: str = ""
+) -> OllamaAgent:
     if config is None:
         return agent
     model = config.model.strip()
+    if config.provider == "preset":
+        if not _platform_bundle_ready():
+            raise HTTPException(status_code=503, detail="工作台服务账户与实际用量结算尚未接通")
+        key_id = int(os.environ["WOPALLY_WORKBENCH_API_KEY_ID"])
+        return OllamaAgent(
+            store, tools,
+            base_url=os.environ["WOPALLY_MODEL_BASE_URL"].rstrip("/"),
+            model="deepseek-v4-flash",
+            provider="openai_compatible",
+            api_key=os.environ["WOPALLY_WORKBENCH_API_KEY"],
+            meter=WorkbenchMeter(store, _current_user_id(request), key_id, project_id),
+        )
     if config.provider == "ollama":
         if CLOUD_MODE:
             raise HTTPException(
@@ -287,10 +344,25 @@ def home() -> str:
 
 @app.get("/api/config")
 def app_config() -> dict[str, Any]:
+    redemption_enabled = _card_redemption_enabled() or _voucher_redemption_enabled()
+    raw_shop_url = os.environ.get("WOPALLY_CARD_SHOP_URL", "").strip()
+    parsed_shop_url = urllib.parse.urlparse(raw_shop_url)
+    shop_url = (
+        raw_shop_url
+        if redemption_enabled
+        and os.environ.get("WORKBENCH_SHOW_SHOP_LINK", "").lower() == "true"
+        and parsed_shop_url.scheme == "https" and parsed_shop_url.hostname
+        else ""
+    )
     return {
         "cloud_mode": CLOUD_MODE,
         "supabase_url": SUPABASE_URL if CLOUD_MODE else "",
         "supabase_publishable_key": SUPABASE_PUBLISHABLE_KEY if CLOUD_MODE else "",
+        "payment_enabled": False,
+        "card_redemption_enabled": redemption_enabled,
+        "voucher_redemption_enabled": _voucher_redemption_enabled(),
+        "card_shop_url": shop_url,
+        "preset_enabled": _platform_bundle_ready(),
     }
 
 
@@ -373,6 +445,140 @@ def health() -> dict[str, Any]:
     }
 
 
+def _current_user_id(request: Request | None) -> str:
+    ident = request_identity.get()
+    if ident and ident.get("user_id"):
+        return str(ident["user_id"])
+    # Local-only single-user development mode; never trust a client-supplied identity.
+    return "local_user"
+
+
+def _require_admin(request: Request) -> None:
+    expected = os.environ.get("ADMIN_DASHBOARD_TOKEN", "")
+    if not expected:
+        raise HTTPException(status_code=503, detail="管理员报表未配置")
+    import hmac
+    provided = request.headers.get("x-admin-token", "")
+    if not hmac.compare_digest(provided, expected):
+        raise HTTPException(status_code=403, detail="无权查看管理员报表")
+
+
+def _allowed_wopally_card_values() -> set[Decimal]:
+    raw = os.environ.get("WOPALLY_ALLOWED_CARD_VALUES_CNY", "")
+    values: set[Decimal] = set()
+    for item in raw.split(","):
+        try:
+            value = Decimal(item.strip()).quantize(Decimal("0.000001"))
+            if value > 0:
+                values.add(value)
+        except (InvalidOperation, ValueError):
+            continue
+    return values
+
+
+def _card_redemption_enabled() -> bool:
+    required = (
+        os.environ.get("WORKBENCH_CARD_REDEMPTION_APPROVED", "").lower() == "true"
+        and os.environ.get("WORKBENCH_CARD_REDEMPTION_PAUSED", "").lower() != "true"
+        and os.environ.get("WOPALLY_REDEEM_API_VERIFIED", "").lower() == "true"
+        and bool(
+            os.environ.get("WOPALLY_SERVICE_ACCESS_TOKEN", "").strip()
+            or (os.environ.get("WOPALLY_SERVICE_EMAIL", "").strip()
+                and os.environ.get("WOPALLY_SERVICE_PASSWORD", ""))
+        )
+        and os.environ.get("WOPALLY_CARD_REDEEM_PATH", "").strip().startswith("/")
+        and os.environ.get("WOPALLY_CARD_REDEEM_HISTORY_PATH", "").strip().startswith("/")
+        and bool(os.environ.get("WOPALLY_CARD_SHOP_URL", "").strip())
+        and bool(os.environ.get("WORKBENCH_REDEEM_ENCRYPTION_KEY", "").strip())
+        and bool(_allowed_wopally_card_values())
+    )
+    if CLOUD_MODE:
+        return required and bool(os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip())
+    return required and os.environ.get("WORKBENCH_LOCAL_CARD_REDEMPTION", "").lower() == "true"
+
+
+def _platform_bundle_ready() -> bool:
+    # Explicit operator gate: a credential alone never opens paid inference.
+    url = urllib.parse.urlparse(os.environ.get("WOPALLY_MODEL_BASE_URL", ""))
+    key_id = os.environ.get("WOPALLY_WORKBENCH_API_KEY_ID", "")
+    return (
+        os.environ.get("WORKBENCH_MODEL_BUNDLE_READY", "").lower() == "true"
+        and os.environ.get("WORKBENCH_MODEL_BUNDLE_PAUSED", "true").lower() == "false"
+        and bool(os.environ.get("WOPALLY_WORKBENCH_API_KEY", "").strip())
+        and bool(
+            os.environ.get("WOPALLY_SERVICE_ACCESS_TOKEN", "").strip()
+            or (os.environ.get("WOPALLY_SERVICE_EMAIL", "").strip()
+                and os.environ.get("WOPALLY_SERVICE_PASSWORD", ""))
+        )
+        and key_id.isdigit() and int(key_id) > 0
+        and url.scheme == "https" and bool(url.hostname)
+        and (not CLOUD_MODE or bool(
+            os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+            or os.environ.get("WORKBENCH_BACKEND_SECRET", "").strip()
+        ))
+    )
+
+
+def _voucher_redemption_enabled() -> bool:
+    approved = (
+        os.environ.get("WORKBENCH_VOUCHERS_APPROVED", "").lower() == "true"
+        and os.environ.get("WORKBENCH_VOUCHERS_PAUSED", "true").lower() == "false"
+        and os.environ.get("WORKBENCH_MODEL_BUNDLE_READY", "").lower() == "true"
+        and os.environ.get("WOPALLY_REDEEM_API_VERIFIED", "").lower() == "true"
+        and bool(os.environ.get("WOPALLY_CARD_SHOP_URL", "").strip())
+        and bool(os.environ.get("WORKBENCH_REDEEM_ENCRYPTION_KEY", "").strip())
+        and bool(os.environ.get("WOPALLY_SERVICE_USER_ID", "").strip())
+        and bool(os.environ.get("WOPALLY_CARD_REDEEM_PATH", "").strip())
+        and bool(os.environ.get("WOPALLY_CARD_REDEEM_HISTORY_PATH", "").strip())
+        and (not CLOUD_MODE or bool(
+            os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+            or os.environ.get("WORKBENCH_BACKEND_SECRET", "").strip()
+        ))
+    )
+    return approved and _platform_bundle_ready() and (
+        CLOUD_MODE or os.environ.get("WORKBENCH_LOCAL_VOUCHERS", "").lower() == "true"
+    )
+
+
+def _maybe_deduct_credits(
+    config: LLMConfigInput | None, request: Request | None, action: str, project_id: str = ""
+) -> dict[str, Any] | None:
+    # Each upstream request (including tool-call turns) is reserved inside the
+    # model transport, not here at the enclosing HTTP action boundary.
+    return None
+
+
+T = TypeVar("T")
+
+
+def _metered_invoke(
+    config: LLMConfigInput | None,
+    request: Request | None,
+    action: str,
+    project_id: str,
+    invoke: Callable[[OllamaAgent], T],
+) -> T:
+    candidate = (
+        _agent_for_config(config, request, project_id)
+        if config is not None and config.provider == "preset"
+        else _agent_for_config(config)
+    )
+    reservation = _maybe_deduct_credits(config, request, action, project_id)
+    try:
+        return invoke(candidate)
+    except InsufficientCreditsError as exc:
+        raise HTTPException(status_code=402, detail=str(exc)) from exc
+    except PendingUsageError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except BaseException:
+        if reservation:
+            store.add_credits(
+                reservation["user_id"], reservation["deducted"],
+                action=f"refund:{action}", model=config.model, project_id=project_id,
+            )
+        raise
+
+
 @app.get("/api/health")
 def api_health() -> dict[str, Any]:
     return health()
@@ -380,6 +586,13 @@ def api_health() -> dict[str, Any]:
 
 @app.post("/api/model-config/test")
 def test_model_config(payload: LLMConfigInput) -> dict[str, Any]:
+    if payload.provider == "preset":
+        if not _platform_bundle_ready():
+            raise HTTPException(status_code=503, detail="平台模型暂未开通")
+        return {
+            "success": True, "provider": "preset", "model": "workbench-bundle",
+            "message": "平台配置就绪；实际生成时按积分结算。",
+        }
     candidate = _agent_for_config(payload)
     try:
         result = candidate.test_connection()
@@ -391,6 +604,385 @@ def test_model_config(payload: LLMConfigInput) -> dict[str, Any]:
         "provider": result.get("provider"),
         "model": result.get("model"),
         "message": "连接成功",
+    }
+
+
+@app.get("/api/models/preset")
+def get_preset_models() -> dict[str, Any]:
+    if not _platform_bundle_ready():
+        return {"models": [], "plans": []}
+    return {
+        "models": [{
+            "id": "workbench-bundle", "name": "DeepSeek Flash + GPT Image",
+            "available": True, "description": "写作与生图按任务自动路由，按实际费用结算",
+        }],
+        "plans": [],
+    }
+
+
+@app.get("/api/user/balance")
+def get_user_balance(request: Request) -> dict[str, Any]:
+    user_id = _current_user_id(request)
+    try:
+        if _platform_bundle_ready():
+            for pending in store.pending_workbench_usage(user_id):
+                if pending.get("api_key_id") != int(os.environ["WOPALLY_WORKBENCH_API_KEY_ID"]):
+                    continue
+                try:
+                    WorkbenchMeter(store, user_id, int(pending["api_key_id"])).settle(
+                        pending["request_id"], pending["model"]
+                    )
+                except (RuntimeError, ValueError):
+                    logger.exception("Pending usage reconciliation failed")
+        bal = store.get_workbench_credit_balance(user_id)
+        txs = store.get_workbench_credit_transactions(user_id, limit=20)
+    except (RuntimeError, PermissionError) as exc:
+        raise HTTPException(status_code=503, detail="云端积分账本尚未配置") from exc
+    balance_units = int(bal["balance_micro_cny"])
+    credited_units = int(bal.get("total_credited_micro_cny", 0))
+    spent_units = int(bal.get("total_spent_micro_cny", 0))
+    return {
+        "user_id": user_id,
+        "credits": round(balance_units / MICRO_CNY_PER_CREDIT, 4),
+        "total_credited": round(credited_units / MICRO_CNY_PER_CREDIT, 4),
+        "total_consumed": round(spent_units / MICRO_CNY_PER_CREDIT, 4),
+        "transactions": txs,
+    }
+
+
+@app.get("/api/pay/orders/{order_id}")
+def get_payment_order(order_id: str, request: Request) -> dict[str, Any]:
+    if CLOUD_MODE:
+        raise HTTPException(status_code=503, detail="云端支付账本尚未接通")
+    order = store.get_order(order_id)
+    if not order or order["user_id"] != _current_user_id(request):
+        raise HTTPException(status_code=404, detail="订单不存在")
+    return {"order_id": order_id, "status": order["status"], "credits_added": order["credits_added"]}
+
+
+@app.post("/api/pay/create")
+def create_payment_order(payload: CreatePayOrderInput, request: Request) -> dict[str, Any]:
+    raise HTTPException(status_code=410, detail="已切换为卡密兑换，直接支付接口已关闭")
+
+
+@app.post("/api/pay/notify")
+async def payment_notify(request: Request) -> Response:
+    """Credit a workbench wallet only from a verified, paid Sub2 event.
+
+    The payment provider must sign the exact raw JSON body with HMAC-SHA256
+    using SUB2_PAYMENT_WEBHOOK_SECRET and include it as
+    ``X-Sub2-Payment-Signature: sha256=<hex>``. Never expose that secret to the
+    browser. event_id is globally idempotent to prevent replay across users.
+    """
+    if not CLOUD_MODE:
+        raise HTTPException(status_code=503, detail="云端付款入账未启用")
+    secret = os.environ.get("SUB2_PAYMENT_WEBHOOK_SECRET", "").encode("utf-8")
+    if not secret:
+        raise HTTPException(status_code=503, detail="付款回调尚未配置")
+    raw_body = await request.body()
+    supplied = request.headers.get("x-sub2-payment-signature", "").strip()
+    if supplied.lower().startswith("sha256="):
+        supplied = supplied[7:]
+    expected = hmac.new(secret, raw_body, hashlib.sha256).hexdigest()
+    if not supplied or not hmac.compare_digest(supplied.lower(), expected):
+        raise HTTPException(status_code=401, detail="付款回调签名无效")
+    try:
+        payload = Sub2PaymentNotification.model_validate_json(raw_body)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="付款回调内容无效") from exc
+
+    amount = payload.amount_cny
+    max_amount = Decimal(os.environ.get("SUB2_PAYMENT_MAX_CNY", "10000"))
+    if amount <= 0 or amount > max_amount:
+        raise HTTPException(status_code=400, detail="付款金额超出允许范围")
+    amount_micro_cny = int((amount * Decimal(1_000_000)).to_integral_value())
+    if Decimal(amount_micro_cny) != amount * Decimal(1_000_000):
+        raise HTTPException(status_code=400, detail="付款金额精度无效")
+
+    try:
+        result = store.grant_workbench_payment_credits(
+            payload.workbench_user_id, payload.event_id, amount_micro_cny
+        )
+    except (RuntimeError, PermissionError) as exc:
+        raise HTTPException(status_code=503, detail="积分账本暂不可用") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    return JSONResponse(
+        {
+            "success": True,
+            "duplicate": bool(result.get("duplicate")),
+            "workbench_user_id": payload.workbench_user_id,
+            "credits_added": round(
+                int(result.get("credited_micro_cny", amount_micro_cny)) / MICRO_CNY_PER_CREDIT, 4
+            ),
+            "balance": round(int(result["balance_micro_cny"]) / MICRO_CNY_PER_CREDIT, 4),
+        }
+    )
+
+
+@app.post("/api/pay/redeem")
+def redeem_recharge_code(payload: RedeemCodeInput, request: Request) -> dict[str, Any]:
+    if "".join(payload.code.split()).upper().startswith("AGT1-"):
+        if not _voucher_redemption_enabled():
+            raise HTTPException(status_code=503, detail="工作台卡密尚未启用")
+        user_id = _current_user_id(request)
+        try:
+            digest = workbench_voucher_digest(payload.code)
+            voucher = store.lookup_paired_voucher(digest)
+            if voucher["status"] == "redeemed":
+                if str(voucher["redeemed_by"]) != user_id:
+                    raise ValueError("卡密已被其他用户兑换。")
+                balance = store.get_workbench_credit_balance(user_id)
+                return {
+                    "success": True, "duplicate": True, "credits_added": 0,
+                    "balance": round(int(balance["balance_micro_cny"]) / MICRO_CNY_PER_CREDIT, 4),
+                    "message": "此卡密已兑换到账。",
+                }
+            ciphertext = voucher["provider_code_ciphertext"]
+            if isinstance(ciphertext, str):
+                ciphertext = bytes.fromhex(ciphertext)
+            provider_code = decrypt_card_code(ciphertext)
+            intent = store.begin_workbench_card_redemption(user_id, digest, ciphertext)
+            intent_id = str(intent["id"])
+            if intent.get("status") == "credited":
+                balance = store.get_workbench_credit_balance(user_id)
+                return {"success": True, "duplicate": True, "credits_added": 0,
+                        "balance": round(int(balance["balance_micro_cny"]) / MICRO_CNY_PER_CREDIT, 4),
+                        "message": "此卡密已兑换到账。"}
+            client = WopallyClient()
+            if intent.get("duplicate"):
+                # Never submit an uncertain provider request twice. Only this
+                # service account's confirmed redemption history can recover it.
+                previous = client.find_redeemed_balance_code(provider_code)
+                if not previous or previous.get("type") != "balance":
+                    return JSONResponse(
+                        {"success": False, "pending": True, "message": "兑换结果待核对，请勿重复提交。"},
+                        status_code=202,
+                    )
+                provider_face = Decimal(str(previous["value_cny"]))
+                provider_user_id = int(os.environ["WOPALLY_SERVICE_USER_ID"])
+            else:
+                upstream = client.redeem_balance_code(provider_code)
+                provider_face = Decimal(str(upstream["value_cny"]))
+                provider_user_id = upstream.get("provider_user_id")
+            expected_user_id = int(os.environ["WOPALLY_SERVICE_USER_ID"])
+            value_micro = int(provider_face * 1_000_000)
+            if (
+                provider_face * 1_000_000 != value_micro
+                or value_micro != int(voucher["face_value_micro_cny"])
+                or provider_user_id != expected_user_id
+            ):
+                store.set_workbench_card_redemption_status(
+                    intent_id, "needs_review", "上游面值或接收账户不匹配"
+                )
+                raise HTTPException(status_code=409, detail="上游兑换结果待人工核对，暂未发放积分。")
+            redeemed = store.complete_paired_voucher(intent_id, value_micro, expected_user_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except PermissionError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        except CreditSecurityConfigError as exc:
+            raise HTTPException(status_code=503, detail="卡密加密配置不完整") from exc
+        except WopallyCardRejected as exc:
+            # A rejected redemption may mean a code was already redeemed by
+            # the service account; retain the intent for reconciliation.
+            raise HTTPException(status_code=409, detail="中转站拒绝卡密，结果待核对。") from exc
+        except WopallyUnavailable as exc:
+            raise HTTPException(status_code=503, detail="中转站兑换结果待核对，请勿重复提交。") from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        credited = value_micro
+        balance = int(redeemed["balance_micro_cny"])
+        return {
+            "success": True,
+            "duplicate": bool(redeemed.get("duplicate")),
+            "credits_added": round(credited / MICRO_CNY_PER_CREDIT, 4),
+            "balance": round(balance / MICRO_CNY_PER_CREDIT, 4),
+            "message": "卡密已兑换到账。" if redeemed.get("duplicate")
+                else f"兑换成功，到账 {round(credited / MICRO_CNY_PER_CREDIT, 4)} 积分。",
+        }
+    if not _card_redemption_enabled():
+        raise HTTPException(status_code=503, detail="工作台卡密代兑尚未获批或配置")
+    user_id = _current_user_id(request)
+    client = WopallyClient()
+    try:
+        normalized = normalize_card_code(payload.code)
+        digest = card_code_digest(normalized)
+        ciphertext = encrypt_card_code(normalized)
+        intent = store.begin_workbench_card_redemption(user_id, digest, ciphertext)
+        intent_id = str(intent["id"])
+        if intent.get("status") == "credited":
+            balance = store.get_workbench_credit_balance(user_id)
+            return {
+                "success": True,
+                "duplicate": True,
+                "balance": round(int(balance["balance_micro_cny"]) / MICRO_CNY_PER_CREDIT, 4),
+                "message": "此卡密已经兑换到账。",
+            }
+        if intent.get("status") == "rejected":
+            raise HTTPException(status_code=400, detail=intent.get("safe_message") or "此卡密无效或已使用")
+        if intent.get("duplicate"):
+            saved = store.get_workbench_redemption_intent(intent_id, user_id)
+            try:
+                recovered_code = decrypt_card_code(bytes(saved["code_ciphertext"])) if saved else ""
+                previous = client.find_redeemed_balance_code(recovered_code) if recovered_code else None
+            except Exception:
+                previous = None
+            if previous and previous.get("type") == "balance" and previous.get("value_cny") is not None:
+                face = Decimal(str(previous["value_cny"])).quantize(Decimal("0.000001"))
+            else:
+                return JSONResponse(
+                    {"success": False, "pending": True, "message": "兑换结果正在核对，请勿重复提交。"},
+                    status_code=202,
+                )
+        else:
+            provider_result = client.redeem_balance_code(normalized)
+            face = Decimal(str(provider_result["value_cny"])).quantize(Decimal("0.000001"))
+        if face not in _allowed_wopally_card_values():
+            store.set_workbench_card_redemption_status(
+                intent_id, "needs_review", "兑换面值不在已批准范围内"
+            )
+            logger.error("Wopally card redemption needs review: unapproved face value; intent_id=%s", intent_id)
+            raise HTTPException(status_code=409, detail="卡密已在中转站兑换，面值待人工核对。")
+        value_micro = int(face * 1_000_000)
+        provider_user_id = (
+            provider_result.get("provider_user_id")
+            if "provider_result" in locals()
+            else os.environ.get("WOPALLY_SERVICE_USER_ID")
+        )
+        completed = store.complete_workbench_card_redemption(
+            intent_id, value_micro, int(provider_user_id) if provider_user_id else None
+        )
+        balance = store.get_workbench_credit_balance(user_id)
+        return {
+            "success": True,
+            "duplicate": bool(completed.get("duplicate")),
+            "credits_added": round(value_micro / MICRO_CNY_PER_CREDIT, 4),
+            "balance": round(int(balance["balance_micro_cny"]) / MICRO_CNY_PER_CREDIT, 4),
+            "message": f"兑换成功，到账 {round(value_micro / MICRO_CNY_PER_CREDIT, 4)} 积分。",
+        }
+    except CreditSecurityConfigError as exc:
+        raise HTTPException(status_code=503, detail="卡密安全配置不完整") from exc
+    except WopallyCardRejected as exc:
+        try:
+            if "intent_id" in locals():
+                store.set_workbench_card_redemption_status(intent_id, "rejected", str(exc))
+        except Exception:
+            pass
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except WopallyUnavailable as exc:
+        try:
+            if "intent_id" in locals():
+                store.set_workbench_card_redemption_status(intent_id, "needs_review", "中转站兑换结果待核对")
+                logger.error("Wopally card redemption outcome needs review; intent_id=%s", intent_id)
+        except Exception:
+            pass
+        raise HTTPException(status_code=503, detail="暂时无法确认兑换结果，请勿重复提交，稍后刷新或联系客服。") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except CreditRateLimitError as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail="云端积分账本暂不可用，请稍后重试。") from exc
+
+
+@app.post("/api/pay/card-fingerprint")
+def card_fingerprint(payload: RedeemCodeInput) -> dict[str, str]:
+    """A safe paid-pilot reference: never submit or redeem the bearer code."""
+    try:
+        digest = workbench_voucher_digest(payload.code)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"fingerprint": digest.hex()}
+
+
+@app.get("/api/admin/profit-summary")
+def get_profit_summary(request: Request) -> dict[str, Any]:
+    _require_admin(request)
+    raise HTTPException(status_code=503, detail="真实卡密销售与上游成本对账尚未接通，暂不提供利润结论")
+
+
+@app.get("/api/admin/usage-details")
+def get_admin_usage_details(
+    request: Request, limit: int = 50, offset: int = 0, project_id: str | None = None
+) -> dict[str, Any]:
+    _require_admin(request)
+    stats = store.get_token_stats(project_id)
+    logs = store.get_detailed_usage_logs(limit=limit, offset=offset, project_id=project_id)
+    return {
+        "stats": stats,
+        "logs": logs,
+        "billing_status": "provider_cost_reconciliation_pending",
+    }
+
+
+@app.get("/api/admin/provider-health")
+def get_provider_health(request: Request) -> dict[str, Any]:
+    """Read-only diagnostics; never invoke a model or return any credential."""
+    _require_admin(request)
+    key_id = int(os.environ.get("WOPALLY_WORKBENCH_API_KEY_ID", "0") or 0)
+    result: dict[str, Any] = {
+        "account_login": False, "usage_query": False,
+        "key_bound": False, "models_listed": [],
+        "preset_enabled": _platform_bundle_ready(),
+    }
+    try:
+        with wopally_urlopen(urllib.request.Request(
+            os.environ.get("WOPALLY_API_URL", "").rstrip("/") + "/health"
+        ), timeout=5) as upstream:
+            result["station_health_http"] = upstream.status
+    except urllib.error.HTTPError as exc:
+        result["station_health_http"] = exc.code
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        result["station_health_error"] = type(exc).__name__
+    try:
+        keys = WopallyClient()._request("/api/v1/keys?page=1&page_size=100")
+        rows = keys.get("items", []) if isinstance(keys, dict) else []
+        result["account_login"] = True
+        result["key_bound"] = any(
+            isinstance(row, dict) and int(row.get("id") or 0) == key_id
+            and int(row.get("group_id") or 0) == 127 and row.get("status") == "active"
+            for row in rows
+        )
+    except (WopallyUnavailable, ValueError) as exc:
+        result["error"] = str(exc)
+        return result
+    try:
+        WopallyUsage().find("health-check-no-charge", key_id, "deepseek-v4-flash")
+        result["usage_query"] = True
+    except UsageUnavailable:
+        pass
+    base = os.environ.get("WOPALLY_MODEL_BASE_URL", "").rstrip("/")
+    if base.startswith("https://") and os.environ.get("WOPALLY_WORKBENCH_API_KEY"):
+        model_request = urllib.request.Request(
+            base + "/models",
+            headers={"Authorization": f"Bearer {os.environ['WOPALLY_WORKBENCH_API_KEY']}"},
+        )
+        try:
+            with wopally_urlopen(model_request, timeout=8) as response:
+                models = json.load(response)
+            names = {
+                item.get("id") for item in models.get("data", [])
+                if isinstance(item, dict)
+            }
+            result["models_listed"] = sorted(
+                name for name in ("deepseek-v4-flash", "gpt-image-2") if name in names
+            )
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError, TypeError):
+            pass
+    return result
+
+
+@app.get("/api/projects/{project_id}/usage")
+def get_project_usage(project_id: str, limit: int = 50) -> dict[str, Any]:
+    _safe_project(project_id)
+    stats = store.get_token_stats(project_id)
+    logs = store.get_detailed_usage_logs(limit=limit, project_id=project_id)
+    return {
+        "project_id": project_id,
+        "stats": stats,
+        "logs": logs,
     }
 
 
@@ -716,7 +1308,7 @@ def delete_document(document_id: str) -> dict[str, bool]:
 
 
 @app.post("/api/projects/{project_id}/chat")
-def chat(project_id: str, payload: ChatInput) -> dict[str, Any]:
+def chat(project_id: str, payload: ChatInput, request: Request) -> dict[str, Any]:
     project = _safe_project(project_id)
     text = payload.message.strip()
     state = dict(project["state"])
@@ -780,7 +1372,10 @@ def chat(project_id: str, payload: ChatInput) -> dict[str, Any]:
     if fields:
         store.update_project(project_id, **fields)
     try:
-        result = _agent_for_config(payload.llm_config).chat(project_id, text)
+        result = _metered_invoke(
+            payload.llm_config, request, "chat", project_id,
+            lambda model: model.chat(project_id, text),
+        )
         result["setup_updated"] = bool(fields)
         return result
     except ModelUnavailable as exc:
@@ -788,10 +1383,13 @@ def chat(project_id: str, payload: ChatInput) -> dict[str, Any]:
 
 
 @app.post("/api/projects/{project_id}/outline/generate")
-def generate_outline(project_id: str, payload: LLMRequest | None = None) -> dict[str, Any]:
+def generate_outline(project_id: str, payload: LLMRequest | None = None, request: Request = None) -> dict[str, Any]:
     project = _safe_project(project_id)
     try:
-        outline = _agent_for_config(payload.llm_config if payload else None).propose_outline(project_id)
+        outline = _metered_invoke(
+            payload.llm_config if payload else None, request, "outline", project_id,
+            lambda model: model.propose_outline(project_id),
+        )
         warning = ""
     except ModelUnavailable as exc:
         # The fallback is transparent and editable; it is a skeleton, not generated content.
@@ -816,11 +1414,14 @@ def generate_outline(project_id: str, payload: LLMRequest | None = None) -> dict
 
 @app.post("/api/projects/{project_id}/sections/{section_id}/generate")
 def generate_section(
-    project_id: str, section_id: str, payload: LLMRequest | None = None
+    project_id: str, section_id: str, payload: LLMRequest | None = None, request: Request = None
 ) -> dict[str, Any]:
     _safe_project(project_id)
     try:
-        return _agent_for_config(payload.llm_config if payload else None).generate_section(project_id, section_id)
+        return _metered_invoke(
+            payload.llm_config if payload else None, request, f"section:{section_id}", project_id,
+            lambda model: model.generate_section(project_id, section_id),
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ModelUnavailable as exc:
@@ -891,15 +1492,59 @@ def save_diagram(project_id: str, payload: DiagramInput) -> dict[str, Any]:
 
 
 @app.post("/api/projects/{project_id}/diagrams/propose")
-def propose_diagram(project_id: str, payload: DiagramProposalInput) -> dict[str, Any]:
+def propose_diagram(project_id: str, payload: DiagramProposalInput, request: Request = None) -> dict[str, Any]:
     _safe_project(project_id)
     title = payload.title.strip() or "技术路线图"
     try:
-        return _agent_for_config(payload.llm_config).propose_diagram(project_id, title)
+        return _metered_invoke(
+            payload.llm_config, request, "diagram", project_id,
+            lambda model: model.propose_diagram(project_id, title),
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ModelUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.post("/api/projects/{project_id}/images/generate")
+def generate_project_image(
+    project_id: str, payload: GenerateImageInput, request: Request
+) -> dict[str, Any]:
+    project = _safe_project(project_id)
+    if not _platform_bundle_ready():
+        raise HTTPException(status_code=503, detail="平台生图尚未开通")
+    meter = WorkbenchMeter(
+        store, _current_user_id(request), int(os.environ["WOPALLY_WORKBENCH_API_KEY_ID"]), project_id
+    )
+    try:
+        content = generate_image(payload.prompt.strip(), meter)
+    except InsufficientCreditsError as exc:
+        raise HTTPException(status_code=402, detail=str(exc)) from exc
+    except PendingUsageError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ModelUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    image_id = os.urandom(16).hex()
+    image_dir = store.files_dir / project_id
+    image_dir.mkdir(parents=True, exist_ok=True)
+    image_path = image_dir / f"{image_id}.png"
+    image_path.write_bytes(content)
+    preview = str(image_path)
+    if hasattr(store, "persist_generated_file"):
+        try:
+            preview = "storage://" + store.persist_generated_file(
+                project_id, image_path.name, image_path, "image/png"
+            )
+        finally:
+            image_path.unlink(missing_ok=True)
+    diagram = {
+        "id": image_id, "title": payload.prompt.strip()[:80],
+        "nodes": [], "preview": preview, "kind": "generated_image",
+    }
+    diagrams = [*project["diagrams"], diagram]
+    store.update_project(project_id, diagrams=diagrams)
+    diagram["preview_url"] = f"/api/projects/{project_id}/diagrams/{image_id}/preview"
+    return {"diagram": diagram}
 
 
 @app.post("/api/projects/{project_id}/search/papers")
@@ -1040,10 +1685,13 @@ def update_project_facts(project_id: str, payload: dict[str, Any]) -> dict[str, 
 
 
 @app.post("/api/projects/{project_id}/facts/propose")
-def propose_project_facts(project_id: str, payload: LLMRequest | None = None) -> dict[str, Any]:
+def propose_project_facts(project_id: str, payload: LLMRequest | None = None, request: Request = None) -> dict[str, Any]:
     _safe_project(project_id)
     try:
-        return _agent_for_config(payload.llm_config if payload else None).propose_facts(project_id)
+        return _metered_invoke(
+            payload.llm_config if payload else None, request, "facts", project_id,
+            lambda model: model.propose_facts(project_id),
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ModelUnavailable as exc:

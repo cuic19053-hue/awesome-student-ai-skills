@@ -1,5 +1,7 @@
 # Never publish local project records, uploaded documents, or generated files.
 .agent-data/
+.env
+.env.*
 outputs/
 
 # Development-only files.

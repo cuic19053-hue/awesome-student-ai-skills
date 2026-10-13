@@ -12,6 +12,7 @@ from typing import Any
 
 from .storage import Store
 from .tools import ProposalTools
+from .wopally_transport import wopally_urlopen
 
 SYSTEM_PROMPT = """你是“大学生申报材料 AI 助手”。用简体中文回答，像耐心的导师或材料顾问，但不擅自评审或打击学生。
 
@@ -78,6 +79,7 @@ class OllamaAgent:
         model: str | None = None,
         provider: str = "ollama",
         api_key: str = "",
+        meter: Any = None,
     ):
         self.store = store
         self.tools = tools
@@ -85,6 +87,7 @@ class OllamaAgent:
         self.model = model or os.environ.get("OLLAMA_MODEL", "qwen2.5:7b")
         self.provider = provider
         self.api_key = api_key
+        self.meter = meter
 
     def is_available(self) -> bool:
         return bool(self.status()["running"])
@@ -208,33 +211,43 @@ class OllamaAgent:
             request_body["temperature"] = options["temperature"]
         if "num_predict" in options:
             request_body["max_tokens"] = options["num_predict"]
+        if self.meter is not None:
+            request_body["max_tokens"] = min(int(request_body.get("max_tokens") or 2048), 2048)
         if payload.get("format"):
             request_body["response_format"] = {"type": "json_object"}
 
+        usage_request_id = self.meter.reserve(self.model) if self.meter is not None else ""
         request = urllib.request.Request(
             url,
             data=json.dumps(request_body, ensure_ascii=False).encode("utf-8"),
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.api_key}",
+                **({"User-Agent": f"StardustWorkbench/{usage_request_id}"} if usage_request_id else {}),
             },
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=timeout) as response:
+            with (wopally_urlopen(request, timeout=timeout) if self.meter is not None
+                  else urllib.request.urlopen(request, timeout=timeout)) as response:
                 body = json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
+            if usage_request_id:
+                # A provider rejection has no usable answer. Never charge the user.
+                self.meter.refund(usage_request_id)
             # Avoid returning request headers or any credential material.
             raise ModelUnavailable(
                 f"模型服务返回 HTTP {exc.code}。请检查 API 地址、密钥、模型名和账户额度。"
             ) from exc
         except urllib.error.URLError as exc:
+            # A timeout can have succeeded upstream. Leave the hold for reconciliation.
             raise ModelUnavailable("无法连接自定义模型服务，请检查 HTTPS 地址和网络。") from exc
         except (TimeoutError, json.JSONDecodeError) as exc:
             raise ModelUnavailable(f"自定义模型请求失败：{exc}") from exc
-
         choices = body.get("choices") or []
         if not choices:
+            if usage_request_id:
+                self.meter.refund(usage_request_id)
             raise ModelUnavailable("自定义模型没有返回可用结果。")
         message = choices[0].get("message") or {}
         tool_calls = []
@@ -255,6 +268,8 @@ class OllamaAgent:
         tot_tok = usage_info.get("total_tokens", p_tok + c_tok)
         key_fp = ("key_" + hashlib.sha256(self.api_key.encode()).hexdigest()[:8]) if self.api_key else "local"
         latency_ms = int((time.perf_counter() - start_t) * 1000) if "start_t" in locals() else 0
+        if usage_request_id:
+            self.meter.settle(usage_request_id, self.model)
 
         return {
             "message": {

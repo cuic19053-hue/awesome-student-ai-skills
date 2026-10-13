@@ -76,6 +76,12 @@
           <div id="modelStatus" class="model-status">
             <span class="status-dot"></span> 正在连接本地推理模型
           </div>
+          <button type="button" id="creditsBadgeBtn" class="credits-badge-btn" title="查看积分余额与充值">
+            <span class="gem-icon">💎</span> <span id="userCreditsValue">0</span> 点
+          </button>
+          <button type="button" id="usageLogsBtn" class="usage-logs-btn hidden" title="查看模型调用与算力用量明细">
+            <span class="chart-icon">📊</span> 用量明细
+          </button>
           <button type="button" id="modelSettingsBtn" class="model-settings-button">
             <span class="gear-icon">⚙</span> 模型配置
           </button>
@@ -427,6 +433,10 @@
                 <label class="field"><span>步骤（每行一项，可改）</span><textarea id="diagramNodes" rows="5"></textarea></label>
                 <div class="diagram-actions"><button id="saveDiagramBtn" class="button button-primary button-small">确认并生成图</button></div>
               </div>
+              <div id="workbenchImageControls" class="diagram-controls hidden">
+                <input id="workbenchImagePrompt" maxlength="2000" placeholder="描述需要生成的项目配图">
+                <button id="generateWorkbenchImageBtn" class="button button-secondary button-small">生成配图（按积分计费）</button>
+              </div>
               <div id="diagramGallery" class="diagram-gallery"></div>
             </section>
 
@@ -534,9 +544,16 @@
       <button type="button" id="closeModelSettingsBtn" class="icon-button" aria-label="关闭">×</button>
     </div>
     <p class="model-settings-intro">
-      支持本地零成本纯离线推理（Ollama），或使用具备强大推理能力的云端模型（OpenAI Chat Completions 兼容协议，支持 DeepSeek / Qwen / GPT / Claude 代理等）。
+      平台模式将自动组合 DeepSeek Flash 写作与 GPT Image 生图，无需选择模型；也可使用本地 Ollama 或自带 API Key。
     </p>
     <div class="model-provider-options">
+      <label class="model-provider-option">
+        <input type="radio" name="llmProvider" value="preset" id="providerPreset" checked>
+        <span>
+          <strong>平台融合模型包</strong>
+          <small>免配置 API Key；写作自动走 DeepSeek Flash，生图自动走 GPT Image，按实际用量结算积分。</small>
+        </span>
+      </label>
       <label class="model-provider-option">
         <input type="radio" name="llmProvider" value="ollama" id="providerOllama">
         <span>
@@ -548,9 +565,13 @@
         <input type="radio" name="llmProvider" value="openai_compatible" id="providerCustom">
         <span>
           <strong>自定义 API (BYOK)</strong>
-          <small>兼容 DeepSeek / OpenAI / Qwen / Claude 代理等任何标准接口，自带 API Key。</small>
+          <small>自带 API Key，兼容 DeepSeek / OpenAI / Qwen / Claude，不消耗平台积分。</small>
         </span>
       </label>
+    </div>
+    <div id="presetModelFields" class="model-config-fields">
+      <div id="presetModelCards" class="preset-model-cards"></div>
+      <small>无需手动选模型；调用前预留积分，成功后按实际费用结算。当前剩余：<strong id="presetDialogCredits">--</strong> 点。</small>
     </div>
     <div id="localModelFields" class="model-config-fields">
       <label class="field">
@@ -579,6 +600,112 @@
       <button type="button" id="testModelConfigBtn" class="button button-secondary">测试连通性</button>
       <span class="model-settings-spacer"></span>
       <button type="button" id="saveModelConfigBtn" class="button button-primary">保存并启用</button>
+    </div>
+  </dialog>
+
+  <!-- 积分中心与收银台弹窗 -->
+  <dialog id="rechargeDialog" class="recharge-dialog">
+    <div class="model-settings-head">
+      <div>
+        <div class="eyebrow"><span class="sparkle">✦</span> CREDITS & CHECKOUT</div>
+        <h2>积分中心与充值</h2>
+      </div>
+      <button type="button" id="closeRechargeBtn" class="icon-button" aria-label="关闭">×</button>
+    </div>
+    <div class="recharge-balance-banner">
+      <div class="balance-meta">
+        <span class="balance-label">当前账户剩余积分</span>
+        <span class="balance-val"><strong id="rechargeModalCredits">0</strong> <small>点</small></span>
+      </div>
+      <div class="balance-sub">积分仅在已验证的支付或有效兑换后到账。</div>
+    </div>
+    <div id="cardShopUnavailable" class="balance-sub">卡密购买入口尚未配置。</div>
+    <a id="cardShopLink" class="button button-primary button-large hidden" href="#" target="_blank" rel="noopener noreferrer">
+      前往站主店铺购买卡密
+    </a>
+    <div class="balance-sub">兑换比例：¥1 面值 = 10 积分。到店铺购买“agent积分兑换”专用卡密，付款领码后在这里粘贴。每张卡只能绑定一个工作台账号。</div>
+
+    <div class="redeem-box">
+      <div class="redeem-title">✦ 或使用卡密/兑换码兑换：</div>
+      <div class="redeem-row">
+        <input type="text" id="redeemCodeInput" placeholder="粘贴 AGT1- 开头的工作台专用卡密">
+        <button type="button" id="submitRedeemBtn" class="button button-secondary" disabled>代兑暂未开通</button>
+      </div>
+    </div>
+    <div id="pilotFingerprintBox" class="redeem-box hidden">
+      <div class="redeem-title">联调专用：购买后先生成核对编号，不会消耗卡密或发放积分。</div>
+      <div class="redeem-row">
+        <button type="button" id="pilotFingerprintBtn" class="button button-secondary">生成核对编号</button>
+        <input type="text" id="pilotFingerprintOutput" readonly placeholder="核对编号会显示在这里">
+      </div>
+    </div>
+    <div class="credit-history">
+      <div class="recharge-section-title">最近积分流水</div>
+      <div id="creditTransactions" class="credit-transactions">
+        <p class="balance-sub">暂无积分流水</p>
+      </div>
+    </div>
+    <div class="recharge-footer-note">
+      只接受工作台专用 AGT1 卡密；其他中转站卡密不能在这里兑换。
+    </div>
+  </dialog>
+
+  <!-- 算力用量明细弹窗 -->
+  <dialog id="usageDialog" class="usage-dialog">
+    <div class="model-settings-head">
+      <div>
+        <div class="eyebrow"><span class="sparkle">✦</span> USAGE ANALYTICS & LOGS</div>
+        <h2>模型调用与用量明细</h2>
+      </div>
+      <button type="button" id="closeUsageBtn" class="icon-button" aria-label="关闭">×</button>
+    </div>
+
+    <div class="usage-stats-grid">
+      <div class="stat-card">
+        <div class="stat-num" id="statCallCount">0</div>
+        <div class="stat-label">总调用次数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="statGrandTokens">0</div>
+        <div class="stat-label">总消耗 Token</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="statAvgLatency">0 ms</div>
+        <div class="stat-label">平均响应延迟</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="statEstimatedCost">待核对</div>
+        <div class="stat-label">上游成本对账</div>
+      </div>
+    </div>
+
+    <div class="usage-sub-header">
+      <span>按模型消耗分布</span>
+      <button type="button" id="refreshUsageBtn" class="button button-quiet button-small">刷新数据</button>
+    </div>
+    <div id="usageModelTags" class="usage-model-tags"></div>
+
+    <div class="usage-sub-header">
+      <span>最新调用流水明细</span>
+    </div>
+    <div class="usage-table-wrapper">
+      <table class="usage-table">
+        <thead>
+          <tr>
+            <th>调用时间</th>
+            <th>关联项目</th>
+            <th>任务类型</th>
+            <th>使用模型</th>
+            <th>输入 Token</th>
+            <th>输出 Token</th>
+            <th>总 Token</th>
+            <th>耗时</th>
+          </tr>
+        </thead>
+        <tbody id="usageTableBody">
+          <tr><td colspan="8" class="text-center text-muted">暂无调用记录</td></tr>
+        </tbody>
+      </table>
     </div>
   </dialog>
 
