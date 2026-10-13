@@ -37,7 +37,7 @@ def test_usage_matches_unique_marker_and_key_and_uses_exact_decimal(monkeypatch)
 
 def test_meter_reserves_once_then_refunds_difference_without_cross_user_spend(tmp_path):
     store = Store(tmp_path)
-    store.grant_workbench_payment_credits("alice", "paid-test-event-1", 1_000_000)
+    store.grant_workbench_payment_credits("alice", "paid-test-event-1", 500_000)
     meter = WorkbenchMeter(store, "alice", 684)
     request_id = meter.reserve("deepseek-v4-flash")
     with pytest.raises(InsufficientCreditsError):
@@ -45,10 +45,10 @@ def test_meter_reserves_once_then_refunds_difference_without_cross_user_spend(tm
     assert store.get_workbench_credit_balance("alice")["balance_micro_cny"] == 0
     meter.usage.find = lambda *args: (150_000, "provider-log-55")
     meter.settle(request_id, "deepseek-v4-flash")
-    assert store.get_workbench_credit_balance("alice")["balance_micro_cny"] == 850_000
+    assert store.get_workbench_credit_balance("alice")["balance_micro_cny"] == 350_000
     assert store.get_workbench_credit_balance("bob")["balance_micro_cny"] == 0
     meter.settle(request_id, "deepseek-v4-flash")
-    assert store.get_workbench_credit_balance("alice")["balance_micro_cny"] == 850_000
+    assert store.get_workbench_credit_balance("alice")["balance_micro_cny"] == 350_000
 
 
 def test_supabase_narrow_capability_uses_verified_user_jwt(monkeypatch, tmp_path):

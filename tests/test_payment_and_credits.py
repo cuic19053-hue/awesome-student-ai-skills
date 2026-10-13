@@ -11,7 +11,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 import server.app as server_app
-from proposal.credit_security import card_code_digest, encrypt_card_code, workbench_voucher_digest
+from proposal.credit_security import (
+    card_code_digest, decrypt_card_code, encrypt_card_code,
+    normalize_card_code, workbench_voucher_digest,
+)
 from proposal.storage import CreditRateLimitError, Store
 from proposal.wopally_client import WopallyCardRejected, WopallyUnavailable
 
@@ -217,6 +220,16 @@ def test_wopally_card_credits_only_the_authenticated_workbench_user(monkeypatch,
     assert balance["total_credited"] == 10
 
 
+def test_existing_half_yuan_balance_code_credits_five_points(monkeypatch, isolated_store):
+    enable_local_card_redeem(monkeypatch)
+    monkeypatch.setenv("WOPALLY_ALLOWED_CARD_VALUES_CNY", "0.5,1,5,10,20,50")
+    FakeWopallyClient.result = {"value_cny": "0.5", "provider_user_id": 9001}
+    result = client.post("/api/pay/redeem", json={"code": "THIRTY-TWO-HEX-EXAMPLE-ABCD1234"})
+    assert result.status_code == 200
+    assert result.json()["credits_added"] == 5
+    assert isolated_store.get_workbench_credit_balance("local_user")["balance_micro_cny"] == 500_000
+
+
 def test_workbench_voucher_requires_activation_and_is_atomic(monkeypatch, isolated_store):
     code = "AGT1-12345678-90ABCDEF-12345678-90ABCDEF"
     enable_local_card_redeem(monkeypatch)
@@ -311,6 +324,17 @@ def test_card_hash_cannot_be_claimed_by_another_user(monkeypatch, isolated_store
     store.begin_workbench_card_redemption("user-a", digest, ciphertext)
     with pytest.raises(ValueError, match="其他工作台账户"):
         store.begin_workbench_card_redemption("user-b", digest, ciphertext)
+
+
+def test_provider_balance_code_keeps_case_but_claim_digest_is_canonical(monkeypatch):
+    monkeypatch.setenv(
+        "WORKBENCH_REDEEM_ENCRYPTION_KEY",
+        base64.urlsafe_b64encode(b"k" * 32).decode().rstrip("="),
+    )
+    code = "abcdef0123456789abcdef0123456789"
+    assert normalize_card_code(code) == code
+    assert decrypt_card_code(encrypt_card_code(code)) == code
+    assert card_code_digest(code) == card_code_digest(code.upper())
 
 
 def test_card_redemption_has_per_user_hourly_rate_limit(tmp_path):

@@ -13,9 +13,10 @@ logger = logging.getLogger("proposal_agent.metering")
 class WorkbenchMeter:
     """Reserve each upstream request independently, including tool-loop requests."""
 
-    # A whole ¥1 card can cover the maximum held amount for one text request.
+    # A ¥0.5 balance card can cover one bounded request. The actual charge
+    # (3x provider cost) is reconciled, and the unused portion is returned.
     # Actual charge is 3x the authoritative Wopally cost; unused hold is returned.
-    TEXT_HOLD_MICRO_CNY = 1_000_000
+    TEXT_HOLD_MICRO_CNY = 500_000
 
     def __init__(self, store: Any, user_id: str, api_key_id: int, project_id: str = ""):
         self.store = store

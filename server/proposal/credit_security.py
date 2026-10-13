@@ -27,7 +27,9 @@ def _key() -> bytes:
 
 
 def normalize_card_code(code: str) -> str:
-    normalized = "".join(str(code).split()).upper()
+    # Sub2API compares redeem_codes.code case-sensitively. Never rewrite the
+    # actual bearer code before submitting it to the provider.
+    normalized = "".join(str(code).split())
     if not 8 <= len(normalized) <= 128:
         raise ValueError("卡密格式无效")
     return normalized
@@ -65,7 +67,9 @@ def workbench_voucher_digest(code: str) -> bytes:
 def card_code_digest(code: str) -> bytes:
     key = _key()
     digest_key = hmac.new(key, b"workbench-card-code-digest-v1", hashlib.sha256).digest()
-    normalized = normalize_card_code(code)
+    # Keep duplicate/cross-user claiming case-insensitive, while retaining
+    # the original case separately in the encrypted provider submission.
+    normalized = normalize_card_code(code).upper()
     return hmac.new(digest_key, normalized.encode("utf-8"), hashlib.sha256).digest()
 
 

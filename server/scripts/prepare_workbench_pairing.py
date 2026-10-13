@@ -55,9 +55,9 @@ def prepare(batch: Path, destination: Path, key: bytes) -> dict[str, object]:
                 or workbench_voucher_digest(public["code"]).hex() != digest_row["code_hash"]
             ):
                 raise ValueError("批次顺序、面值或卡密摘要不匹配")
-            private_code = secrets.token_hex(16)
+            private_code = secrets.token_hex(16).upper()
             while private_code in seen:
-                private_code = secrets.token_hex(16)
+                private_code = secrets.token_hex(16).upper()
             seen.add(private_code)
             station.writerow([private_code, "balance", face, "unused", f"workbench:{manifest['batch_id']}"])
             rows.append({
