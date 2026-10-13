@@ -3016,6 +3016,30 @@ button:disabled {
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(168, 85, 247, 0.2);
 }
+.topbar-recharge-btn {
+  white-space: nowrap;
+  box-shadow: var(--shadow-primary);
+}
+.sidebar-recharge-btn {
+  width: 100%;
+  margin: 0 0 14px;
+  justify-content: center;
+}
+.recharge-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 14px 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--stardust-gradient-subtle);
+  color: var(--text-heading);
+  font-size: 12px;
+}
+.recharge-steps strong {
+  width: 100%;
+  color: var(--stardust-primary-dark);
+}
 .gem-icon {
   font-size: 14px;
   animation: pulse-gem 2s infinite ease-in-out;
@@ -3023,6 +3047,30 @@ button:disabled {
 @keyframes pulse-gem {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.15); }
+}
+
+@media (max-width: 860px) {
+  .sidebar-recharge-btn {
+    width: auto;
+    margin: 0;
+    padding: 7px 12px;
+    white-space: nowrap;
+  }
+  .topbar .model-status {
+    display: none;
+  }
+}
+@media (max-width: 560px) {
+  .topbar-recharge-btn {
+    padding: 6px 9px;
+  }
+  .recharge-cta-label {
+    font-size: 11px;
+  }
+  .credits-badge-btn {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
 }
 
 /* 充值弹窗 */

@@ -341,6 +341,11 @@
     }
   }
 
+  function openRechargeDialog() {
+    $("#rechargeDialog")?.showModal();
+    void loadUserBalance();
+  }
+
   function renderCreditTransactions(transactions) {
     const container = $("#creditTransactions");
     if (!container) return;
@@ -2294,10 +2299,9 @@
     $$('input[name="llmProvider"]').forEach((input) => input.addEventListener("change", updateModelFields));
     $("#testModelConfigBtn").addEventListener("click", testSelectedLlmConfig);
     $("#saveModelConfigBtn").addEventListener("click", saveSelectedLlmConfig);
-    $("#creditsBadgeBtn")?.addEventListener("click", () => {
-      loadUserBalance();
-      $("#rechargeDialog")?.showModal();
-    });
+    $("#creditsBadgeBtn")?.addEventListener("click", openRechargeDialog);
+    $("#openRechargeBtn")?.addEventListener("click", openRechargeDialog);
+    $("#sidebarRechargeBtn")?.addEventListener("click", openRechargeDialog);
     $("#closeRechargeBtn")?.addEventListener("click", () => $("#rechargeDialog")?.close());
     $("#usageLogsBtn")?.addEventListener("click", openUsageDialog);
     $("#closeUsageBtn")?.addEventListener("click", () => $("#usageDialog")?.close());

@@ -40,6 +40,9 @@
       <button id="newProjectBtn" class="button button-primary new-project">
         <span class="plus">✦</span> 开始新建材料
       </button>
+      <button type="button" id="sidebarRechargeBtn" class="button button-secondary sidebar-recharge-btn">
+        💎 充值积分
+      </button>
 
       <div class="sidebar-search">
         <input id="projectSearchInput" type="text" placeholder="🔍 搜索项目课题…" autocomplete="off">
@@ -78,6 +81,9 @@
           </div>
           <button type="button" id="creditsBadgeBtn" class="credits-badge-btn" title="查看积分余额与充值">
             <span class="gem-icon">💎</span> <span id="userCreditsValue">—</span> 点
+          </button>
+          <button type="button" id="openRechargeBtn" class="button button-small button-primary topbar-recharge-btn">
+            ＋ <span class="recharge-cta-label">充值积分</span>
           </button>
           <button type="button" id="usageLogsBtn" class="usage-logs-btn hidden" title="查看模型调用与算力用量明细">
             <span class="chart-icon">📊</span> 用量明细
@@ -619,11 +625,16 @@
       </div>
       <div class="balance-sub">积分仅在已验证的支付或有效兑换后到账。</div>
     </div>
-    <div id="cardShopUnavailable" class="balance-sub">新卡购买暂时暂停排查；已购买的卡密可在下方兑换。请保留订单号，勿在群里公开卡密。</div>
+    <div id="cardShopUnavailable" class="balance-sub">购买入口暂时不可用；已购买卡密仍可在下方兑换。请保留订单号，勿在群里公开卡密。</div>
+    <div class="recharge-steps">
+      <strong>充值只需两步</strong>
+      <span>① 前往店铺付款并复制卡密</span>
+      <span>② 回到这里粘贴卡密，积分到账后即可使用</span>
+    </div>
     <a id="cardShopLink" class="button button-primary button-large hidden" href="#" target="_blank" rel="noopener noreferrer">
-      前往站主店铺购买卡密
+      前往店铺购买卡密 ↗
     </a>
-    <div class="balance-sub">兑换比例：¥1 面值 = 10 积分。购买店铺“agent积分兑换”卡密后，将完整卡密粘贴在下方。支持工作台 AGT1 卡密及店铺发放的中转站余额码；每张码只能绑定一个工作台账号。</div>
+    <div class="balance-sub">兑换比例：¥0.5 = 5 积分，¥1 = 10 积分。支持工作台 AGT1 卡密和店铺发放的中转站余额码；每张码只能绑定一个工作台账号。试运行阶段建议先小额体验。</div>
 
     <div class="redeem-box">
       <div class="redeem-title">✦ 或使用卡密/兑换码兑换：</div>
