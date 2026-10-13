@@ -115,6 +115,7 @@ class SupabaseStore:
         elif self.backend_secret and function in {
             "workbench_lookup_paired_voucher", "workbench_begin_card_redemption",
             "workbench_complete_paired_voucher", "workbench_set_card_redemption_status",
+            "workbench_complete_card_redemption",
             "workbench_reserve_usage", "workbench_settle_usage", "workbench_refund_usage",
             "workbench_get_intent",
         }:

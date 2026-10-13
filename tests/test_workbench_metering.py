@@ -77,6 +77,28 @@ def test_supabase_narrow_capability_uses_verified_user_jwt(monkeypatch, tmp_path
     assert seen["body"]["p_user_id"] == "alice"
 
 
+def test_supabase_existing_balance_code_completion_uses_narrow_capability(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORKBENCH_BACKEND_SECRET", "test-server-capability")
+    store = SupabaseStore("https://project.example.test", "public-test-key",
+                          data_dir=tmp_path, service_role_key="")
+    seen = {}
+
+    def fake_open(request, timeout):
+        seen["url"] = request.full_url
+        seen["body"] = json.loads(request.data)
+        return FakeResponse(b'{"status":"credited","balance_micro_cny":1000000}')
+
+    monkeypatch.setattr("proposal.supabase_store.urllib.request.urlopen", fake_open)
+    context = request_identity.set({"access_token": "signed-user-jwt", "user_id": "alice"})
+    try:
+        store.complete_workbench_card_redemption("intent-123", 1_000_000, 9001)
+    finally:
+        request_identity.reset(context)
+    assert seen["url"].endswith("/rpc/workbench_backend_complete_card_redemption")
+    assert seen["body"]["p_server_secret"] == "test-server-capability"
+    assert seen["body"]["p_face_value_micro_cny"] == 1_000_000
+
+
 def test_pinned_origin_rejects_other_hosts_and_private_ips(monkeypatch):
     monkeypatch.setenv("WOPALLY_ORIGIN_IP", "138.91.107.2")
     with pytest.raises(ValueError, match="verified HTTPS host"):

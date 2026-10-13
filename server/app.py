@@ -494,7 +494,10 @@ def _card_redemption_enabled() -> bool:
         and bool(_allowed_wopally_card_values())
     )
     if CLOUD_MODE:
-        return required and bool(os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip())
+        return required and bool(
+            os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+            or os.environ.get("WORKBENCH_BACKEND_SECRET", "").strip()
+        )
     return required and os.environ.get("WORKBENCH_LOCAL_CARD_REDEMPTION", "").lower() == "true"
 
 
@@ -810,7 +813,7 @@ def redeem_recharge_code(payload: RedeemCodeInput, request: Request) -> dict[str
     if not _card_redemption_enabled():
         raise HTTPException(
             status_code=400,
-            detail="这里只接受 AGT1- 开头的工作台专用卡密；请核对店铺发放内容并保留付款订单。",
+            detail="该卡密暂不能在工作台兑换；请核对店铺发放内容并保留付款订单。",
         )
     user_id = _current_user_id(request)
     client = WopallyClient()
