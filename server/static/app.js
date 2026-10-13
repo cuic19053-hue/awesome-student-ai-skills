@@ -28,7 +28,7 @@
     llmConfig: readSavedLlmConfig(),
     chatCollapsed: false,
     cloudMode: false,
-    userCredits: 0,
+    userCredits: null,
     cardRedemptionEnabled: false,
     presetModels: [],
     rechargePlans: [],
@@ -36,6 +36,7 @@
     authSession: null,
     authMode: "signin",
     appStarted: false,
+    balanceRequestSeq: 0,
     skills: [],
     pendingProject: null,
     activeTab: "all",
@@ -319,8 +320,13 @@
   }
 
   async function loadUserBalance() {
+    const requestSeq = ++state.balanceRequestSeq;
+    const accountId = state.authSession?.user?.id || null;
+    if (state.cloudMode && !accountId) return;
     try {
       const data = await api("/api/user/balance");
+      if (requestSeq !== state.balanceRequestSeq) return;
+      if (state.cloudMode && (accountId !== state.authSession?.user?.id || data.user_id !== accountId)) return;
       state.userCredits = data.credits;
       if ($("#userCreditsValue")) $("#userCreditsValue").textContent = data.credits;
       if ($("#rechargeModalCredits")) $("#rechargeModalCredits").textContent = data.credits;
@@ -328,6 +334,10 @@
       renderCreditTransactions(data.transactions || []);
     } catch (e) {
       console.warn("加载用户积分失败", e);
+      if (requestSeq === state.balanceRequestSeq && state.userCredits === null) {
+        if ($("#userCreditsValue")) $("#userCreditsValue").textContent = "加载失败";
+        if ($("#rechargeModalCredits")) $("#rechargeModalCredits").textContent = "加载失败";
+      }
     }
   }
 
@@ -519,6 +529,7 @@
     $("#authGate").classList.add("hidden");
     $("#appShell").classList.remove("hidden");
     $("#signOutBtn").classList.toggle("hidden", !state.cloudMode);
+    await loadUserBalance();
     await Promise.all([checkHealth(), refreshProjects()]);
     const projects = await api("/api/projects");
     if (projects.projects?.length) {
@@ -580,11 +591,12 @@
       state.authSession = session;
       if (session && !state.appStarted) {
         void startApplication(session);
-        void loadUserBalance();
       } else if (!session && event === "SIGNED_OUT") {
         state.appStarted = false;
-        state.userCredits = 0;
-        if ($("#userCreditsValue")) $("#userCreditsValue").textContent = "0";
+        state.userCredits = null;
+        state.balanceRequestSeq++;
+        if ($("#userCreditsValue")) $("#userCreditsValue").textContent = "—";
+        if ($("#rechargeModalCredits")) $("#rechargeModalCredits").textContent = "—";
         state.project = null;
         state.messages = [];
         state.documents = [];
@@ -620,6 +632,7 @@
       if (result.error) throw result.error;
       if (result.data.session) {
         await startApplication(result.data.session);
+        await loadUserBalance();
       } else if (state.authMode === "signup") {
         feedback.textContent = "账号已创建。请查收邮箱并完成验证后登录。";
         feedback.classList.add("success");
@@ -2345,6 +2358,9 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     init().catch((error) => toast(error.message, true));
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && state.authSession?.access_token) void loadUserBalance();
   });
 })();
   async function triggerHeroStart() {
