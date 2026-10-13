@@ -35,6 +35,9 @@
     authClient: null,
     authSession: null,
     authMode: "signin",
+    turnstileSiteKey: "",
+    turnstileWidgetId: null,
+    turnstileToken: "",
     appStarted: false,
     balanceRequestSeq: 0,
     skills: [],
@@ -568,12 +571,62 @@
     }
   }
 
+  function updateTurnstileState() {
+    const slot = $("#turnstileWidget");
+    if (!slot) return;
+    const isSignup = state.authMode === "signup";
+    if (!isSignup || !state.turnstileSiteKey) {
+      slot.classList.add("hidden");
+      return;
+    }
+    slot.classList.remove("hidden");
+    const renderWidget = () => {
+      if (!window.turnstile || state.turnstileWidgetId !== null) return;
+      try {
+        state.turnstileWidgetId = window.turnstile.render("#turnstileWidget", {
+          sitekey: state.turnstileSiteKey,
+          callback: (token) => {
+            state.turnstileToken = token;
+            const feedback = $("#authFeedback");
+            if (feedback && feedback.textContent === "请先完成人机安全验证。") {
+              feedback.textContent = "";
+            }
+          },
+          "expired-callback": () => {
+            state.turnstileToken = "";
+          },
+          "error-callback": () => {
+            state.turnstileToken = "";
+          },
+          theme: "auto",
+        });
+      } catch (err) {
+        console.warn("Turnstile render error:", err);
+      }
+    };
+    if (window.turnstile) {
+      renderWidget();
+    } else {
+      let attempts = 0;
+      const timer = setInterval(() => {
+        attempts++;
+        if (window.turnstile) {
+          clearInterval(timer);
+          renderWidget();
+        } else if (attempts > 20) {
+          clearInterval(timer);
+        }
+      }, 250);
+    }
+  }
+
   function showAuthGate(message = "") {
     state.appStarted = false;
     $("#appShell").classList.add("hidden");
     $("#authGate").classList.remove("hidden");
     $("#signOutBtn").classList.add("hidden");
     $("#authFeedback").textContent = message;
+    updateTurnstileState();
   }
 
   async function startApplication(session = null) {
@@ -673,15 +726,31 @@
     const password = $("#authPassword").value;
     const submit = $("#authSubmitBtn");
     const feedback = $("#authFeedback");
+
+    if (state.authMode === "signup" && state.turnstileSiteKey) {
+      if (!state.turnstileToken) {
+        feedback.className = "auth-feedback error";
+        feedback.textContent = "请先完成人机安全验证。";
+        return;
+      }
+    }
+
     submit.disabled = true;
     feedback.className = "auth-feedback";
     feedback.textContent = state.authMode === "signup" ? "正在创建账号…" : "正在登录…";
     try {
+      const signupOptions = {
+        emailRedirectTo: window.location.origin,
+      };
+      if (state.turnstileToken) {
+        signupOptions.captchaToken = state.turnstileToken;
+      }
+
       const result = state.authMode === "signup"
         ? await state.authClient.auth.signUp({
             email,
             password,
-            options: { emailRedirectTo: window.location.origin },
+            options: signupOptions,
           })
         : await state.authClient.auth.signInWithPassword({ email, password });
       if (result.error) throw result.error;
@@ -698,6 +767,12 @@
       feedback.textContent = error.message || "登录失败，请检查邮箱和密码。";
       feedback.classList.add("error");
     } finally {
+      if (window.turnstile && state.turnstileWidgetId !== null && state.authMode === "signup") {
+        try {
+          window.turnstile.reset(state.turnstileWidgetId);
+        } catch (_) {}
+        state.turnstileToken = "";
+      }
       submit.disabled = false;
     }
   }
@@ -2375,6 +2450,7 @@
         : "还没有账号？创建账号";
       $("#authPassword").autocomplete = state.authMode === "signup" ? "new-password" : "current-password";
       $("#authFeedback").textContent = "";
+      updateTurnstileState();
     });
     $("#signOutBtn").addEventListener("click", signOutCloudUser);
   }
@@ -2387,6 +2463,8 @@
     await loadSkills();
     await loadPresetModelsAndPlans();
     const config = await api("/api/config");
+    state.turnstileSiteKey = config.turnstile_site_key || "";
+    updateTurnstileState();
     $("#pilotFingerprintBox")?.classList.toggle(
       "hidden", new URLSearchParams(window.location.search).get("pilot") !== "1"
     );

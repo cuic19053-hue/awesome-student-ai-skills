@@ -163,6 +163,7 @@ class KeywordOnlyEmbedder:
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 SUPABASE_PUBLISHABLE_KEY = os.environ.get("SUPABASE_PUBLISHABLE_KEY", "")
+TURNSTILE_SITE_KEY = os.environ.get("TURNSTILE_SITE_KEY", "").strip()
 CLOUD_MODE = bool(SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY)
 store = (
     SupabaseStore(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
@@ -359,6 +360,7 @@ def app_config() -> dict[str, Any]:
         "cloud_mode": CLOUD_MODE,
         "supabase_url": SUPABASE_URL if CLOUD_MODE else "",
         "supabase_publishable_key": SUPABASE_PUBLISHABLE_KEY if CLOUD_MODE else "",
+        "turnstile_site_key": TURNSTILE_SITE_KEY,
         "payment_enabled": False,
         "card_redemption_enabled": redemption_enabled,
         "voucher_redemption_enabled": _voucher_redemption_enabled(),

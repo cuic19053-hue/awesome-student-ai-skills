@@ -7,6 +7,7 @@
   <title>Stardust Agent · 大学生申报材料 Agent 工作台</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%236366f1'/%3E%3Cstop offset='50%25' stop-color='%238b5cf6'/%3E%3Cstop offset='100%25' stop-color='%2306b6d4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='48' height='48' rx='14' fill='url(%23g)'/%3E%3Cpath d='M24 7 L27.5 18.5 L39 22 L27.5 25.5 L24 37 L20.5 25.5 L9 22 L20.5 18.5 Z' fill='white'/%3E%3Ccircle cx='35' cy='11' r='2' fill='%23ffffff' opacity='0.85'/%3E%3Ccircle cx='12' cy='34' r='1.5' fill='%23ffffff' opacity='0.75'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="/static/app.css">
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 </head>
 <body>
   <section id="authGate" class="auth-gate hidden" aria-labelledby="authTitle">
@@ -18,6 +19,7 @@
       <form id="authForm">
         <label class="field"><span>邮箱</span><input id="authEmail" type="email" autocomplete="email" required placeholder="name@example.com"></label>
         <label class="field"><span>密码</span><input id="authPassword" type="password" autocomplete="current-password" minlength="8" required placeholder="至少 8 位"></label>
+        <div id="turnstileWidget" class="turnstile-slot hidden"></div>
         <button id="authSubmitBtn" type="submit" class="button button-primary button-large">登录</button>
       </form>
       <button type="button" id="authModeToggle" class="auth-mode-toggle">还没有账号？创建账号</button>

@@ -2783,6 +2783,8 @@ button:disabled {
 .auth-card h1{margin:0 0 8px;font-size:26px;letter-spacing:-.4px;color:#202a3c}
 .auth-card>p{margin:0 0 22px;color:#7b8799;font-size:12px;line-height:1.7}
 .auth-card #authForm .field{margin-bottom:14px}
+.turnstile-slot{display:flex;justify-content:center;align-items:center;margin:12px 0 14px;min-height:65px;width:100%}
+.turnstile-slot.hidden{display:none}
 .auth-card #authForm .button{width:100%;margin-top:5px}
 .auth-mode-toggle{display:block;margin:15px auto 0;border:0;background:none;color:#5269c8;font-size:12px;cursor:pointer}
 .auth-feedback{min-height:20px;margin-top:12px;color:#a34246;font-size:11px;text-align:center}
