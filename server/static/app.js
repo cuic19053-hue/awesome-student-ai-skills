@@ -439,6 +439,55 @@
     }
   }
 
+  let currentOnboardingStep = 1;
+
+  function setOnboardingStep(step) {
+    currentOnboardingStep = Math.max(1, Math.min(4, step));
+    $$(".onboarding-step-tab").forEach((tab) => {
+      const tabStep = parseInt(tab.dataset.step, 10);
+      tab.classList.toggle("active", tabStep === currentOnboardingStep);
+    });
+    $$(".onboarding-step-content").forEach((content) => {
+      const contentStep = parseInt(content.dataset.step, 10);
+      content.classList.toggle("hidden", contentStep !== currentOnboardingStep);
+    });
+
+    const prevBtn = $("#prevOnboardingBtn");
+    const nextBtn = $("#nextOnboardingBtn");
+    const finishBtn = $("#finishOnboardingBtn");
+
+    if (prevBtn) prevBtn.classList.toggle("hidden", currentOnboardingStep === 1);
+    if (nextBtn) {
+      nextBtn.classList.toggle("hidden", currentOnboardingStep === 4);
+      nextBtn.textContent = `下一步 (${currentOnboardingStep}/4)`;
+    }
+    if (finishBtn) {
+      finishBtn.classList.toggle("hidden", currentOnboardingStep !== 4);
+    }
+  }
+
+  function openOnboardingDialog() {
+    setOnboardingStep(1);
+    $("#onboardingDialog")?.showModal();
+  }
+
+  function closeOnboardingDialog() {
+    if ($("#dontShowOnboardingAgain")?.checked) {
+      try {
+        localStorage.setItem("stardust_onboarding_dismissed", "true");
+      } catch {}
+    }
+    $("#onboardingDialog")?.close();
+  }
+
+  function checkInitialOnboarding() {
+    try {
+      if (!localStorage.getItem("stardust_onboarding_dismissed")) {
+        openOnboardingDialog();
+      }
+    } catch {}
+  }
+
   async function loadPresetModelsAndPlans() {
     try {
       const data = await api("/api/models/preset");
@@ -545,6 +594,7 @@
       $("#workspace").classList.add("hidden");
       $("#welcome").classList.remove("hidden");
     }
+    checkInitialOnboarding();
   }
 
   async function initializeCloudAuth(config) {
@@ -2307,6 +2357,14 @@
     $("#closeUsageBtn")?.addEventListener("click", () => $("#usageDialog")?.close());
     $("#refreshUsageBtn")?.addEventListener("click", openUsageDialog);
     $("#submitRedeemBtn")?.addEventListener("click", handleRedeemCode);
+    $("#helpGuideBtn")?.addEventListener("click", openOnboardingDialog);
+    $("#closeOnboardingBtn")?.addEventListener("click", closeOnboardingDialog);
+    $("#prevOnboardingBtn")?.addEventListener("click", () => setOnboardingStep(currentOnboardingStep - 1));
+    $("#nextOnboardingBtn")?.addEventListener("click", () => setOnboardingStep(currentOnboardingStep + 1));
+    $("#finishOnboardingBtn")?.addEventListener("click", closeOnboardingDialog);
+    $$(".onboarding-step-tab").forEach((tab) => {
+      tab.addEventListener("click", () => setOnboardingStep(parseInt(tab.dataset.step, 10)));
+    });
     $("#authForm").addEventListener("submit", submitAuthForm);
     $("#authModeToggle").addEventListener("click", () => {
       state.authMode = state.authMode === "signin" ? "signup" : "signin";

@@ -3464,3 +3464,143 @@ button:disabled {
 .text-center {
   text-align: center;
 }
+
+/* ==================== 新手引导教程弹窗 ==================== */
+.onboarding-dialog {
+  width: min(94vw, 640px);
+  max-height: 90vh;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  background: var(--bg-surface);
+  color: var(--text-main);
+  box-shadow: var(--shadow-xl);
+  overflow-y: auto;
+}
+.onboarding-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+.onboarding-step-indicator {
+  display: flex;
+  justify-content: space-between;
+  margin: 14px 0 18px;
+  gap: 6px;
+  border-bottom: 1px solid var(--border-light);
+}
+.onboarding-step-tab {
+  flex: 1;
+  text-align: center;
+  padding: 8px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.onboarding-step-tab:hover {
+  color: var(--text-heading);
+}
+.onboarding-step-tab.active {
+  color: var(--stardust-primary-dark);
+  border-bottom-color: var(--stardust-primary);
+  background: var(--stardust-glow-subtle);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+.onboarding-card {
+  background: #f8fafc;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  margin-bottom: 18px;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+}
+.onboarding-card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-heading);
+  margin-bottom: 12px;
+}
+.onboarding-card-title .step-badge {
+  background: var(--stardust-gradient);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+.onboarding-card-body {
+  font-size: 13px;
+  line-height: 1.68;
+  color: var(--text-heading);
+}
+.onboarding-card-body p {
+  margin: 0 0 8px;
+}
+.onboarding-card-body ul {
+  margin: 0 0 10px 18px;
+  padding: 0;
+}
+.onboarding-card-body li {
+  margin-bottom: 6px;
+  color: var(--text-main);
+}
+.onboarding-highlight {
+  background: #ffffff;
+  border: 1px solid rgba(99, 102, 241, 0.22);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: var(--stardust-primary-dark);
+  line-height: 1.5;
+}
+.onboarding-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-light);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.onboarding-footer-left label {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+.onboarding-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 600px) {
+  .onboarding-step-indicator {
+    overflow-x: auto;
+  }
+  .onboarding-step-tab {
+    font-size: 11px;
+    padding: 6px 4px;
+  }
+  .onboarding-card {
+    padding: 14px;
+    min-height: auto;
+  }
+  .onboarding-card-title {
+    font-size: 13.5px;
+  }
+}

@@ -85,6 +85,9 @@
           <button type="button" id="openRechargeBtn" class="button button-small button-primary topbar-recharge-btn">
             ＋ <span class="recharge-cta-label">充值积分</span>
           </button>
+          <button type="button" id="helpGuideBtn" class="model-settings-button" title="新手使用教程与快速上手">
+            <span class="book-icon">📖</span> 教程指引
+          </button>
           <button type="button" id="usageLogsBtn" class="usage-logs-btn hidden" title="查看模型调用与算力用量明细">
             <span class="chart-icon">📊</span> 用量明细
           </button>
@@ -717,6 +720,123 @@
           <tr><td colspan="8" class="text-center text-muted">暂无调用记录</td></tr>
         </tbody>
       </table>
+    </div>
+  </dialog>
+
+  <!-- 新手引导教程弹窗 -->
+  <dialog id="onboardingDialog" class="onboarding-dialog">
+    <div class="model-settings-head">
+      <div>
+        <div class="eyebrow"><span class="sparkle">✦</span> GETTING STARTED</div>
+        <h2>新手引导 · 3分钟玩转申报 Agent</h2>
+      </div>
+      <button type="button" id="closeOnboardingBtn" class="icon-button" aria-label="关闭">×</button>
+    </div>
+
+    <div class="onboarding-step-indicator">
+      <div class="onboarding-step-tab active" data-step="1">1. 需求与赛道</div>
+      <div class="onboarding-step-tab" data-step="2">2. 两种模型模式</div>
+      <div class="onboarding-step-tab" data-step="3">3. 材料事实防幻觉</div>
+      <div class="onboarding-step-tab" data-step="4">4. 导出 Word 草稿</div>
+    </div>
+
+    <div class="onboarding-steps-container">
+      <!-- 步骤 1 -->
+      <div class="onboarding-step-content" data-step="1">
+        <div class="onboarding-card">
+          <div class="onboarding-card-title">
+            <span class="step-badge">STEP 01</span>
+            <span>一句话需求，自动锁定 35 个高校赛道</span>
+          </div>
+          <div class="onboarding-card-body">
+            <p>在首页输入框直接说出你的申报诉求，Agent 会自动识别并匹配专业评审标准：</p>
+            <ul>
+              <li><strong>科研与立项</strong>：大创创新训练/创业训练、校级/院级立项、挑战杯课外科技等。</li>
+              <li><strong>荣誉与奖学金</strong>：国家奖学金、国家励志奖学金、校级/企业单项奖学金等。</li>
+              <li><strong>实践与升学</strong>：三下乡社会实践、保研推免材料、入团申请书、选调生申请等。</li>
+            </ul>
+            <div class="onboarding-highlight">
+              💡 <strong>小贴士</strong>：无需背诵赛道名称，直接说“我想申请大创”或“大二想评三好学生”，系统会自动分流！
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 步骤 2 -->
+      <div class="onboarding-step-content hidden" data-step="2">
+        <div class="onboarding-card">
+          <div class="onboarding-card-title">
+            <span class="step-badge">STEP 02</span>
+            <span>推理算力：平台免配置 vs 自带 Key 免积分</span>
+          </div>
+          <div class="onboarding-card-body">
+            <p>点击右上角 <strong>「⚙ 模型配置」</strong>，可随时自由切换 2 种算力方式：</p>
+            <ul>
+              <li><strong>💎 平台融合模型包（默认）</strong>：免配 API Key 开箱即用。文本撰写自动走 DeepSeek Flash，路线图/配图走 GPT Image，按实际消耗扣积分（点击「充值积分」可到店铺买卡密兑换）。</li>
+              <li><strong>🔑 自定义 API (自带 Key / BYOK)</strong>：填入你的 DeepSeek、通义千问、硅基流动或 OpenAI Key，<strong>工作台 0 扣积分，无限畅写</strong>！Key 仅保存在当前标签页，绝不存入服务器数据库。</li>
+            </ul>
+            <div class="onboarding-highlight">
+              🚀 <strong>小贴士</strong>：自己有官方 API Key 的同学强烈推荐使用「自定义 API」，完全免费不扣积分！
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 步骤 3 -->
+      <div class="onboarding-step-content hidden" data-step="3">
+        <div class="onboarding-card">
+          <div class="onboarding-card-title">
+            <span class="step-badge">STEP 03</span>
+            <span>严格事实核查，绝不虚构与学术造假</span>
+          </div>
+          <div class="onboarding-card-body">
+            <p>申报材料是面向高校与教育主管部门的严谨公文，工作台内置学术诚信底线：</p>
+            <ul>
+              <li><strong>上传材料做证据</strong>：支持上传学校红头文件、申报模板、已有科研成果或证明照片。</li>
+              <li><strong>未核实不引用</strong>：上传材料必须经你在界面上确认文字后，Agent 才会将其作为事实证据。</li>
+              <li><strong>拒绝无据幻觉</strong>：缺失的数据或经历，Agent 会明确标记「待补充」并逐步追问，绝不自作主张编造。</li>
+            </ul>
+            <div class="onboarding-highlight">
+              🛡️ <strong>安全提醒</strong>：提交最终材料前，务必逐项人工核验真实性与政策条款。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 步骤 4 -->
+      <div class="onboarding-step-content hidden" data-step="4">
+        <div class="onboarding-card">
+          <div class="onboarding-card-title">
+            <span class="step-badge">STEP 04</span>
+            <span>逐章协同润色，一键导出规范 Word 草稿</span>
+          </div>
+          <div class="onboarding-card-body">
+            <p>材料创作全流程透明可控，随时微调修改：</p>
+            <ul>
+              <li><strong>拟定大纲</strong>：先确认目录结构与赛道要求，可随时增删章节。</li>
+              <li><strong>逐章共创</strong>：各章节单独撰写与润色，不满意可一键重新生成。</li>
+              <li><strong>路线图与流程图</strong>：自动提炼节点并生成高保真图表，直接嵌入文档。</li>
+              <li><strong>一键下载 Word</strong>：点击「📥 导出草稿」，直接下载符合高校字体、字号、表格规范的 <code>.docx</code> 文件！</li>
+            </ul>
+            <div class="onboarding-highlight">
+              🎉 <strong>准备好了吗？</strong> 点击下方“开始使用”，开启你的第一篇申报材料吧！
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="onboarding-footer">
+      <div class="onboarding-footer-left">
+        <label>
+          <input type="checkbox" id="dontShowOnboardingAgain" checked> 下次打开不再自动弹出
+        </label>
+      </div>
+      <div class="onboarding-footer-right">
+        <button type="button" id="prevOnboardingBtn" class="button button-secondary hidden">上一步</button>
+        <button type="button" id="nextOnboardingBtn" class="button button-primary">下一步 (1/4)</button>
+        <button type="button" id="finishOnboardingBtn" class="button button-primary hidden">开始使用工作台 🚀</button>
+      </div>
     </div>
   </dialog>
 
