@@ -4,15 +4,15 @@
 
 ## 工作台付费链路（生产状态）
 
-目标流程：用户仅登录工作台 → 从 [Wopally 的 CatFK 店铺](https://catfk.com/shop/KGFPJI42) 购买工作台卡密或中转站余额卡密 → 工作台核验并绑定当前 Supabase 用户 → 后端将余额兑入低权限 `github-skills` 中转站账户 → 用户获得 ¥1＝10 积分（¥0.5＝5 积分）→ DeepSeek Flash 写作/GPT Image 生图按实际站内费用的 3 倍结算。用户无需登录中转站、选择模型或接触服务端 Key。BYOK/Ollama 独立且不扣积分。
+目标流程：用户仅登录工作台 → 从 [Wopally 的 CatFK 店铺](https://catfk.com/shop/KGFPJI42) 购买工作台卡密或中转站余额卡密 → 工作台核验并绑定当前 Supabase 用户 → 后端将余额兑入低权限 `github-skills` 中转站账户 → 用户获得 ¥1＝10 积分（¥0.5＝5 积分）→ DeepSeek Flash 写作/GPT Image 生图按实际站内费用的 12 倍结算（原价 3 倍的 4 倍）。用户无需登录中转站、选择模型或接触服务端 Key。BYOK/Ollama 独立且不扣积分。
 
-**2026-10-13 已验证一笔真实 ¥0.5 余额码充值。** 工作台当前用户账本增加 5 积分，中转站专用账户增加 ¥0.5，重复登录仍可读取到同一余额；店铺购买入口已恢复。Supabase 中同批 500 张 AGT1 码仍为激活状态，私密配对余额码尚未使用。`github-skills` 专用 Key 属分组 127；服务端登录、用量查询、Key 绑定及可用模型清单的只读探测通过。**DeepSeek/GPT Image 真实生成和实际费用结算尚未验收**，不能把“充值已到账”等同于“付费模型完全可用”。
+**2026-10-13 已验证真实余额码充值及 DeepSeek Flash 用量结算。** 首笔 ¥0.5 充值到账 5 积分；生产账本此后还记录了其他余额码兑换和多笔已结算的文本模型调用。店铺购买入口已恢复；Supabase 中同批 AGT1 卡密仍为激活状态，私密配对余额码尚未使用。`github-skills` 专用 Key 属分组 127。**GPT Image 的真实生成与费用结算、失败退费等场景尚未全面验收**，不能把“充值已到账”等同于“所有付费功能均已验收”。
 
-两个系统无法共享数据库事务：工作台先创建唯一兑换意向，中转站确认余额码实际面值与服务账户后，Supabase 在一笔事务内给该用户加积分；超时或本地入账失败保留待核对，重试只查该账户的兑换历史，不盲目重复向中转站提交。零余额在请求前拦截；每个上游调用暂预留 ¥0.5（5 积分），查中转站 `usage` 中唯一 User-Agent 标识对应的 `actual_cost`，按 3 倍结算、多预留退回。费用无法确认则保留预留并阻止该用户继续调用。图片一次仅生成一张 PNG，服务端 Key 不下发浏览器。
+两个系统无法共享数据库事务：工作台先创建唯一兑换意向，中转站确认余额码实际面值与服务账户后，Supabase 在一笔事务内给该用户加积分；超时或本地入账失败保留待核对，重试只查该账户的兑换历史，不盲目重复向中转站提交。零余额在请求前拦截；每个上游调用暂预留 ¥0.5（5 积分），查中转站 `usage` 中唯一 User-Agent 标识对应的 `actual_cost`。带 `m12_` 前缀的新请求按 12 倍结算；旧请求即使跨部署后才恢复核对，仍按原价 3 倍结算。多预留退回；实际费用高于预留或暂时无法确认时保留预留并阻止该用户继续调用，等待人工核对。图片一次仅生成一张 PNG，服务端 Key 不下发浏览器。
 
 部署配置见 `.env.example`：`WORKBENCH_BACKEND_SECRET` 是 Supabase 专用的窄权限能力密钥，不是 project-wide `service_role`；`WORKBENCH_REDEEM_ENCRYPTION_KEY` 解密已配对的私密站内码。`WOPALLY_SERVICE_EMAIL/PASSWORD` 仅为 `github-skills` 低权限登录；`WOPALLY_WORKBENCH_API_KEY` 仅在服务端调用分组 127。`WOPALLY_ORIGIN_IP` 仅用于源站固定 IP 连接，TLS 仍校验 `api.wopally.cn` 证书。不应在代码仓库、浏览器或日志中输出任何明文卡密和密钥。
 
-**模型调用仍需验收：** 使用已到账的 5 积分各测试一次 DeepSeek 与 GPT Image 请求，核对上游用量和工作台扣点；再验证失败退费、重复兑换与零余额拦截。任何一项不符，立刻将 `WORKBENCH_MODEL_BUNDLE_PAUSED=true` 与 `WORKBENCH_VOUCHERS_PAUSED=true` 写入 Vercel 生产环境并重新部署，必要时先停用专用 Key 692。利润报表不作为自动转账依据。
+**剩余场景仍需验收：** 测试 GPT Image 请求，核对上游用量和工作台扣点；再验证失败退费、重复兑换与零余额拦截。任何一项不符，立刻将 `WORKBENCH_MODEL_BUNDLE_PAUSED=true` 与 `WORKBENCH_VOUCHERS_PAUSED=true` 写入 Vercel 生产环境并重新部署，必要时先停用专用 Key 692。利润报表不作为自动转账依据。
 
 安全提醒：绝不可把用户输入传给 Sub2API 管理端 `create-and-redeem`；该端点对不存在的码可能先创建再充值。AGT1 店铺码与配对的私密站内码分离；若店铺实际发放现有中转站余额码，则走“仅兑换已存在余额码”路径，并在中转站确认面值后入账，禁止订阅码/并发码。
 

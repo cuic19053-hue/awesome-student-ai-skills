@@ -9,13 +9,14 @@ from .wopally_usage import UsageUnavailable, WopallyUsage
 
 logger = logging.getLogger("proposal_agent.metering")
 
+RETAIL_MULTIPLIER = 12
+
 
 class WorkbenchMeter:
     """Reserve each upstream request independently, including tool-loop requests."""
 
-    # A ¥0.5 balance card can cover one bounded request. The actual charge
-    # (3x provider cost) is reconciled, and the unused portion is returned.
-    # Actual charge is 3x the authoritative Wopally cost; unused hold is returned.
+    # Each request records its price version in the ID so an old in-flight
+    # request still settles at the price in effect when it was reserved.
     TEXT_HOLD_MICRO_CNY = 500_000
 
     def __init__(self, store: Any, user_id: str, api_key_id: int, project_id: str = ""):
@@ -26,7 +27,7 @@ class WorkbenchMeter:
         self.usage = WopallyUsage()
 
     def reserve(self, model: str, hold_micro_cny: int | None = None) -> str:
-        request_id = uuid.uuid4().hex
+        request_id = f"m{RETAIL_MULTIPLIER}_{uuid.uuid4().hex}"
         self.store.reserve_workbench_usage(
             self.user_id, request_id, model,
             hold_micro_cny or self.TEXT_HOLD_MICRO_CNY, self.api_key_id,

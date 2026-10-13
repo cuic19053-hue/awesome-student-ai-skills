@@ -35,6 +35,39 @@ def test_usage_matches_unique_marker_and_key_and_uses_exact_decimal(monkeypatch)
         WopallyUsage(token="test-only").find("unique-call", 999, "deepseek-v4-flash")
 
 
+def test_new_requests_charge_twelve_times_without_repricing_legacy_requests(monkeypatch, tmp_path):
+    store = Store(tmp_path)
+    store.grant_workbench_payment_credits("alice", "paid-test-event-1", 1_000_000)
+    meter = WorkbenchMeter(store, "alice", 684)
+    request_id = meter.reserve("deepseek-v4-flash")
+    assert request_id.startswith("m12_")
+
+    def open_request(request, timeout):
+        return FakeResponse(json.dumps({"code": 0, "data": {"items": [
+            {"id": 55, "api_key_id": 684, "model": "deepseek-v4-flash",
+             "user_agent": f"StardustWorkbench/{request_id}", "actual_cost": "0.01"},
+        ]}}).encode())
+
+    monkeypatch.setattr("proposal.wopally_usage.urllib.request.urlopen", open_request)
+    assert WopallyUsage(token="test-only").find(request_id, 684, "deepseek-v4-flash") == (120_000, "55")
+    meter.usage = WopallyUsage(token="test-only")
+    meter.settle(request_id, "deepseek-v4-flash")
+    assert store.get_workbench_credit_balance("alice")["balance_micro_cny"] == 880_000
+
+
+def test_pending_pre_change_request_keeps_old_three_times_price(monkeypatch):
+    legacy_request_id = "a" * 32
+
+    def open_request(request, timeout):
+        return FakeResponse(json.dumps({"code": 0, "data": {"items": [
+            {"id": 56, "api_key_id": 684, "model": "deepseek-v4-flash",
+             "user_agent": f"StardustWorkbench/{legacy_request_id}", "actual_cost": "0.01"},
+        ]}}).encode())
+
+    monkeypatch.setattr("proposal.wopally_usage.urllib.request.urlopen", open_request)
+    assert WopallyUsage(token="test-only").find(legacy_request_id, 684, "deepseek-v4-flash") == (30_000, "56")
+
+
 def test_meter_reserves_once_then_refunds_difference_without_cross_user_spend(tmp_path):
     store = Store(tmp_path)
     store.grant_workbench_payment_credits("alice", "paid-test-event-1", 500_000)

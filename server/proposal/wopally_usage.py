@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -61,9 +62,11 @@ class WopallyUsage:
                     cost = Decimal(str(row["actual_cost"]))
                     if not cost.is_finite() or cost < 0:
                         raise ValueError
-                    # Provider cost is CNY; 3x retail charge, rounded up to one micro-CNY.
+                    # Legacy unversioned requests retain their original 3x
+                    # price; requests reserved after the change use 12x.
+                    multiplier = 12 if re.fullmatch(r"m12_[0-9a-f]{32}", request_id) else 3
                     from decimal import ROUND_CEILING
-                    micro = int((cost * 3 * 1_000_000).to_integral_value(rounding=ROUND_CEILING))
+                    micro = int((cost * multiplier * 1_000_000).to_integral_value(rounding=ROUND_CEILING))
                 except (KeyError, InvalidOperation, ValueError, TypeError) as exc:
                     raise UsageUnavailable("中转站费用格式无法识别") from exc
                 return micro, str(row.get("id") or row.get("request_id") or "")
