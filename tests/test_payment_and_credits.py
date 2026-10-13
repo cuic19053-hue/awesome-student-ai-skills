@@ -69,7 +69,7 @@ def test_card_redemption_is_off_until_owner_approval_and_credentials(monkeypatch
     monkeypatch.delenv("WOPALLY_SERVICE_ACCESS_TOKEN", raising=False)
     assert client.get("/api/config").json()["card_redemption_enabled"] is False
     response = client.post("/api/pay/redeem", json={"code": "FAKE-CARD-CODE-123"})
-    assert response.status_code == 503
+    assert response.status_code == 400
 
 
 def test_paid_pilot_fingerprint_never_redeems_or_credits(monkeypatch, isolated_store):
@@ -77,8 +77,10 @@ def test_paid_pilot_fingerprint_never_redeems_or_credits(monkeypatch, isolated_s
     response = client.post("/api/pay/card-fingerprint", json={"code": code})
     assert response.status_code == 200
     assert response.json()["fingerprint"] == workbench_voucher_digest(code).hex()
+    labeled = client.post("/api/pay/card-fingerprint", json={"code": "卡密：" + code + "，请回工作台兑换"})
+    assert labeled.json()["fingerprint"] == workbench_voucher_digest(code).hex()
     assert isolated_store.get_workbench_credit_balance("local_user")["balance_micro_cny"] == 0
-    assert client.post("/api/pay/card-fingerprint", json={"code": "bad"}).status_code == 422
+    assert client.post("/api/pay/card-fingerprint", json={"code": "bad"}).status_code == 400
 
 
 def test_card_redemption_requires_a_verified_upstream_api_contract(monkeypatch):
@@ -86,7 +88,7 @@ def test_card_redemption_requires_a_verified_upstream_api_contract(monkeypatch):
     monkeypatch.setenv("WOPALLY_REDEEM_API_VERIFIED", "false")
     assert client.get("/api/config").json()["card_redemption_enabled"] is False
     response = client.post("/api/pay/redeem", json={"code": "FAKE-CARD-CODE-123"})
-    assert response.status_code == 503
+    assert response.status_code == 400
     assert FakeWopallyClient.calls == 0
 
 
@@ -95,7 +97,7 @@ def test_admin_pause_switch_disables_card_redemption(monkeypatch):
     monkeypatch.setenv("WORKBENCH_CARD_REDEMPTION_PAUSED", "true")
     assert client.get("/api/config").json()["card_redemption_enabled"] is False
     response = client.post("/api/pay/redeem", json={"code": "FAKE-CARD-CODE-123"})
-    assert response.status_code == 503
+    assert response.status_code == 400
     assert FakeWopallyClient.calls == 0
 
 

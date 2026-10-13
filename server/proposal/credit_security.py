@@ -6,6 +6,7 @@ import hmac
 import os
 import re
 import secrets
+import unicodedata
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -37,6 +38,21 @@ def normalize_workbench_voucher_code(code: str) -> str:
     if not re.fullmatch(r"AGT1-(?:[0-9A-F]{8}-){3}[0-9A-F]{8}", normalized):
         raise ValueError("工作台卡密格式无效")
     return normalized
+
+
+def extract_workbench_voucher_code(text: str) -> str:
+    """Accept one shop code even when the seller includes a label or instructions."""
+    raw = unicodedata.normalize("NFKC", str(text))
+    try:
+        return normalize_workbench_voucher_code(raw)
+    except ValueError:
+        matches = re.findall(
+            r"(?<![A-Z0-9])AGT1-(?:[0-9A-F]{8}-){3}[0-9A-F]{8}(?![A-Z0-9])",
+            raw.upper(),
+        )
+        if len(matches) != 1:
+            raise ValueError("请粘贴一张 AGT1- 开头的工作台专用卡密；若店铺发放的不是此格式，请保留订单联系店铺。")
+        return matches[0]
 
 
 def workbench_voucher_digest(code: str) -> bytes:

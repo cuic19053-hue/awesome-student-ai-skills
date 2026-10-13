@@ -37,6 +37,7 @@ from proposal.credit_security import (
     card_code_digest,
     decrypt_card_code,
     encrypt_card_code,
+    extract_workbench_voucher_code,
     normalize_card_code,
     workbench_voucher_digest,
 )
@@ -238,7 +239,7 @@ class CreatePayOrderInput(BaseModel):
 
 
 class RedeemCodeInput(BaseModel):
-    code: str = Field(min_length=8, max_length=128)
+    code: str = Field(min_length=1, max_length=512)
 
 
 class Sub2PaymentNotification(BaseModel):
@@ -723,12 +724,16 @@ async def payment_notify(request: Request) -> Response:
 
 @app.post("/api/pay/redeem")
 def redeem_recharge_code(payload: RedeemCodeInput, request: Request) -> dict[str, Any]:
-    if "".join(payload.code.split()).upper().startswith("AGT1-"):
+    if "AGT1-" in payload.code.upper():
+        try:
+            voucher_code = extract_workbench_voucher_code(payload.code)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         if not _voucher_redemption_enabled():
             raise HTTPException(status_code=503, detail="工作台卡密尚未启用")
         user_id = _current_user_id(request)
         try:
-            digest = workbench_voucher_digest(payload.code)
+            digest = workbench_voucher_digest(voucher_code)
             voucher = store.lookup_paired_voucher(digest)
             if voucher["status"] == "redeemed":
                 if str(voucher["redeemed_by"]) != user_id:
@@ -803,7 +808,10 @@ def redeem_recharge_code(payload: RedeemCodeInput, request: Request) -> dict[str
                 else f"兑换成功，到账 {round(credited / MICRO_CNY_PER_CREDIT, 4)} 积分。",
         }
     if not _card_redemption_enabled():
-        raise HTTPException(status_code=503, detail="工作台卡密代兑尚未获批或配置")
+        raise HTTPException(
+            status_code=400,
+            detail="这里只接受 AGT1- 开头的工作台专用卡密；请核对店铺发放内容并保留付款订单。",
+        )
     user_id = _current_user_id(request)
     client = WopallyClient()
     try:
@@ -891,7 +899,7 @@ def redeem_recharge_code(payload: RedeemCodeInput, request: Request) -> dict[str
 def card_fingerprint(payload: RedeemCodeInput) -> dict[str, str]:
     """A safe paid-pilot reference: never submit or redeem the bearer code."""
     try:
-        digest = workbench_voucher_digest(payload.code)
+        digest = workbench_voucher_digest(extract_workbench_voucher_code(payload.code))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"fingerprint": digest.hex()}
