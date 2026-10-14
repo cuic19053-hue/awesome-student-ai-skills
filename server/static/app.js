@@ -43,6 +43,8 @@
     skills: [],
     pendingProject: null,
     activeTab: "all",
+    batchGenerating: false,
+    batchAbort: false,
   };
 
   function countWords(str) {
@@ -783,9 +785,7 @@
     if (error) toast("退出失败：" + error.message, true);
   }
 
-  async function refreshProjects(filterKeyword = "") {
-    const response = await api("/api/projects");
-    state.projectsList = response.projects || [];
+  function renderProjectList(projects, filterKeyword = "") {
     const list = $("#projectList");
     const countBadge = $("#projectCountBadge");
     if (countBadge) countBadge.textContent = state.projectsList.length;
@@ -793,12 +793,12 @@
 
     const query = filterKeyword.trim().toLowerCase();
     const filtered = query
-      ? state.projectsList.filter(p => {
+      ? projects.filter(p => {
           const title = (p.title || "").toLowerCase();
           const skill = (p.state?.skill_name || "").toLowerCase();
           return title.includes(query) || skill.includes(query);
         })
-      : state.projectsList;
+      : projects;
 
     if (!filtered.length) {
       const empty = document.createElement("div");
@@ -857,6 +857,15 @@
     }
   }
 
+  async function refreshProjects(filterKeyword = "") {
+    try {
+      const response = await api("/api/projects");
+      state.projectsList = response.projects || [];
+      renderProjectList(state.projectsList, filterKeyword);
+    } catch (e) {
+      console.warn("刷新项目列表失败", e);
+    }
+  }
   async function checkHealth() {
     try {
       showModelStatus(await api("/api/health"));
@@ -1391,18 +1400,22 @@
     const factSources = state.project?.state?.fact_sources || {};
     const summary = $("#factsSummary");
     summary.replaceChildren();
-    const researchKeys = ["project_name", "problem", "target_user", "method", "foundation", "goal", "expected_output", "constraints", "duration", "budget", "leader_name", "advisor_name", "team"];
-    const keys = state.project?.state?.skill_id === "innovation-research"
-      ? [...new Set([...researchKeys, ...Object.keys(facts)])]
-      : Object.keys(facts);
+    const commonKeys = [
+      "project_name", "problem", "target_user", "method", "foundation",
+      "goal", "expected_output", "constraints", "duration", "budget",
+      "leader_name", "advisor_name", "team"
+    ];
+    const keys = [...new Set([...commonKeys, ...Object.keys(facts)])];
     for (const key of keys) {
       if (key.startsWith("skill_") || key.startsWith("template_") || key.startsWith("fact_")) continue;
+      const val = facts[key];
       const box = document.createElement("div");
-      box.className = `fact-chip ${facts[key] ? "" : "missing"}`;
+      box.className = `fact-chip ${val ? "" : "missing"} clickable`;
+      box.title = val ? "点击展开编辑该字段" : "点击展开编辑并补充该字段";
       const label = document.createElement("small");
       label.textContent = labels[key] || key.replace(/_/g, " ");
       const value = document.createElement("span");
-      value.textContent = facts[key] || "待补充";
+      value.textContent = val || "待补充 ＋";
       box.append(label, value);
       if (factSources[key]) {
         const source = document.createElement("small");
@@ -1410,9 +1423,17 @@
         source.textContent = `依据：“${factSources[key]}”`;
         box.append(source);
       }
+      box.addEventListener("click", () => {
+        $("#factsEditor").classList.remove("hidden");
+        const targetInput = $(`[data-fact="${key}"]`);
+        if (targetInput) {
+          targetInput.focus();
+          targetInput.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      });
       summary.append(box);
       const input = $(`[data-fact="${key}"]`);
-      if (input) input.value = facts[key] || "";
+      if (input) input.value = val || "";
     }
     const dynamic = $("#dynamicFactsGrid");
     if (dynamic) {
@@ -1743,7 +1764,7 @@
     list.replaceChildren();
     if (!state.outline?.length) {
       list.className = "outline-list empty-note";
-      list.textContent = "还没有目录。点击“拟一份目录”开始。";
+      list.textContent = "还没有目录。点击“拟一份目录”或“赛道推荐目录”开始。";
       $("#outlineActions").classList.add("hidden");
       return;
     }
@@ -1759,9 +1780,18 @@
       input.addEventListener("input", () => { section.title = input.value; });
       const up = button("↑", "remove-outline");
       up.title = "上移";
+      up.disabled = index === 0;
       up.addEventListener("click", () => {
         if (index === 0) return;
         [state.outline[index - 1], state.outline[index]] = [state.outline[index], state.outline[index - 1]];
+        renderOutline();
+      });
+      const down = button("↓", "remove-outline down-outline");
+      down.title = "下移";
+      down.disabled = index === state.outline.length - 1;
+      down.addEventListener("click", () => {
+        if (index === state.outline.length - 1) return;
+        [state.outline[index + 1], state.outline[index]] = [state.outline[index], state.outline[index + 1]];
         renderOutline();
       });
       const remove = button("×", "remove-outline");
@@ -1770,13 +1800,20 @@
         state.outline.splice(index, 1);
         renderOutline();
       });
-      row.append(mark, input, up, remove);
+      row.append(mark, input, up, down, remove);
       list.append(row);
     });
     const add = button("＋ 添加章节", "button button-small button-quiet");
     add.addEventListener("click", () => {
-      state.outline.push({ id: `section_${Date.now()}`, title: "新章节" });
+      const newId = `section_${Date.now()}`;
+      state.outline.push({ id: newId, title: "新章节" });
       renderOutline();
+      const allInputs = $$("#outlineList .outline-row input");
+      const last = allInputs[allInputs.length - 1];
+      if (last) {
+        last.focus();
+        last.select();
+      }
     });
     list.append(add);
     $("#outlineActions").classList.remove("hidden");
@@ -1799,9 +1836,107 @@
     }
   }
 
+  function updateDraftStats() {
+    const badge = $("#draftStatsBadge");
+    if (!badge) return;
+    const outline = state.outline || [];
+    const sections = state.project?.sections || {};
+    const totalWords = outline.reduce((sum, s) => sum + countWords(sections[s.id] || ""), 0);
+    const completed = outline.filter(s => (sections[s.id] || "").trim().length > 0).length;
+    badge.textContent = `${completed}/${outline.length} 章节 · 共 ${totalWords} 字`;
+  }
+
+  let allSectionsFolded = false;
+  function toggleAllSections() {
+    allSectionsFolded = !allSectionsFolded;
+    $$(".draft-section-body").forEach(body => {
+      body.classList.toggle("folded", allSectionsFolded);
+    });
+    $$(".fold-toggle-btn").forEach(btn => {
+      btn.textContent = allSectionsFolded ? "▶" : "▼";
+    });
+    const btn = $("#toggleAllSectionsBtn");
+    if (btn) btn.textContent = allSectionsFolded ? "展开全部" : "折叠全部";
+  }
+
+  async function startBatchGeneration() {
+    if (!state.project || !state.outline?.length) {
+      toast("请先拟定并确认目录", true);
+      return;
+    }
+    if (state.batchGenerating) return;
+
+    state.batchGenerating = true;
+    state.batchAbort = false;
+
+    const wrapper = $("#batchProgressWrapper");
+    const fill = $("#batchProgressFill");
+    const text = $("#batchProgressText");
+    const batchBtn = $("#batchGenerateSectionsBtn");
+
+    if (wrapper) wrapper.classList.remove("hidden");
+    if (batchBtn) {
+      batchBtn.disabled = true;
+      batchBtn.textContent = "批量生成中…";
+    }
+
+    const outline = state.outline;
+    let completedCount = 0;
+    const total = outline.length;
+
+    for (let i = 0; i < total; i++) {
+      if (state.batchAbort) {
+        toast("已中止批量生成");
+        break;
+      }
+      const section = outline[i];
+      if (fill) fill.style.width = `${Math.round(((i + 0.1) / total) * 100)}%`;
+      if (text) text.textContent = `正在生成 [${i + 1}/${total}]：${section.title}…`;
+
+      try {
+        const result = await api(`/api/projects/${state.project.id}/sections/${section.id}/generate`, { method: "POST" });
+        state.project.sections = state.project.sections || {};
+        state.project.sections[section.id] = result.content;
+
+        await api(`/api/projects/${state.project.id}/sections/${section.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: result.content }),
+        });
+        completedCount++;
+      } catch (err) {
+        console.warn(`生成章节 ${section.title} 失败:`, err);
+      }
+    }
+
+    if (fill) fill.style.width = "100%";
+    if (text) text.textContent = `批量生成结束，共完成 ${completedCount}/${total} 章节。`;
+    renderSections();
+    updateDraftStats();
+    toast(`批量生成完成，共更新 ${completedCount} 个章节。`);
+
+    setTimeout(() => {
+      if (wrapper) wrapper.classList.add("hidden");
+    }, 2800);
+
+    state.batchGenerating = false;
+    state.batchAbort = false;
+    if (batchBtn) {
+      batchBtn.disabled = false;
+      batchBtn.textContent = "⚡ 批量生成所有章节";
+    }
+  }
+
+  function cancelBatchGeneration() {
+    state.batchAbort = true;
+    const progressText = $("#batchProgressText");
+    if (progressText) progressText.textContent = "已发起取消，正在等待当前章节收尾…";
+  }
+
   function renderSections() {
     const root = $("#draftSections");
     root.replaceChildren();
+    updateDraftStats();
     if (!state.outline?.length) {
       const note = document.createElement("div");
       note.className = "empty-note";
@@ -1812,6 +1947,7 @@
     for (const section of state.outline) {
       const wrapper = document.createElement("div");
       wrapper.className = "draft-section";
+      wrapper.id = `draft-sec-${section.id}`;
       const head = document.createElement("div");
       head.className = "draft-section-head";
 
@@ -1826,12 +1962,16 @@
       const title = document.createElement("strong");
       title.textContent = section.title;
 
+      const initialContent = state.project.sections?.[section.id] || "";
       const wordBadge = document.createElement("span");
       wordBadge.className = "section-word-badge";
-      const initialWords = countWords(state.project.sections?.[section.id] || "");
-      wordBadge.textContent = `${initialWords} 字`;
+      wordBadge.textContent = `${countWords(initialContent)} 字`;
 
-      titleGroup.append(foldToggle, title, wordBadge);
+      const statusPill = document.createElement("span");
+      statusPill.className = `section-status-pill ${initialContent.trim() ? "saved" : "unsaved"}`;
+      statusPill.textContent = initialContent.trim() ? "✓ 已有草稿" : "● 待撰写";
+
+      titleGroup.append(foldToggle, title, wordBadge, statusPill);
 
       const actions = document.createElement("div");
       actions.className = "draft-section-actions";
@@ -1847,12 +1987,80 @@
       const bodyWrapper = document.createElement("div");
       bodyWrapper.className = "draft-section-body";
 
+      // Toolbar for mode switch and quick placeholders
+      const toolbar = document.createElement("div");
+      toolbar.className = "draft-section-toolbar";
+
+      const leftTools = document.createElement("div");
+      leftTools.className = "toolbar-group";
+      const editModeBtn = document.createElement("button");
+      editModeBtn.type = "button";
+      editModeBtn.className = "mode-switch-btn active";
+      editModeBtn.textContent = "✏️ 编辑";
+
+      const previewModeBtn = document.createElement("button");
+      previewModeBtn.type = "button";
+      previewModeBtn.className = "mode-switch-btn";
+      previewModeBtn.textContent = "👁️ 预览排版";
+
+      leftTools.append(editModeBtn, previewModeBtn);
+
+      const rightTools = document.createElement("div");
+      rightTools.className = "toolbar-group";
+      const placeholderBtn = document.createElement("button");
+      placeholderBtn.type = "button";
+      placeholderBtn.className = "placeholder-btn";
+      placeholderBtn.textContent = "＋ 插入【待补充】";
+      placeholderBtn.title = "在光标处插入待补充标记";
+
+      rightTools.append(placeholderBtn);
+      toolbar.append(leftTools, rightTools);
+
       const editor = document.createElement("textarea");
-      editor.value = state.project.sections?.[section.id] || "";
-      editor.placeholder = "点击“生成草稿”，或直接在这里撰写。没有依据的内容标为待补充。";
+      editor.value = initialContent;
+      editor.placeholder = "点击“生成草稿”，或直接在这里撰写。缺失具体数据或依据时标注【待补充】。";
+
+      const previewBox = document.createElement("div");
+      previewBox.className = "section-preview-render hidden";
+
+      function updatePreview() {
+        previewBox.innerHTML = editor.value.trim()
+          ? renderMarkdownSafe(editor.value)
+          : '<p style="color:var(--text-subtle);font-style:italic;">暂无草稿内容，点击上方“生成草稿”或直接输入。</p>';
+      }
+
+      editModeBtn.addEventListener("click", () => {
+        editModeBtn.classList.add("active");
+        previewModeBtn.classList.remove("active");
+        editor.classList.remove("hidden");
+        previewBox.classList.add("hidden");
+      });
+
+      previewModeBtn.addEventListener("click", () => {
+        previewModeBtn.classList.add("active");
+        editModeBtn.classList.remove("active");
+        updatePreview();
+        editor.classList.add("hidden");
+        previewBox.classList.remove("hidden");
+      });
+
+      placeholderBtn.addEventListener("click", () => {
+        const start = editor.selectionStart || 0;
+        const end = editor.selectionEnd || 0;
+        const text = editor.value;
+        const insert = "【待补充：请核实具体数据/依据】";
+        editor.value = text.slice(0, start) + insert + text.slice(end);
+        editor.focus();
+        editor.selectionStart = editor.selectionEnd = start + insert.length;
+        editor.dispatchEvent(new Event("input"));
+      });
 
       editor.addEventListener("input", () => {
-        wordBadge.textContent = `${countWords(editor.value)} 字`;
+        const words = countWords(editor.value);
+        wordBadge.textContent = `${words} 字`;
+        statusPill.className = "section-status-pill unsaved";
+        statusPill.textContent = "● 未保存";
+        updateDraftStats();
       });
 
       editor.addEventListener("keydown", (e) => {
@@ -1889,6 +2097,8 @@
       generate.addEventListener("click", async () => {
         generate.disabled = true;
         generate.textContent = "生成中…";
+        statusPill.className = "section-status-pill generating";
+        statusPill.textContent = "✦ 生成中…";
         wrapper.classList.add("generating");
         try {
           const result = await api(`/api/projects/${state.project.id}/sections/${section.id}/generate`, { method: "POST" });
@@ -1898,8 +2108,20 @@
           sources.textContent = evidence ? `检索依据：${evidence}` : "未检索到可用材料；请补充事实或保留“待补充”标记。";
           state.project.sections = state.project.sections || {};
           state.project.sections[section.id] = result.content;
-          toast("章节草稿已生成，记得核对并保存修改。");
+
+          await api(`/api/projects/${state.project.id}/sections/${section.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content: result.content }),
+          });
+
+          statusPill.className = "section-status-pill saved";
+          statusPill.textContent = "✓ 已保存";
+          updateDraftStats();
+          toast("章节草稿已生成并自动保存。");
         } catch (error) {
+          statusPill.className = "section-status-pill unsaved";
+          statusPill.textContent = "● 生成失败";
           toast(error.message, true);
         } finally {
           generate.disabled = false;
@@ -1916,13 +2138,16 @@
           });
           state.project.sections = state.project.sections || {};
           state.project.sections[section.id] = editor.value;
+          statusPill.className = "section-status-pill saved";
+          statusPill.textContent = "✓ 已保存";
+          updateDraftStats();
           toast(`已保存“${section.title}”。`);
         } catch (error) {
           toast(error.message, true);
         }
       });
 
-      bodyWrapper.append(editor, sources);
+      bodyWrapper.append(toolbar, editor, previewBox, sources);
       wrapper.append(head, bodyWrapper);
       root.append(wrapper);
     }
@@ -2002,24 +2227,55 @@
     }
   }
 
+  function showImageLightbox(src, title = "图表预览") {
+    const dialog = $("#imageLightboxDialog");
+    const img = $("#lightboxImage");
+    const titleEl = $("#lightboxTitle");
+    const dl = $("#lightboxDownloadBtn");
+    if (!dialog || !img) return;
+    img.src = src;
+    if (titleEl) titleEl.textContent = title;
+    if (dl) {
+      dl.href = src;
+      dl.download = `${title}.png`;
+    }
+    dialog.showModal();
+  }
+
   function renderDiagrams() {
     const gallery = $("#diagramGallery");
     gallery.replaceChildren();
-    for (const diagram of state.diagrams || []) {
+    const diagrams = state.diagrams || [];
+    if (!diagrams.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty-diagram-box";
+      empty.innerHTML = `<strong>暂未生成路线图或项目配图</strong><p style="margin:4px 0 0;color:var(--text-subtle);">点击上方「请 Agent 提建议」梳理关键节点，或输入提示词生成项目配图，生成后将自动嵌入最终 Word 文档中。</p>`;
+      gallery.append(empty);
+      return;
+    }
+    for (const diagram of diagrams) {
       const card = document.createElement("div");
       card.className = "diagram-card";
       const title = document.createElement("h3");
       title.textContent = diagram.title;
       card.append(title);
-      if (diagram.preview || diagram.preview_url) {
+      const imgUrl = diagram.preview_url || (diagram.preview ? `/api/projects/${state.project.id}/diagrams/${diagram.id}/preview` : null);
+      if (imgUrl) {
         const image = document.createElement("img");
-        image.src = diagram.preview_url || `/api/projects/${state.project.id}/diagrams/${diagram.id}/preview`;
+        image.src = imgUrl;
         image.alt = diagram.title;
+        image.title = "点击查看高清大图";
+        image.addEventListener("click", () => showImageLightbox(imgUrl, diagram.title));
         card.append(image);
       }
       const steps = document.createElement("p");
       steps.textContent = (diagram.nodes || []).join(" → ");
-      const edit = button("编辑步骤", "button button-small button-secondary");
+      card.append(steps);
+
+      const actionsBar = document.createElement("div");
+      actionsBar.className = "diagram-card-actions";
+
+      const edit = button("✏️ 编辑步骤", "button button-small button-secondary");
       edit.addEventListener("click", () => {
         state.editingDiagramId = diagram.id;
         $("#diagramTitle").value = diagram.title;
@@ -2028,9 +2284,104 @@
         $("#saveDiagramBtn").textContent = "保存图表修改";
         $("#diagramEditor").scrollIntoView({ behavior: "smooth", block: "center" });
       });
-      card.append(steps, edit);
+      actionsBar.append(edit);
+
+      if (imgUrl) {
+        const viewBig = button("🔍 放大", "button button-small button-quiet");
+        viewBig.addEventListener("click", () => showImageLightbox(imgUrl, diagram.title));
+        actionsBar.append(viewBig);
+      }
+
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "diagram-del-btn";
+      del.textContent = "🗑️ 删除";
+      del.title = "从本项目中移除此图表";
+      del.addEventListener("click", async () => {
+        if (!confirm(`确定删除图表“${diagram.title}”吗？`)) return;
+        try {
+          await api(`/api/projects/${state.project.id}/diagrams/${diagram.id}`, { method: "DELETE" });
+          state.diagrams = (state.diagrams || []).filter(d => d.id !== diagram.id);
+          state.project.diagrams = state.diagrams;
+          renderDiagrams();
+          toast("图表已删除。");
+        } catch (err) {
+          toast(err.message, true);
+        }
+      });
+      actionsBar.append(del);
+
+      card.append(actionsBar);
       gallery.append(card);
     }
+  }
+
+  function toggleChatMenu() {
+    const menu = $("#chatActionMenu");
+    menu?.classList.toggle("hidden");
+  }
+
+  async function copyFullChatHistory() {
+    const messages = state.messages || [];
+    if (!messages.length) return toast("当前暂无对话记录", true);
+    const text = messages.map(m => `### ${m.role === "user" ? "用户" : "Stardust Agent"}\n\n${m.content}`).join("\n\n---\n\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      toast("已复制完整对话记录到剪贴板");
+    } catch {
+      toast("复制失败，请重试", true);
+    }
+  }
+
+  function exportChatAsMarkdown() {
+    const messages = state.messages || [];
+    if (!messages.length) return toast("当前暂无对话记录", true);
+    const text = `# Stardust Agent 对话记录 · ${state.project?.title || "未命名课题"}\n\n` +
+      messages.map(m => `### ${m.role === "user" ? "用户" : "Stardust Agent"}\n\n${m.content}`).join("\n\n---\n\n");
+    const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${state.project?.title || "课题"}对话记录.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast("已导出 Markdown 对话记录文件");
+  }
+
+  function clearChatViewDisplay() {
+    if (!confirm("确定清空当前对话窗口的显示内容吗？（不会删除服务器上的项目历史）")) return;
+    const root = $("#chatMessages");
+    root.replaceChildren();
+    appendMessage(
+      "assistant",
+      `窗口已清空。我是 **Stardust Agent**，针对「${state.project?.state?.skill_name || "当前赛道"}」，有什么我可以继续协助你的？`
+    );
+    toast("窗口已重置");
+  }
+
+  function autoResizeChatInput() {
+    const input = $("#chatInput");
+    if (!input) return;
+    input.style.height = "auto";
+    input.style.height = `${Math.min(180, Math.max(44, input.scrollHeight))}px`;
+  }
+
+  function appendThinkingMessage() {
+    const root = $("#chatMessages");
+    const row = document.createElement("div");
+    row.className = "message assistant thinking";
+    const avatar = document.createElement("div");
+    avatar.className = "message-avatar";
+    avatar.textContent = "✦";
+    const bubble = document.createElement("div");
+    bubble.className = "thinking-bubble";
+    bubble.innerHTML = `<span>Agent 正在结合赛道规范深度思考与检索依据</span><span class="thinking-dots"><span></span><span></span><span></span></span>`;
+    row.append(avatar, bubble);
+    root.append(row);
+    root.scrollTop = root.scrollHeight;
+    return row;
   }
 
   function renderMessages() {
@@ -2062,6 +2413,20 @@
     bubble.className = "message-bubble";
     if (role === "assistant") {
       bubble.innerHTML = renderMarkdownSafe(text);
+      const copyBtn = document.createElement("button");
+      copyBtn.type = "button";
+      copyBtn.className = "bubble-copy-btn";
+      copyBtn.textContent = "📋 复制";
+      copyBtn.title = "复制此条回答";
+      copyBtn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          toast("已复制回答内容");
+        } catch {
+          toast("复制失败，请手动选取", true);
+        }
+      });
+      row.append(copyBtn);
     } else {
       bubble.textContent = text;
     }
@@ -2076,10 +2441,12 @@
     const input = $("#chatInput");
     const message = messageOverride === null ? input.value.trim() : messageOverride.trim();
     if (!message || !state.project) return;
-    if (messageOverride === null) input.value = "";
+    if (messageOverride === null) {
+      input.value = "";
+      input.style.height = "auto";
+    }
     appendMessage("user", message);
-    const pending = appendMessage("assistant", "正在整理并按需检索项目材料与学术依据…");
-    pending.classList.add("thinking");
+    const pending = appendThinkingMessage();
     try {
       const result = await api(`/api/projects/${state.project.id}/chat`, {
         method: "POST",
@@ -2194,8 +2561,15 @@
 
   async function exportDoc() {
     const btn = $("#exportBtn");
-    btn.disabled = true;
-    btn.textContent = "正在生成…";
+    const topBtn = $("#quickExportTopBtn");
+    const headingBtn = $("#headingExportBtn");
+    [btn, topBtn, headingBtn].forEach(b => {
+      if (b) {
+        b.disabled = true;
+        b.dataset.origText = b.textContent;
+        b.textContent = "正在生成…";
+      }
+    });
     try {
       const result = await api(`/api/projects/${state.project.id}/export`, { method: "POST" });
       $("#exportResult").replaceChildren();
@@ -2206,12 +2580,31 @@
       link.textContent = "下载 Word 申报书";
       link.download = `${state.project?.state?.skill_name || "申报材料"}草稿.docx`;
       $("#exportResult").append(text, link);
-      toast("Word 草稿已生成。提交前请核对学校要求。");
+
+      // 自动触发浏览器安全下载
+      const autoDownload = document.createElement("a");
+      autoDownload.href = result.download_url;
+      autoDownload.download = link.download;
+      document.body.appendChild(autoDownload);
+      autoDownload.click();
+      document.body.removeChild(autoDownload);
+
+      toast("Word 草稿已生成并开始下载！");
     } catch (error) {
       toast(error.message, true);
     } finally {
-      btn.disabled = false;
-      btn.innerHTML = '生成并下载 Word 申报书 <span>↓</span>';
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '生成并下载 Word 申报书 <span>↓</span>';
+      }
+      if (topBtn) {
+        topBtn.disabled = false;
+        topBtn.innerHTML = '<span>📥 导出草稿</span>';
+      }
+      if (headingBtn) {
+        headingBtn.disabled = false;
+        headingBtn.textContent = '📥 导出 Word';
+      }
     }
   }
 
@@ -2342,7 +2735,7 @@
       });
     });
     $("#projectSearchInput")?.addEventListener("input", (e) => {
-      refreshProjects(e.target.value);
+      renderProjectList(state.projectsList, e.target.value);
     });
     $("#homeBreadcrumbBtn")?.addEventListener("click", showWelcomeView);
     $("#quickExportTopBtn")?.addEventListener("click", exportDoc);
@@ -2383,7 +2776,11 @@
     $("#officialSearchBtn").addEventListener("click", () => searchSources("official"));
     $("#officialUrlBtn").addEventListener("click", previewOfficialUrl);
     $("#generateOutlineBtn").addEventListener("click", generateOutline);
+    $("#resetOutlineBtn")?.addEventListener("click", generateOutline);
     $("#saveOutlineBtn").addEventListener("click", saveOutline);
+    $("#batchGenerateSectionsBtn")?.addEventListener("click", startBatchGeneration);
+    $("#cancelBatchBtn")?.addEventListener("click", cancelBatchGeneration);
+    $("#toggleAllSectionsBtn")?.addEventListener("click", toggleAllSections);
     $("#proposeDiagramBtn").addEventListener("click", proposeDiagram);
     $("#saveDiagramBtn").addEventListener("click", saveDiagram);
     $("#generateWorkbenchImageBtn").addEventListener("click", generateWorkbenchImage);
@@ -2395,8 +2792,10 @@
         sendChat();
       }
     });
+    $("#chatInput").addEventListener("input", autoResizeChatInput);
     $$(".chat-tools button").forEach((button) => button.addEventListener("click", () => {
       $("#chatInput").value = button.dataset.prompt;
+      autoResizeChatInput();
       $("#chatInput").focus();
     }));
     $$("#templateQuickActions button").forEach((button) => button.addEventListener("click", () => {
@@ -2407,13 +2806,48 @@
     $("#reviewBtn").addEventListener("click", runReview);
     $("#exportBtn").addEventListener("click", exportDoc);
     $("#deleteProjectBtn").addEventListener("click", deleteCurrentProject);
-    $("#clearChatBtn").addEventListener("click", () => toast(
-      state.cloudMode ? "对话记录随项目保存在账号隔离的云端项目空间。" : "对话记录保存在当前本机项目库中。"
-    ));
+    $("#clearChatBtn")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleChatMenu();
+    });
+    $("#copyFullChatBtn")?.addEventListener("click", () => {
+      toggleChatMenu();
+      copyFullChatHistory();
+    });
+    $("#exportChatMdBtn")?.addEventListener("click", () => {
+      toggleChatMenu();
+      exportChatAsMarkdown();
+    });
+    $("#explainChatStorageBtn")?.addEventListener("click", () => {
+      toggleChatMenu();
+      toast(state.cloudMode ? "对话记录随项目保存在账号隔离的云端项目空间。" : "对话记录保存在当前本机项目库中。");
+    });
+    $("#clearChatViewBtn")?.addEventListener("click", () => {
+      toggleChatMenu();
+      clearChatViewDisplay();
+    });
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".chat-menu-container")) {
+        $("#chatActionMenu")?.classList.add("hidden");
+      }
+    });
+    $("#closeLightboxBtn")?.addEventListener("click", () => $("#imageLightboxDialog")?.close());
     $("#toggleChatBtn")?.addEventListener("click", toggleChatColumn);
 
     $$(".workspace-tab-btn").forEach(btn => {
       btn.addEventListener("click", () => handleTabNavigation(btn.dataset.target));
+    });
+
+    // Dialog backdrop click to close
+    $$("dialog").forEach((dlg) => {
+      dlg.addEventListener("click", (e) => {
+        const rect = dlg.getBoundingClientRect();
+        const inDialog = (
+          rect.top <= e.clientY && e.clientY <= rect.top + rect.height &&
+          rect.left <= e.clientX && e.clientX <= rect.left + rect.width
+        );
+        if (!inDialog) dlg.close();
+      });
     });
 
     $("#modelSettingsBtn").addEventListener("click", () => {
@@ -2455,54 +2889,6 @@
     $("#signOutBtn").addEventListener("click", signOutCloudUser);
   }
 
-  async function init() {
-    setupResizeHandles();
-    bindEvents();
-    updateTemplateExplain();
-    $("#chatFileInput").accept = chatUploadAccept($("#chatUploadKind").value);
-    await loadSkills();
-    await loadPresetModelsAndPlans();
-    const config = await api("/api/config");
-    state.turnstileSiteKey = config.turnstile_site_key || "";
-    updateTurnstileState();
-    $("#pilotFingerprintBox")?.classList.toggle(
-      "hidden", new URLSearchParams(window.location.search).get("pilot") !== "1"
-    );
-    $("#workbenchImageControls")?.classList.toggle("hidden", !config.preset_enabled);
-    state.cardRedemptionEnabled = Boolean(config.card_redemption_enabled);
-    const redeemButton = $("#submitRedeemBtn");
-    if (redeemButton) {
-      redeemButton.disabled = !state.cardRedemptionEnabled;
-      redeemButton.textContent = state.cardRedemptionEnabled ? "立即兑换" : "代兑暂未开通";
-    }
-    const shopLink = $("#cardShopLink");
-    const shopUnavailable = $("#cardShopUnavailable");
-    if (shopLink && state.cardRedemptionEnabled && config.card_shop_url) {
-      shopLink.href = config.card_shop_url;
-      shopLink.classList.remove("hidden");
-      shopUnavailable?.classList.add("hidden");
-    }
-    if (!config.preset_enabled && state.llmConfig.provider === "preset") {
-      storeLlmConfig({ provider: config.cloud_mode ? "openai_compatible" : "ollama",
-        model: config.cloud_mode ? "" : "qwen2.5:7b", base_url: "", api_key: "" });
-    }
-    if (!config.preset_enabled) {
-      $("#providerPreset")?.closest(".model-provider-option")?.classList.add("hidden");
-      if (state.llmConfig.provider === "preset") updateModelFields();
-    }
-    await initializeCloudAuth(config);
-    // In cloud mode the auth gate initializes the Supabase session first; only
-    // then can the server bind the balance request to the verified user ID.
-    if (!config.cloud_mode || state.authSession?.access_token) await loadUserBalance();
-  }
-
-  document.addEventListener("DOMContentLoaded", () => {
-    init().catch((error) => toast(error.message, true));
-  });
-  document.addEventListener("visibilitychange", () => {
-    if (!document.hidden && state.authSession?.access_token) void loadUserBalance();
-  });
-})();
   async function triggerHeroStart() {
     const input = $("#heroProjectRequest");
     const query = input?.value?.trim();
@@ -2568,3 +2954,52 @@
       }
     }
   }
+
+  async function init() {
+    setupResizeHandles();
+    bindEvents();
+    updateTemplateExplain();
+    $("#chatFileInput").accept = chatUploadAccept($("#chatUploadKind").value);
+    await loadSkills();
+    await loadPresetModelsAndPlans();
+    const config = await api("/api/config");
+    state.turnstileSiteKey = config.turnstile_site_key || "";
+    updateTurnstileState();
+    $("#pilotFingerprintBox")?.classList.toggle(
+      "hidden", new URLSearchParams(window.location.search).get("pilot") !== "1"
+    );
+    $("#workbenchImageControls")?.classList.toggle("hidden", !config.preset_enabled);
+    state.cardRedemptionEnabled = Boolean(config.card_redemption_enabled);
+    const redeemButton = $("#submitRedeemBtn");
+    if (redeemButton) {
+      redeemButton.disabled = !state.cardRedemptionEnabled;
+      redeemButton.textContent = state.cardRedemptionEnabled ? "立即兑换" : "代兑暂未开通";
+    }
+    const shopLink = $("#cardShopLink");
+    const shopUnavailable = $("#cardShopUnavailable");
+    if (shopLink && state.cardRedemptionEnabled && config.card_shop_url) {
+      shopLink.href = config.card_shop_url;
+      shopLink.classList.remove("hidden");
+      shopUnavailable?.classList.add("hidden");
+    }
+    if (!config.preset_enabled && state.llmConfig.provider === "preset") {
+      storeLlmConfig({ provider: config.cloud_mode ? "openai_compatible" : "ollama",
+        model: config.cloud_mode ? "" : "qwen2.5:7b", base_url: "", api_key: "" });
+    }
+    if (!config.preset_enabled) {
+      $("#providerPreset")?.closest(".model-provider-option")?.classList.add("hidden");
+      if (state.llmConfig.provider === "preset") updateModelFields();
+    }
+    await initializeCloudAuth(config);
+    // In cloud mode the auth gate initializes the Supabase session first; only
+    // then can the server bind the balance request to the verified user ID.
+    if (!config.cloud_mode || state.authSession?.access_token) await loadUserBalance();
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    init().catch((error) => toast(error.message, true));
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && state.authSession?.access_token) void loadUserBalance();
+  });
+})();

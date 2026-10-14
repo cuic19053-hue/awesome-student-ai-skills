@@ -1505,6 +1505,14 @@ def update_section(project_id: str, section_id: str, payload: SectionUpdate) -> 
     return result
 
 
+@app.delete("/api/projects/{project_id}/diagrams/{diagram_id}")
+def delete_diagram(project_id: str, diagram_id: str) -> dict[str, Any]:
+    project = _safe_project(project_id)
+    diagrams = [dict(d) for d in project.get("diagrams", []) if d.get("id") != diagram_id]
+    store.update_project(project_id, diagrams=diagrams)
+    return {"ok": True, "diagram_id": diagram_id}
+
+
 @app.post("/api/projects/{project_id}/diagrams")
 def save_diagram(project_id: str, payload: DiagramInput) -> dict[str, Any]:
     _safe_project(project_id)

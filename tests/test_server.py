@@ -369,3 +369,25 @@ def test_generate_without_key_fails_fast(client):
 def test_generate_unknown_skill_404(client):
     r = client.post("/generate", json={"skill_id": "not_a_real_skill", "user_info": {}})
     assert r.status_code == 404
+
+
+def test_save_and_delete_diagram(client):
+    project = client.post(
+        "/api/projects",
+        json={"title": "图表测试课题", "skill_id": "innovation-research", "has_template": False},
+    ).json()
+    p_id = project["id"]
+    res = client.post(
+        f"/api/projects/{p_id}/diagrams",
+        json={"title": "测试技术路线图", "nodes": ["数据采集", "模型训练", "实验验证"]},
+    )
+    assert res.status_code == 200
+    diagram_id = res.json()["diagram"]["id"]
+    proj_after = client.get(f"/api/projects/{p_id}").json()
+    assert any(d["id"] == diagram_id for d in proj_after.get("diagrams", []))
+
+    del_res = client.delete(f"/api/projects/{p_id}/diagrams/{diagram_id}")
+    assert del_res.status_code == 200
+    assert del_res.json()["ok"] is True
+    proj_after_del = client.get(f"/api/projects/{p_id}").json()
+    assert not any(d["id"] == diagram_id for d in proj_after_del.get("diagrams", []))

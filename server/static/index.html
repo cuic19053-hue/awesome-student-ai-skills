@@ -399,7 +399,10 @@
                   <h2>材料结构</h2>
                   <p>Stardust Agent 按所选赛道拟定目录；你可以调整并确认后再逐章写作。</p>
                 </div>
-                <button id="generateOutlineBtn" class="button button-secondary button-small">拟一份目录</button>
+                <div class="panel-heading-actions">
+                  <button id="generateOutlineBtn" class="button button-secondary button-small">拟一份目录</button>
+                  <button id="resetOutlineBtn" class="button button-quiet button-small" title="重新获取当前赛道标准规范目录">↺ 赛道推荐目录</button>
+                </div>
               </div>
               <div id="outlineList" class="outline-list empty-note">还没有目录。点击“拟一份目录”开始；暂未连接模型时会给可编辑通用目录。</div>
               <div id="outlineActions" class="outline-actions hidden">
@@ -415,6 +418,18 @@
                 <div>
                   <h2>逐章精修与正文生成</h2>
                   <p>每个章节均可独立生成与修改；严格遵循已确认材料，缺失依据时如实标注“待补充”。</p>
+                </div>
+                <div class="draft-panel-top-actions">
+                  <span id="draftStatsBadge" class="draft-stats-badge">共 0 字</span>
+                  <button type="button" id="toggleAllSectionsBtn" class="button button-small button-quiet">展开全部</button>
+                  <button type="button" id="batchGenerateSectionsBtn" class="button button-small button-primary">⚡ 批量生成所有章节</button>
+                </div>
+              </div>
+              <div id="batchProgressWrapper" class="batch-progress-wrapper hidden">
+                <div class="batch-progress-bar"><div id="batchProgressFill" class="batch-progress-fill" style="width: 0%"></div></div>
+                <div class="batch-progress-info">
+                  <span id="batchProgressText">正在准备批量生成…</span>
+                  <button type="button" id="cancelBatchBtn" class="button button-small button-quiet">取消生成</button>
                 </div>
               </div>
               <div id="draftSections" class="draft-sections">
@@ -493,7 +508,15 @@
                   <strong>Stardust Agent</strong>
                   <small><span class="status-dot"></span> 申报材料协作 · 赛道专家</small>
                 </div>
-                <button id="clearChatBtn" class="icon-button" title="查看对话记录存储说明">···</button>
+                <div class="chat-menu-container">
+                  <button id="clearChatBtn" class="icon-button" title="会话选项" aria-expanded="false">···</button>
+                  <div id="chatActionMenu" class="chat-action-menu hidden" role="menu">
+                    <button type="button" class="chat-menu-item" id="copyFullChatBtn">📋 复制完整对话</button>
+                    <button type="button" class="chat-menu-item" id="exportChatMdBtn">📥 导出为 Markdown</button>
+                    <button type="button" class="chat-menu-item" id="explainChatStorageBtn">ℹ️ 对话存储说明</button>
+                    <button type="button" class="chat-menu-item danger" id="clearChatViewBtn">🧹 清空当前窗口</button>
+                  </div>
+                </div>
               </div>
               <div id="chatMessages" class="chat-messages">
                 <div class="message assistant">
@@ -841,6 +864,20 @@
         <button type="button" id="nextOnboardingBtn" class="button button-primary">下一步 (1/4)</button>
         <button type="button" id="finishOnboardingBtn" class="button button-primary hidden">开始使用工作台 🚀</button>
       </div>
+    </div>
+  </dialog>
+
+  <!-- 图片大图预览 Lightbox -->
+  <dialog id="imageLightboxDialog" class="image-lightbox-dialog">
+    <div class="lightbox-head">
+      <h3 id="lightboxTitle">图表高清大图</h3>
+      <div class="lightbox-actions">
+        <a id="lightboxDownloadBtn" class="button button-small button-secondary" download="diagram.png">📥 下载图片</a>
+        <button type="button" id="closeLightboxBtn" class="icon-button" aria-label="关闭">×</button>
+      </div>
+    </div>
+    <div class="lightbox-body">
+      <img id="lightboxImage" src="" alt="大图预览">
     </div>
   </dialog>
 
