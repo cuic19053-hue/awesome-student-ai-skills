@@ -15,7 +15,7 @@ class WorkbenchMeter:
 
     # Each request records its price version in the ID so an old in-flight
     # request still settles at the price in effect when it was reserved.
-    TEXT_HOLD_MICRO_CNY = 500_000
+    TEXT_HOLD_MICRO_CNY = 200_000
 
     def __init__(self, store: Any, user_id: str, api_key_id: int, project_id: str = ""):
         self.store = store

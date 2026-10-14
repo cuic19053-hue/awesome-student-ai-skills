@@ -108,7 +108,7 @@ def test_meter_reserves_once_then_refunds_difference_without_cross_user_spend(tm
     request_id = meter.reserve("deepseek-v4-flash")
     with pytest.raises(InsufficientCreditsError):
         WorkbenchMeter(store, "bob", 684).reserve("deepseek-v4-flash")
-    assert store.get_workbench_credit_balance("alice")["balance_micro_cny"] == 0
+    assert store.get_workbench_credit_balance("alice")["balance_micro_cny"] == 300_000
     meter.usage.find = lambda *args: (150_000, "provider-log-55")
     meter.settle(request_id, "deepseek-v4-flash")
     assert store.get_workbench_credit_balance("alice")["balance_micro_cny"] == 350_000
