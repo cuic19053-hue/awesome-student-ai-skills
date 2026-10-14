@@ -621,7 +621,7 @@ def get_preset_models() -> dict[str, Any]:
     return {
         "models": [{
             "id": "workbench-bundle", "name": "DeepSeek Flash + GPT Image",
-            "available": True, "description": "写作与生图按任务自动路由，按官方 API 单价的 9 折结算积分",
+            "available": True, "description": "写作与生图按任务自动路由，按实际用量结算积分",
         }],
         "plans": [],
     }

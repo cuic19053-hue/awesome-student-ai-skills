@@ -72,6 +72,20 @@ def test_chat_composer_offers_material_upload_categories(client):
     assert "实验 / 调研照片" in page.text
 
 
+def test_pricing_copy_omits_official_discount_but_keeps_reservation_notice(client, monkeypatch):
+    import app as server_app
+
+    monkeypatch.setattr(server_app, "_platform_bundle_ready", lambda: True)
+    page = client.get("/").text
+    preset = client.get("/api/models/preset").json()
+    text = page + json.dumps(preset, ensure_ascii=False)
+    assert "9 折" not in text
+    assert "9折" not in text
+    assert "按实际用量" in text
+    assert "预留 5 积分" in page
+    assert "预留 20 积分" in page
+
+
 def test_model_config_connection_test_never_echoes_api_key(client, monkeypatch):
     import app as server_app
 
