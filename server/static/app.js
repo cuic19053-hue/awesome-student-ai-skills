@@ -749,10 +749,21 @@
 
   async function submitAuthForm(event) {
     event.preventDefault();
-    const email = $("#authEmail").value.trim();
+    const email = $("#authEmail").value.trim().toLowerCase();
     const password = $("#authPassword").value;
     const submit = $("#authSubmitBtn");
     const feedback = $("#authFeedback");
+
+    if (state.authMode === "signup") {
+      const domain = (email.split("@")[1] || "").toLowerCase();
+      const allowedDomains = ["qq.com", "foxmail.com", "163.com", "126.com", "sina.com", "gmail.com", "outlook.com", "hotmail.com"];
+      const isEdu = domain === "edu.cn" || domain.endsWith(".edu.cn");
+      if (!allowedDomains.includes(domain) && !isEdu) {
+        feedback.className = "auth-feedback error";
+        feedback.textContent = "为保障服务稳定，注册仅支持 QQ邮箱、163/126、高校教育网 (edu.cn)、Gmail、Outlook 等正规邮箱。";
+        return;
+      }
+    }
 
     if (state.authMode === "signup" && state.turnstileSiteKey) {
       if (!state.turnstileToken) {
