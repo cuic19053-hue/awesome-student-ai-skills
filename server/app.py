@@ -47,6 +47,7 @@ from proposal.supabase_store import SupabaseStore, request_identity
 from proposal.workbench_metering import WorkbenchMeter
 from proposal.workbench_images import generate_image
 from proposal.wopally_usage import UsageUnavailable, WopallyUsage
+from proposal.official_pricing import official_v1_charge
 from proposal.wopally_transport import wopally_urlopen
 from proposal.tools import ProposalTools
 from proposal.skills import normalize_skill_id, registry as skill_registry, valid_fact_key
@@ -620,7 +621,7 @@ def get_preset_models() -> dict[str, Any]:
     return {
         "models": [{
             "id": "workbench-bundle", "name": "DeepSeek Flash + GPT Image",
-            "available": True, "description": "写作与生图按任务自动路由，按中转站实际费用的 12 倍结算积分",
+            "available": True, "description": "写作与生图按任务自动路由，按官方 API 单价的 9 折结算积分",
         }],
         "plans": [],
     }
@@ -966,6 +967,29 @@ def get_provider_health(request: Request) -> dict[str, Any]:
         result["usage_query"] = True
     except UsageUnavailable:
         pass
+    # Validate the user-facing usage API's field contract without calling a
+    # model, charging a wallet, or exposing any usage records/credentials.
+    try:
+        sample = WopallyClient()._request(
+            f"/api/v1/usage?page=1&page_size=100&api_key_id={key_id}"
+        )
+        usage_rows = sample if isinstance(sample, list) else sample.get("items", [])
+        audit = {m: {"verified": 0, "unverifiable": 0}
+                 for m in ("deepseek-v4-flash", "gpt-image-2")}
+        for row in usage_rows:
+            if not isinstance(row, dict) or row.get("api_key_id") != key_id:
+                continue
+            model = row.get("model")
+            if model not in audit:
+                continue
+            try:
+                official_v1_charge(row, model)
+                audit[model]["verified"] += 1
+            except (KeyError, ValueError, TypeError, InvalidOperation):
+                audit[model]["unverifiable"] += 1
+        result["official_price_sample_audit"] = audit
+    except (WopallyUnavailable, ValueError, TypeError):
+        result["official_price_sample_audit"] = "unavailable"
     base = os.environ.get("WOPALLY_MODEL_BASE_URL", "").rstrip("/")
     if base.startswith("https://") and os.environ.get("WOPALLY_WORKBENCH_API_KEY"):
         model_request = urllib.request.Request(

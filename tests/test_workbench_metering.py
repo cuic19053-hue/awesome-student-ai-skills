@@ -12,6 +12,7 @@ from proposal.supabase_store import SupabaseStore, request_identity
 from proposal.workbench_metering import WorkbenchMeter
 from proposal.wopally_usage import UsageUnavailable, WopallyUsage
 from proposal.wopally_transport import wopally_urlopen
+from proposal.official_pricing import official_v1_charge
 
 
 class FakeResponse(io.BytesIO):
@@ -23,40 +24,46 @@ class FakeResponse(io.BytesIO):
 
 
 def test_usage_matches_unique_marker_and_key_and_uses_exact_decimal(monkeypatch):
+    request_id = "b" * 32
     def open_request(request, timeout):
         return FakeResponse(json.dumps({"code": 0, "data": {"items": [
             {"id": 55, "api_key_id": 684, "model": "deepseek-v4-flash",
-             "user_agent": "StardustWorkbench/unique-call", "actual_cost": "0.00000025"},
+             "user_agent": f"StardustWorkbench/{request_id}", "actual_cost": "0.00000025"},
         ]}}).encode())
 
     monkeypatch.setattr("proposal.wopally_usage.urllib.request.urlopen", open_request)
-    assert WopallyUsage(token="test-only").find("unique-call", 684, "deepseek-v4-flash") == (1, "55")
+    assert WopallyUsage(token="test-only").find(request_id, 684, "deepseek-v4-flash") == (1, "55")
     with pytest.raises(UsageUnavailable, match="归属不符"):
-        WopallyUsage(token="test-only").find("unique-call", 999, "deepseek-v4-flash")
+        WopallyUsage(token="test-only").find(request_id, 999, "deepseek-v4-flash")
 
 
-def test_new_requests_charge_twelve_times_without_repricing_legacy_requests(monkeypatch, tmp_path):
+def test_new_requests_charge_official_ninety_percent(monkeypatch, tmp_path):
     store = Store(tmp_path)
     store.grant_workbench_payment_credits("alice", "paid-test-event-1", 1_000_000)
     meter = WorkbenchMeter(store, "alice", 684)
     request_id = meter.reserve("deepseek-v4-flash")
-    assert request_id.startswith("m12_")
+    assert request_id.startswith("o90v1_")
 
     def open_request(request, timeout):
         return FakeResponse(json.dumps({"code": 0, "data": {"items": [
             {"id": 55, "api_key_id": 684, "model": "deepseek-v4-flash",
-             "user_agent": f"StardustWorkbench/{request_id}", "actual_cost": "0.01"},
+             "user_agent": f"StardustWorkbench/{request_id}", "actual_cost": "999",
+             "input_tokens": 10000, "output_tokens": 10000, "cache_read_tokens": 0,
+             "input_cost": ".02", "output_cost": ".08", "cache_read_cost": 0,
+             "total_cost": ".10"},
         ]}}).encode())
 
     monkeypatch.setattr("proposal.wopally_usage.urllib.request.urlopen", open_request)
-    assert WopallyUsage(token="test-only").find(request_id, 684, "deepseek-v4-flash") == (120_000, "55")
+    assert WopallyUsage(token="test-only").find(request_id, 684, "deepseek-v4-flash") == (90_000, "55")
     meter.usage = WopallyUsage(token="test-only")
     meter.settle(request_id, "deepseek-v4-flash")
-    assert store.get_workbench_credit_balance("alice")["balance_micro_cny"] == 880_000
+    assert store.get_workbench_credit_balance("alice")["balance_micro_cny"] == 910_000
 
 
-def test_pending_pre_change_request_keeps_old_three_times_price(monkeypatch):
-    legacy_request_id = "a" * 32
+@pytest.mark.parametrize(("legacy_request_id", "expected"), [
+    ("a" * 32, 30_000), ("m12_" + "a" * 32, 120_000),
+])
+def test_pending_pre_change_request_keeps_original_price(monkeypatch, legacy_request_id, expected):
 
     def open_request(request, timeout):
         return FakeResponse(json.dumps({"code": 0, "data": {"items": [
@@ -65,7 +72,33 @@ def test_pending_pre_change_request_keeps_old_three_times_price(monkeypatch):
         ]}}).encode())
 
     monkeypatch.setattr("proposal.wopally_usage.urllib.request.urlopen", open_request)
-    assert WopallyUsage(token="test-only").find(legacy_request_id, 684, "deepseek-v4-flash") == (30_000, "56")
+    assert WopallyUsage(token="test-only").find(legacy_request_id, 684, "deepseek-v4-flash") == (expected, "56")
+
+
+def test_official_image_standard_token_prices_and_fixed_fx():
+    row = {"input_tokens": 1000, "output_tokens": 1650, "image_output_tokens": 1650,
+           "image_count": 1}
+    # ($0.005 + $0.0495) * 6.705025 * 0.9, rounded up to micro-CNY.
+    assert official_v1_charge(row, "gpt-image-2") == 328882
+    row.pop("image_output_tokens")
+    with pytest.raises(KeyError):
+        official_v1_charge(row, "gpt-image-2")
+
+
+def test_official_deepseek_off_peak_and_tariff_validation():
+    row = {"input_tokens": 10000, "output_tokens": 10000, "cache_read_tokens": 10000,
+           "input_cost": ".01", "output_cost": ".04", "cache_read_cost": ".0002",
+           "total_cost": ".0502"}
+    assert official_v1_charge(row, "deepseek-v4-flash") == 45180
+    row["total_cost"] = ".1"
+    with pytest.raises(ValueError, match="tariff"):
+        official_v1_charge(row, "deepseek-v4-flash")
+
+
+@pytest.mark.parametrize("value", [None, -1, 1.5, True, "1000"])
+def test_official_price_rejects_unverified_usage(value):
+    with pytest.raises((ValueError, KeyError)):
+        official_v1_charge({"input_tokens": value}, "gpt-image-2")
 
 
 def test_meter_reserves_once_then_refunds_difference_without_cross_user_spend(tmp_path):

@@ -6,11 +6,9 @@ import uuid
 from typing import Any
 
 from .wopally_usage import UsageUnavailable, WopallyUsage
+from .official_pricing import PRICE_VERSION
 
 logger = logging.getLogger("proposal_agent.metering")
-
-RETAIL_MULTIPLIER = 12
-
 
 class WorkbenchMeter:
     """Reserve each upstream request independently, including tool-loop requests."""
@@ -27,7 +25,7 @@ class WorkbenchMeter:
         self.usage = WopallyUsage()
 
     def reserve(self, model: str, hold_micro_cny: int | None = None) -> str:
-        request_id = f"m{RETAIL_MULTIPLIER}_{uuid.uuid4().hex}"
+        request_id = f"{PRICE_VERSION}_{uuid.uuid4().hex}"
         self.store.reserve_workbench_usage(
             self.user_id, request_id, model,
             hold_micro_cny or self.TEXT_HOLD_MICRO_CNY, self.api_key_id,

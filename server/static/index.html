@@ -446,7 +446,7 @@
               </div>
               <div id="workbenchImageControls" class="diagram-controls hidden">
                 <input id="workbenchImagePrompt" maxlength="2000" placeholder="描述需要生成的项目配图">
-                <button id="generateWorkbenchImageBtn" class="button button-secondary button-small">生成配图（按积分计费）</button>
+                <button id="generateWorkbenchImageBtn" class="button button-secondary button-small">生成配图（官方价9折，预留20积分）</button>
               </div>
               <div id="diagramGallery" class="diagram-gallery"></div>
             </section>
@@ -562,7 +562,7 @@
         <input type="radio" name="llmProvider" value="preset" id="providerPreset" checked>
         <span>
           <strong>平台融合模型包</strong>
-          <small>免配置 API Key；写作自动走 DeepSeek Flash，生图自动走 GPT Image，按中转站实际用量费用的 12 倍扣积分。</small>
+          <small>免配置 API Key；写作自动走 DeepSeek Flash，生图自动走 GPT Image，按官方 API 单价的 9 折扣积分。</small>
         </span>
       </label>
       <label class="model-provider-option">
@@ -582,7 +582,8 @@
     </div>
     <div id="presetModelFields" class="model-config-fields">
       <div id="presetModelCards" class="preset-model-cards"></div>
-      <small>无需手动选模型；调用前预留积分，成功后按中转站实际用量费用的 12 倍结算。当前剩余：<strong id="presetDialogCredits">--</strong> 点。</small>
+      <small>无需手动选模型；调用前预留积分，成功后按官方 API 单价的 9 折结算。当前剩余：<strong id="presetDialogCredits">--</strong> 点。</small>
+      <small>文字预留 5 积分，生图预留 20 积分，核对用量后退回差额。DeepSeek 按官方人民币峰谷价；GPT Image 按官方 Standard token 单价，以固定汇率 $1＝¥6.705025 换算后打 9 折（2026-10-14 参考汇率，并非实时汇率）。</small>
     </div>
     <div id="localModelFields" class="model-config-fields">
       <label class="field">
@@ -639,7 +640,8 @@
     <a id="cardShopLink" class="button button-primary button-large hidden" href="#" target="_blank" rel="noopener noreferrer">
       前往店铺购买卡密 ↗
     </a>
-    <div class="balance-sub">兑换比例：¥0.5 = 5 积分，¥1 = 10 积分；模型调用按中转站实际用量费用的 12 倍扣积分。支持工作台 AGT1 卡密和店铺发放的中转站余额码；每张码只能绑定一个工作台账号。试运行阶段建议先小额体验。</div>
+    <div class="balance-sub">兑换比例：¥0.5 = 5 积分，¥1 = 10 积分；模型调用按官方 API 单价的 9 折扣积分。支持工作台 AGT1 卡密和店铺发放的中转站余额码；每张码只能绑定一个工作台账号。试运行阶段建议先小额体验。</div>
+    <div class="balance-sub">DeepSeek 使用官方人民币峰谷单价；GPT Image 使用官方 Standard token 单价，固定汇率 $1＝¥6.705025，核实用量后打 9 折。文字每次预留 5 积分，生图每次预留 20 积分，多余退回；缺少用量或费用超过预留时暂停后续调用，等待核对。价格表版本：2026-10-14。</div>
 
     <div class="redeem-box">
       <div class="redeem-title">✦ 或使用卡密/兑换码兑换：</div>
@@ -774,7 +776,7 @@
           <div class="onboarding-card-body">
             <p>点击右上角 <strong>「⚙ 模型配置」</strong>，可随时自由切换 2 种算力方式：</p>
             <ul>
-              <li><strong>💎 平台融合模型包（默认）</strong>：免配 API Key 开箱即用。文本撰写自动走 DeepSeek Flash，路线图/配图走 GPT Image，按中转站实际用量费用的 12 倍扣积分（点击「充值积分」可到店铺买卡密兑换）。</li>
+              <li><strong>💎 平台融合模型包（默认）</strong>：免配 API Key 开箱即用。文本撰写自动走 DeepSeek Flash，路线图/配图走 GPT Image，按官方 API 单价的 9 折扣积分（点击「充值积分」可到店铺买卡密兑换）。</li>
               <li><strong>🔑 自定义 API (自带 Key / BYOK)</strong>：填入你的 DeepSeek、通义千问、硅基流动或 OpenAI Key，<strong>工作台 0 扣积分，无限畅写</strong>！Key 仅保存在当前标签页，绝不存入服务器数据库。</li>
             </ul>
             <div class="onboarding-highlight">

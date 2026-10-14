@@ -11,13 +11,14 @@ from typing import Any
 
 from .wopally_auth import ServiceLoginUnavailable, service_token
 from .wopally_transport import wopally_urlopen
+from .official_pricing import official_v1_charge
 
 class UsageUnavailable(RuntimeError):
     """The provider's authoritative charge cannot currently be confirmed."""
 
 
 class WopallyUsage:
-    """Read only the service account's own usage; never estimate a charge from tokens."""
+    """Price only the service account's confirmed, uniquely matched usage."""
 
     def __init__(self, base_url: str | None = None, token: str | None = None):
         self.base_url = (base_url or os.environ.get("WOPALLY_API_URL", "https://api.wopally.cn")).rstrip("/")
@@ -59,14 +60,19 @@ class WopallyUsage:
                 if int(row.get("api_key_id") or 0) != api_key_id or row.get("model") != model:
                     raise UsageUnavailable("中转站用量归属不符")
                 try:
-                    cost = Decimal(str(row["actual_cost"]))
-                    if not cost.is_finite() or cost < 0:
-                        raise ValueError
-                    # Legacy unversioned requests retain their original 3x
-                    # price; requests reserved after the change use 12x.
-                    multiplier = 12 if re.fullmatch(r"m12_[0-9a-f]{32}", request_id) else 3
-                    from decimal import ROUND_CEILING
-                    micro = int((cost * multiplier * 1_000_000).to_integral_value(rounding=ROUND_CEILING))
+                    if re.fullmatch(r"o90v1_[0-9a-f]{32}", request_id):
+                        micro = official_v1_charge(row, model)
+                    else:
+                        # Retain historical 3x/12x pricing across deployments.
+                        if not (re.fullmatch(r"[0-9a-f]{32}", request_id)
+                                or re.fullmatch(r"m12_[0-9a-f]{32}", request_id)):
+                            raise ValueError("Unknown historical price version")
+                        cost = Decimal(str(row["actual_cost"]))
+                        if not cost.is_finite() or cost < 0:
+                            raise ValueError
+                        multiplier = 12 if request_id.startswith("m12_") else 3
+                        from decimal import ROUND_CEILING
+                        micro = int((cost * multiplier * 1_000_000).to_integral_value(rounding=ROUND_CEILING))
                 except (KeyError, InvalidOperation, ValueError, TypeError) as exc:
                     raise UsageUnavailable("中转站费用格式无法识别") from exc
                 return micro, str(row.get("id") or row.get("request_id") or "")

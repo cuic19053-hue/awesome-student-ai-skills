@@ -4,11 +4,18 @@
 
 ## 工作台付费链路（生产状态）
 
-目标流程：用户仅登录工作台 → 从 [Wopally 的 CatFK 店铺](https://catfk.com/shop/KGFPJI42) 购买工作台卡密或中转站余额卡密 → 工作台核验并绑定当前 Supabase 用户 → 后端将余额兑入低权限 `github-skills` 中转站账户 → 用户获得 ¥1＝10 积分（¥0.5＝5 积分）→ DeepSeek Flash 写作/GPT Image 生图按实际站内费用的 12 倍结算（原价 3 倍的 4 倍）。用户无需登录中转站、选择模型或接触服务端 Key。BYOK/Ollama 独立且不扣积分。
+目标流程：用户仅登录工作台 → 从 [Wopally 的 CatFK 店铺](https://catfk.com/shop/KGFPJI42) 购买工作台卡密或中转站余额卡密 → 工作台核验并绑定当前 Supabase 用户 → 后端将余额兑入低权限 `github-skills` 中转站账户 → 用户获得 ¥1＝10 积分（¥0.5＝5 积分）→ DeepSeek Flash 写作/GPT Image 生图按官方 API 单价的 9 折计费。用户无需登录中转站、选择模型或接触服务端 Key。BYOK/Ollama 独立且不扣积分。
 
 **2026-10-13 已验证真实余额码充值及 DeepSeek Flash 用量结算。** 首笔 ¥0.5 充值到账 5 积分；生产账本此后还记录了其他余额码兑换和多笔已结算的文本模型调用。店铺购买入口已恢复；Supabase 中同批 AGT1 卡密仍为激活状态，私密配对余额码尚未使用。`github-skills` 专用 Key 属分组 127。**GPT Image 的真实生成与费用结算、失败退费等场景尚未全面验收**，不能把“充值已到账”等同于“所有付费功能均已验收”。
 
-两个系统无法共享数据库事务：工作台先创建唯一兑换意向，中转站确认余额码实际面值与服务账户后，Supabase 在一笔事务内给该用户加积分；超时或本地入账失败保留待核对，重试只查该账户的兑换历史，不盲目重复向中转站提交。零余额在请求前拦截；每个上游调用暂预留 ¥0.5（5 积分），查中转站 `usage` 中唯一 User-Agent 标识对应的 `actual_cost`。带 `m12_` 前缀的新请求按 12 倍结算；旧请求即使跨部署后才恢复核对，仍按原价 3 倍结算。多预留退回；实际费用高于预留或暂时无法确认时保留预留并阻止该用户继续调用，等待人工核对。图片一次仅生成一张 PNG，服务端 Key 不下发浏览器。
+两个系统无法共享数据库事务：工作台先创建唯一兑换意向，中转站确认余额码实际面值与服务账户后，Supabase 在一笔事务内给该用户加积分；超时或本地入账失败保留待核对，重试只查该账户的兑换历史，不盲目重复向中转站提交。每个文字调用预留 ¥0.5（5 积分），图片调用预留 ¥2（20 积分），查中转站 `usage` 中唯一 User-Agent 标识对应的确认用量。`o90v1_` 新请求使用下述官方价快照；历史 `m12_` 请求仍按中转站账单的 12 倍、无前缀请求仍按 3 倍结算。多预留退回；实际费用高于预留或暂时无法确认时保留预留并阻止该用户继续调用，等待人工核对。图片一次仅生成一张 PNG，服务端 Key 不下发浏览器。
+
+### 官方价快照 o90v1（2026-10-14）
+
+- [DeepSeek 官方人民币价格](https://api-docs.deepseek.com/zh-cn/quick_start/pricing/)：Flash 每百万 token 空闲输入未命中 ¥1、命中 ¥0.02、输出 ¥4；高峰分别 ¥2、¥0.04、¥8。只接受中转站各分项和总额均匹配这两档官方价的记录，然后打 9 折；分组费率不参与本版零售定价。无法匹配则保留预留待核对，不猜测收费。
+- [GPT Image 2 官方 Standard 单价](https://developers.openai.com/api/docs/pricing)：纯文字生图输入 $5/百万 text token、图片输出 $30/百万 image token。按中转站报告的确认 token 用量计算（不是固定每张估价）；缺少图片输出用量则不自动结算。仅支持当前 text-only 单张生成，不套用 Batch/Responses 缓存价。
+- 图片美元转人民币固定使用 `6.705025`，来源为 [ExchangeRate-API](https://open.er-api.com/v6/latest/USD) 的 2026-10-14 00:02:32 UTC 参考报价，之后乘 `0.9`。这是公示的固定计费汇率，不是实时汇率或银行卡结算汇率。
+- 调整官方单价或汇率必须新增价格版本并保留旧版，不能修改 `o90v1` 的历史算法。本版并不自动同步未来官方价格。
 
 部署配置见 `.env.example`：`WORKBENCH_BACKEND_SECRET` 是 Supabase 专用的窄权限能力密钥，不是 project-wide `service_role`；`WORKBENCH_REDEEM_ENCRYPTION_KEY` 解密已配对的私密站内码。`WOPALLY_SERVICE_EMAIL/PASSWORD` 仅为 `github-skills` 低权限登录；`WOPALLY_WORKBENCH_API_KEY` 仅在服务端调用分组 127。`WOPALLY_ORIGIN_IP` 仅用于源站固定 IP 连接，TLS 仍校验 `api.wopally.cn` 证书。不应在代码仓库、浏览器或日志中输出任何明文卡密和密钥。
 

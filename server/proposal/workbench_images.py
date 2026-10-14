@@ -14,7 +14,9 @@ from .wopally_transport import wopally_urlopen
 
 def generate_image(prompt: str, meter: WorkbenchMeter) -> bytes:
     """One bounded image request; only server-side credentials reach the relay."""
-    request_id = meter.reserve("gpt-image-2", 500_000)
+    # Auto quality can select high; reserve enough for the published 1024px
+    # high-quality output plus text input at the fixed official-price FX.
+    request_id = meter.reserve("gpt-image-2", 2_000_000)
     request = urllib.request.Request(
         os.environ["WOPALLY_MODEL_BASE_URL"].rstrip("/") + "/images/generations",
         data=json.dumps({
