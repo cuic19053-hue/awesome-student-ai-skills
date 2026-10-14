@@ -286,7 +286,7 @@ if candidates:
 - **版本**：v2.1（详见 `version.json`）
 - **总规模**：35 个子 skill · 55317 行 SKILL.md · 44198 行 build.py · 8228 行 utils · 总计 ~108000 行
 - **机器可读索引**：`index.json`
-- **总调度 prompt**：`AGENT_PROMPT.md`
+- **总调度 prompt**：`docs/design/AGENT_PROMPT.md`
 - **项目说明**：`README.md`
 
 ---

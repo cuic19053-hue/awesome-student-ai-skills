@@ -12,7 +12,7 @@
 
 > 🌐 **Try it online:** [agent.stardust.website](https://agent.stardust.website) (Zero setup, instant browser access)
 >
-> 🚀 **Quick links:** 🌐 [agent.stardust.website](https://agent.stardust.website) · [Quick Start](#-how-to-use) · [Local Deployment](./server/README.md) · [35 Skills](./README.md#能写哪些申报书) · [Architecture](./ARCHITECTURE.md)
+> 🚀 **Quick links:** 🌐 [agent.stardust.website](https://agent.stardust.website) · [Quick Start](#-how-to-use) · [Local Deployment](./server/README.md) · [35 Skills](./README.md#能写哪些申报书) · [Architecture](./docs/design/ARCHITECTURE.md)
 
 ---
 
@@ -105,7 +105,7 @@ Our `utils/` folder provides 7 core engineering modules shared across all 35 sub
 | `plagiarism_checker.py`| 742 | n-gram duplication check + report generation |
 | `review_simulator.py` | 1089 | Simulates committee reviews & scoring based on `review_criteria.json` |
 
-Read our [Architecture Design Document (ZH)](./ARCHITECTURE.md) and [Agent Prompt Design (ZH)](./AGENT_DESIGN.md) for more details.
+Read our [Architecture Design Document (ZH)](./docs/design/ARCHITECTURE.md) and [Agent Prompt Design (ZH)](./docs/design/AGENT_DESIGN.md) for more details.
 
 ---
 

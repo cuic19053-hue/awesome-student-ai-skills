@@ -499,7 +499,7 @@ project-root/
 │       ├── national_project_eval/
 │       └── ...
 │
-└── ARCHITECTURE.md                # 本文件
+└── docs/design/ARCHITECTURE.md    # 架构设计文档
 ```
 
 ---

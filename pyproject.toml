@@ -12,5 +12,23 @@ dependencies = [
     "cryptography>=44,<51",
 ]
 
+[project.optional-dependencies]
+server = [
+    "uvicorn[standard]>=0.30",
+    "pypdfium2>=4.30",
+    "rapidocr>=3.9,<4",
+    "onnxruntime>=1.18",
+    "mcp>=2.0,<3",
+]
+full = [
+    "uvicorn[standard]>=0.30",
+    "pypdfium2>=4.30",
+    "rapidocr>=3.9,<4",
+    "onnxruntime>=1.18",
+    "mcp>=2.0,<3",
+    "matplotlib>=3.7",
+    "pyyaml>=6.0",
+]
+
 [tool.vercel]
 entrypoint = "server.app:app"
