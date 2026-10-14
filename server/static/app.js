@@ -30,6 +30,7 @@
     cloudMode: false,
     userCredits: null,
     cardRedemptionEnabled: false,
+    cardShopUrl: "",
     presetModels: [],
     rechargePlans: [],
     authClient: null,
@@ -1111,6 +1112,9 @@
       }
     } catch (error) {
       toast(error.message, true);
+      if ((error.message || "").includes("积分不足") || (error.message || "").includes("402")) {
+        openRechargeDialog();
+      }
     } finally {
       submit.disabled = false;
     }
@@ -1655,6 +1659,9 @@
       target.append(card);
     } catch (error) {
       toast(error.message, true);
+      if ((error.message || "").includes("积分不足") || (error.message || "").includes("402")) {
+        openRechargeDialog();
+      }
     } finally {
       btn.disabled = false;
       btn.textContent = "直接抓取原文";
@@ -1735,6 +1742,9 @@
       }
     } catch (error) {
       toast(error.message, true);
+      if ((error.message || "").includes("积分不足") || (error.message || "").includes("402")) {
+        openRechargeDialog();
+      }
     } finally {
       btn.disabled = false;
       btn.textContent = "从对话提取候选事实";
@@ -1753,6 +1763,9 @@
       $("#outlineWarning").textContent = result.warning || "";
     } catch (error) {
       toast(error.message, true);
+      if ((error.message || "").includes("积分不足") || (error.message || "").includes("402")) {
+        openRechargeDialog();
+      }
     } finally {
       btn.disabled = false;
       btn.textContent = "拟一份目录";
@@ -2123,6 +2136,9 @@
           statusPill.className = "section-status-pill unsaved";
           statusPill.textContent = "● 生成失败";
           toast(error.message, true);
+          if ((error.message || "").includes("积分不足") || (error.message || "").includes("402")) {
+            openRechargeDialog();
+          }
         } finally {
           generate.disabled = false;
           generate.textContent = "生成草稿";
@@ -2169,6 +2185,9 @@
       toast("图表节点已拟好，请修改和确认后再生成。");
     } catch (error) {
       toast(error.message, true);
+      if ((error.message || "").includes("积分不足") || (error.message || "").includes("402")) {
+        openRechargeDialog();
+      }
     } finally {
       btn.disabled = false;
       btn.textContent = "请 Agent 提建议";
@@ -2222,6 +2241,9 @@
     } catch (error) {
       toast(error.message, true);
       await loadUserBalance();
+      if ((error.message || "").includes("积分不足") || (error.message || "").includes("402")) {
+        openRechargeDialog();
+      }
     } finally {
       btn.disabled = false;
     }
@@ -2399,7 +2421,7 @@
     for (const message of state.messages || []) appendMessage(message.role, message.content);
   }
 
-  function appendMessage(role, text) {
+  function appendMessage(role, text, actionNode = null) {
     const root = $("#chatMessages");
     const row = document.createElement("div");
     row.className = `message ${role === "user" ? "user" : "assistant"}`;
@@ -2413,6 +2435,9 @@
     bubble.className = "message-bubble";
     if (role === "assistant") {
       bubble.innerHTML = renderMarkdownSafe(text);
+      if (actionNode) {
+        bubble.append(actionNode);
+      }
       const copyBtn = document.createElement("button");
       copyBtn.type = "button";
       copyBtn.className = "bubble-copy-btn";
@@ -2464,7 +2489,30 @@
       pending.remove();
       const projectId = state.project.id;
       await loadProject(projectId);
-      appendMessage("assistant", `暂时无法完成：${error.message}`);
+      const isCreditsErr = (error.message || "").includes("积分不足") || (error.message || "").includes("402");
+      if (isCreditsErr) {
+        const ctaWrap = document.createElement("div");
+        ctaWrap.className = "chat-recharge-cta";
+        if (state.cardShopUrl) {
+          const shopLink = document.createElement("a");
+          shopLink.className = "button button-primary button-small";
+          shopLink.href = state.cardShopUrl;
+          shopLink.target = "_blank";
+          shopLink.rel = "noopener noreferrer";
+          shopLink.textContent = "⚡ 点击一键前往店铺购买 0.5 元极速体验卡密 ↗";
+          ctaWrap.append(shopLink);
+        }
+        const openBtn = document.createElement("button");
+        openBtn.type = "button";
+        openBtn.className = "button button-secondary button-small";
+        openBtn.textContent = "粘贴卡密兑换";
+        openBtn.addEventListener("click", () => openRechargeDialog());
+        ctaWrap.append(openBtn);
+        appendMessage("assistant", `暂时无法完成：${error.message}`, ctaWrap);
+        openRechargeDialog();
+      } else {
+        appendMessage("assistant", `暂时无法完成：${error.message}`);
+      }
       if (state.llmConfig.provider === "preset") await loadUserBalance();
     }
   }
@@ -2553,6 +2601,9 @@
       box.append(note);
     } catch (error) {
       toast(error.message, true);
+      if ((error.message || "").includes("积分不足") || (error.message || "").includes("402")) {
+        openRechargeDialog();
+      }
     } finally {
       buttonNode.disabled = false;
       buttonNode.textContent = "开启模拟评审";
@@ -2592,6 +2643,9 @@
       toast("Word 草稿已生成并开始下载！");
     } catch (error) {
       toast(error.message, true);
+      if ((error.message || "").includes("积分不足") || (error.message || "").includes("402")) {
+        openRechargeDialog();
+      }
     } finally {
       if (btn) {
         btn.disabled = false;
@@ -2970,6 +3024,7 @@
     );
     $("#workbenchImageControls")?.classList.toggle("hidden", !config.preset_enabled);
     state.cardRedemptionEnabled = Boolean(config.card_redemption_enabled);
+    state.cardShopUrl = config.card_shop_url || "";
     const redeemButton = $("#submitRedeemBtn");
     if (redeemButton) {
       redeemButton.disabled = !state.cardRedemptionEnabled;

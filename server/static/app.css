@@ -4048,3 +4048,36 @@ button:disabled {
   from { opacity: 0; transform: translateY(-3px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* 一键购买体验卡密与会话内充值提示 */
+#cardShopLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
+  text-decoration: none;
+  color: #fff;
+  transition: all 0.2s ease;
+  margin: 14px 0 10px;
+  text-align: center;
+}
+#cardShopLink:hover {
+  background: linear-gradient(135deg, #6d28d9, #9333ea);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(124, 58, 237, 0.45);
+}
+
+.chat-recharge-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.15);
+}
+.chat-recharge-cta a {
+  text-decoration: none;
+}
