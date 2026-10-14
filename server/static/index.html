@@ -616,19 +616,43 @@
       <small>本地推理模式零外部网络调用开销，无需 API Key。</small>
     </div>
     <div id="customModelFields" class="model-config-fields hidden">
+      <div class="custom-model-group-title" style="font-size: 13px; font-weight: 700; color: var(--stardust-primary-dark); margin: 4px 0 2px;">📝 文本撰写模型 (Chat LLM)</div>
       <label class="field">
-        <span>API Base URL (HTTPS)</span>
-        <input id="customModelBase" type="url" placeholder="https://api.deepseek.com/v1" autocomplete="url">
+        <span>文本 API Base URL (HTTPS)</span>
+        <input id="customModelBase" type="url" placeholder="例如 https://api.deepseek.com/v1" autocomplete="url">
       </label>
       <label class="field">
-        <span>模型名称 (Model Identifier)</span>
-        <input id="customModelName" placeholder="例如 deepseek-chat, gpt-4o-mini, qwen-plus" autocomplete="off">
+        <span>文本模型名称 (Model Identifier)</span>
+        <input id="customModelName" placeholder="例如 deepseek-chat, qwen-plus, gpt-4o-mini" autocomplete="off">
       </label>
       <label class="field">
-        <span>API Key 访问密钥</span>
+        <span>文本 API Key 访问密钥</span>
         <input id="customModelKey" type="password" placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="new-password">
       </label>
-      <small>密钥安全机制：仅临时保存在当前浏览器的 sessionStorage 会话中，不存入任何后端持久化数据库。要求模型支持 Function Calling（工具调用）。</small>
+
+      <div class="custom-model-group-title" style="font-size: 13px; font-weight: 700; color: var(--stardust-primary-dark); margin: 14px 0 2px;">🎨 配图与技术路线图生图模型 (Image LLM · 可选)</div>
+      <div style="margin: 4px 0 8px;">
+        <label style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; cursor: pointer; color: var(--text-muted);">
+          <input type="checkbox" id="customImageReuseText">
+          <span>与文本模型共用 Base URL 与 API Key（如使用 OpenAI 或聚合中转站）</span>
+        </label>
+      </div>
+      <div id="customImageSeparateFields">
+        <label class="field">
+          <span>生图 API Base URL (HTTPS)</span>
+          <input id="customImageBase" type="url" placeholder="例如 https://api.siliconflow.cn/v1 或 https://api.openai.com/v1" autocomplete="url">
+        </label>
+        <label class="field">
+          <span>生图 API Key</span>
+          <input id="customImageKey" type="password" placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="new-password">
+        </label>
+      </div>
+      <label class="field">
+        <span>生图模型名称</span>
+        <input id="customImageModel" placeholder="例如 black-forest-labs/FLUX.1-schnell, dall-e-3" autocomplete="off">
+      </label>
+      <small>💡 推荐搭配：文本填写 DeepSeek (deepseek-chat)；生图填写硅基流动 (FLUX.1-schnell，有免费赠送额度) 或 OpenAI (dall-e-3)。若留空生图模型，工作台仍可用文本撰写功能，配图可切回平台融合模型。</small>
+      <small>🔒 密钥安全：所有 Key 仅临时保存在当前浏览器标签页 sessionStorage 中，绝不存入后端数据库。工作台 0 扣积分！</small>
     </div>
     <div id="modelConfigFeedback" class="model-config-feedback" role="status"></div>
     <div class="model-settings-actions">

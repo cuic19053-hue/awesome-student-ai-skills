@@ -45,7 +45,7 @@ from proposal.retrieval import ProjectRetriever
 from proposal.storage import CreditRateLimitError, InsufficientCreditsError, PendingUsageError, Store
 from proposal.supabase_store import SupabaseStore, request_identity
 from proposal.workbench_metering import WorkbenchMeter
-from proposal.workbench_images import generate_image
+from proposal.workbench_images import generate_image, generate_custom_image
 from proposal.wopally_usage import UsageUnavailable, WopallyUsage
 from proposal.official_pricing import official_v1_charge
 from proposal.wopally_transport import wopally_urlopen
@@ -78,6 +78,10 @@ class LLMConfigInput(BaseModel):
     model: str = Field(default="deepseek-chat", max_length=160)
     base_url: str = Field(default="", max_length=500)
     api_key: str = Field(default="", max_length=1000)
+    image_model: str = Field(default="", max_length=160)
+    image_base_url: str = Field(default="", max_length=500)
+    image_api_key: str = Field(default="", max_length=1000)
+    image_reuse_text: bool = False
 
 
 class ChatInput(BaseModel):
@@ -104,6 +108,7 @@ class DiagramProposalInput(BaseModel):
 
 class GenerateImageInput(BaseModel):
     prompt: str = Field(min_length=5, max_length=2000)
+    llm_config: LLMConfigInput | None = None
 
 
 class ConfirmDocument(BaseModel):
@@ -1556,29 +1561,68 @@ def generate_project_image(
     project_id: str, payload: GenerateImageInput, request: Request
 ) -> dict[str, Any]:
     project = _safe_project(project_id)
-    if not _platform_bundle_ready():
-        raise HTTPException(status_code=503, detail="平台生图尚未开通")
-    meter = WorkbenchMeter(
-        store, _current_user_id(request), int(os.environ["WOPALLY_WORKBENCH_API_KEY_ID"]), project_id
+    cfg = payload.llm_config
+    use_custom_image = bool(
+        cfg and cfg.provider == "openai_compatible" and (
+            cfg.image_model.strip() or cfg.image_base_url.strip() or cfg.image_reuse_text
+        )
     )
-    try:
-        content = generate_image(payload.prompt.strip(), meter)
-    except InsufficientCreditsError as exc:
-        raise HTTPException(status_code=402, detail=str(exc)) from exc
-    except PendingUsageError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
-    except ModelUnavailable as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    if use_custom_image:
+        effective_base = (
+            cfg.base_url.strip()
+            if cfg.image_reuse_text or not cfg.image_base_url.strip()
+            else cfg.image_base_url.strip()
+        )
+        effective_key = (
+            cfg.api_key.strip()
+            if cfg.image_reuse_text or not cfg.image_api_key.strip()
+            else cfg.image_api_key.strip()
+        )
+        effective_model = cfg.image_model.strip() or "dall-e-3"
+        if not effective_base.startswith("https://") or not effective_key:
+            raise HTTPException(status_code=422, detail="自定义生图需配置有效的 HTTPS API 地址和 API Key。")
+        try:
+            content = generate_custom_image(
+                payload.prompt.strip(),
+                effective_base,
+                effective_model,
+                effective_key,
+            )
+        except ModelUnavailable as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"自定义生图失败：{str(exc)}") from exc
+    else:
+        if not _platform_bundle_ready():
+            raise HTTPException(
+                status_code=503,
+                detail="未配置自定义生图模型，且平台融合生图未开通。请在「模型配置」中配置生图 API（如硅基流动 FLUX / OpenAI DALL-E）。"
+            )
+        meter = WorkbenchMeter(
+            store, _current_user_id(request), int(os.environ["WOPALLY_WORKBENCH_API_KEY_ID"]), project_id
+        )
+        try:
+            content = generate_image(payload.prompt.strip(), meter)
+        except InsufficientCreditsError as exc:
+            raise HTTPException(status_code=402, detail=str(exc)) from exc
+        except PendingUsageError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except ModelUnavailable as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    mime = "image/jpeg" if content.startswith(bytes([255, 216, 255])) else "image/webp" if content.startswith(b"RIFF") else "image/png"
+    ext = ".jpg" if mime == "image/jpeg" else ".webp" if mime == "image/webp" else ".png"
     image_id = os.urandom(16).hex()
     image_dir = store.files_dir / project_id
     image_dir.mkdir(parents=True, exist_ok=True)
-    image_path = image_dir / f"{image_id}.png"
+    image_path = image_dir / f"{image_id}{ext}"
     image_path.write_bytes(content)
     preview = str(image_path)
     if hasattr(store, "persist_generated_file"):
         try:
             preview = "storage://" + store.persist_generated_file(
-                project_id, image_path.name, image_path, "image/png"
+                project_id, image_path.name, image_path, mime
             )
         finally:
             image_path.unlink(missing_ok=True)

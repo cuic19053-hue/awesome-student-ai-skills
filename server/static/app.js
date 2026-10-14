@@ -7,7 +7,16 @@
   const activeProjectKey = "stardust-agent-active-project-id";
 
   function readSavedLlmConfig() {
-    const fallback = { provider: "preset", model: "workbench-bundle", base_url: "", api_key: "" };
+    const fallback = {
+      provider: "preset",
+      model: "workbench-bundle",
+      base_url: "",
+      api_key: "",
+      image_model: "",
+      image_base_url: "",
+      image_api_key: "",
+      image_reuse_text: false,
+    };
     try {
       localStorage.removeItem(llmConfigKey);
       const saved = JSON.parse(sessionStorage.getItem(llmConfigKey) || "null");
@@ -136,7 +145,7 @@
     }
     const method = (requestOptions.method || "GET").toUpperCase();
     const path = new URL(url, window.location.href).pathname;
-    const usesLlm = method === "POST" && /\/api\/projects\/[^/]+\/(?:chat|outline\/generate|sections\/[^/]+\/generate|diagrams\/propose|facts\/propose)$/.test(path);
+    const usesLlm = method === "POST" && /\/api\/projects\/[^/]+\/(?:chat|outline\/generate|sections\/[^/]+\/generate|diagrams\/propose|facts\/propose|images\/generate)$/.test(path);
     if (usesLlm) {
       let body = {};
       if (typeof requestOptions.body === "string" && requestOptions.body) {
@@ -186,7 +195,8 @@
       return;
     }
     if (state.llmConfig.provider === "openai_compatible") {
-      status.textContent = `自定义 API · ${state.llmConfig.model || "未设置模型"}`;
+      const imgTag = state.llmConfig.image_model ? ` + ${state.llmConfig.image_model}` : "";
+      status.textContent = `自定义 API · ${state.llmConfig.model || "未设置模型"}${imgTag}`;
       status.classList.remove("offline");
       status.classList.add("remote-warning");
       const privacy = $(".privacy-note");
@@ -247,6 +257,10 @@
       base_url: $("#customModelBase").value.trim(),
       model: $("#customModelName").value.trim(),
       api_key: $("#customModelKey").value.trim(),
+      image_model: $("#customImageModel") ? $("#customImageModel").value.trim() : "",
+      image_base_url: $("#customImageBase") ? $("#customImageBase").value.trim() : "",
+      image_api_key: $("#customImageKey") ? $("#customImageKey").value.trim() : "",
+      image_reuse_text: $("#customImageReuseText") ? Boolean($("#customImageReuseText").checked) : false,
     };
   }
 
@@ -259,6 +273,13 @@
     $("#customModelBase").value = config.provider === "openai_compatible" ? config.base_url : "";
     $("#customModelName").value = config.provider === "openai_compatible" ? config.model : "";
     $("#customModelKey").value = config.provider === "openai_compatible" ? config.api_key : "";
+    if ($("#customImageModel")) $("#customImageModel").value = config.image_model || "";
+    if ($("#customImageBase")) $("#customImageBase").value = config.image_base_url || "";
+    if ($("#customImageKey")) $("#customImageKey").value = config.image_api_key || "";
+    if ($("#customImageReuseText")) {
+      $("#customImageReuseText").checked = Boolean(config.image_reuse_text);
+      $("#customImageSeparateFields")?.classList.toggle("hidden", Boolean(config.image_reuse_text));
+    }
     updateModelFields();
     $("#modelConfigFeedback").textContent = "";
     $("#modelConfigFeedback").className = "model-config-feedback";
@@ -272,6 +293,8 @@
     if ($("#presetModelFields")) $("#presetModelFields").classList.toggle("hidden", !isPreset);
     $("#localModelFields").classList.toggle("hidden", !isOllama);
     $("#customModelFields").classList.toggle("hidden", !custom);
+    const canImage = isPreset || custom;
+    $("#workbenchImageControls")?.classList.toggle("hidden", !canImage);
   }
 
   function storeLlmConfig(config) {
@@ -315,14 +338,15 @@
       return;
     }
     if (config.provider === "openai_compatible" && (!config.base_url || !config.model || !config.api_key)) {
-      $("#modelConfigFeedback").textContent = "请填写 API 地址、模型名称和 API Key。";
+      $("#modelConfigFeedback").textContent = "请填写文本 API 地址、模型名称和 API Key。";
       $("#modelConfigFeedback").className = "model-config-feedback error";
       return;
     }
     storeLlmConfig(config);
     $("#modelSettingsDialog").close();
     const provName = config.provider === "preset" ? "平台融合模型包" : config.provider === "ollama" ? "本地模型" : "自定义 API";
-    toast(`已切换为${provName}：${config.model}`);
+    const imgInfo = config.image_model ? ` · 生图: ${config.image_model}` : "";
+    toast(`已切换为${provName}：${config.model}${imgInfo}`);
   }
 
   async function loadUserBalance() {
@@ -2912,6 +2936,9 @@
     $$('input[name="llmProvider"]').forEach((input) => input.addEventListener("change", updateModelFields));
     $("#testModelConfigBtn").addEventListener("click", testSelectedLlmConfig);
     $("#saveModelConfigBtn").addEventListener("click", saveSelectedLlmConfig);
+    $("#customImageReuseText")?.addEventListener("change", (e) => {
+      $("#customImageSeparateFields")?.classList.toggle("hidden", e.target.checked);
+    });
     $("#creditsBadgeBtn")?.addEventListener("click", openRechargeDialog);
     $("#openRechargeBtn")?.addEventListener("click", openRechargeDialog);
     $("#sidebarRechargeBtn")?.addEventListener("click", openRechargeDialog);

@@ -49,3 +49,65 @@ def generate_image(prompt: str, meter: WorkbenchMeter) -> bytes:
         raise ModelUnavailable("模型未返回有效 PNG，积分预留待核对。") from exc
     meter.settle(request_id, "gpt-image-2")
     return image
+
+
+def generate_custom_image(prompt: str, base_url: str, model: str, api_key: str) -> bytes:
+    """Generate an image using user-supplied OpenAI-compatible image endpoint (0 credits)."""
+    endpoint = base_url.rstrip("/") + "/images/generations"
+    payload: dict[str, Any] = {
+        "model": model or "dall-e-3",
+        "prompt": prompt[:2000],
+        "n": 1,
+        "size": "1024x1024",
+        "response_format": "b64_json",
+    }
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key.strip()}",
+        "User-Agent": "StardustWorkbench/BYOK-Image",
+    }
+    request = urllib.request.Request(
+        endpoint,
+        data=json.dumps(payload, ensure_ascii=False).encode(),
+        headers=headers,
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            body: Any = json.load(response)
+    except urllib.error.HTTPError as exc:
+        err_msg = ""
+        try:
+            err_data = json.loads(exc.read().decode())
+            err_msg = (
+                err_data.get("error", {}).get("message")
+                or err_data.get("message")
+                or str(err_data)
+            )
+        except Exception:
+            pass
+        raise ModelUnavailable(f"自定义生图服务返回 HTTP {exc.code}：{err_msg or exc.reason}") from exc
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+        raise ModelUnavailable(f"无法连接自定义生图服务：{str(exc)}") from exc
+
+    try:
+        data_list = body.get("data")
+        if not isinstance(data_list, list) or not data_list:
+            raise ValueError("返回数据缺少 data 列表")
+        item = data_list[0]
+        if "b64_json" in item and item["b64_json"]:
+            image = base64.b64decode(item["b64_json"], validate=True)
+        elif "url" in item and item["url"]:
+            img_url = item["url"]
+            img_req = urllib.request.Request(img_url, headers={"User-Agent": "StardustWorkbench/1.0"})
+            with urllib.request.urlopen(img_req, timeout=30) as img_resp:
+                image = img_resp.read()
+        else:
+            raise ValueError("未返回有效图片数据 (缺少 b64_json 或 url)")
+        if len(image) < 100:
+            raise ValueError("图片数据无效")
+        if len(image) > 15_000_000:
+            raise ValueError("图片数据超过 15MB 限制")
+        return image
+    except (KeyError, IndexError, TypeError, ValueError) as exc:
+        raise ModelUnavailable(f"未能解析生图结果：{str(exc)}") from exc

@@ -391,3 +391,55 @@ def test_save_and_delete_diagram(client):
     assert del_res.json()["ok"] is True
     proj_after_del = client.get(f"/api/projects/{p_id}").json()
     assert not any(d["id"] == diagram_id for d in proj_after_del.get("diagrams", []))
+
+
+def test_custom_image_generation_with_byok(client, monkeypatch):
+    import io
+    import json
+    import base64
+    from proposal.workbench_images import generate_custom_image
+
+    fake_png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 200
+    fake_b64 = base64.b64encode(fake_png).decode()
+
+    class FakeResponse:
+        def __init__(self, data):
+            self.data = io.BytesIO(data)
+        def read(self):
+            return self.data.read()
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+
+    def fake_urlopen(req, timeout=60):
+        body = json.dumps({"data": [{"b64_json": fake_b64}]}).encode()
+        return FakeResponse(body)
+
+    monkeypatch.setattr("proposal.workbench_images.urllib.request.urlopen", fake_urlopen)
+
+    project = client.post(
+        "/api/projects",
+        json={"title": "生图测试课题", "skill_id": "innovation-research", "has_template": False},
+    ).json()
+    p_id = project["id"]
+
+    res = client.post(
+        f"/api/projects/{p_id}/images/generate",
+        json={
+            "prompt": "绘制无人机火场侦测技术路线图",
+            "llm_config": {
+                "provider": "openai_compatible",
+                "model": "deepseek-chat",
+                "base_url": "https://api.deepseek.com/v1",
+                "api_key": "sk-fake-text-key",
+                "image_model": "black-forest-labs/FLUX.1-schnell",
+                "image_base_url": "https://api.siliconflow.cn/v1",
+                "image_api_key": "sk-fake-image-key",
+            },
+        },
+    )
+    assert res.status_code == 200
+    diagram = res.json()["diagram"]
+    assert diagram["kind"] == "generated_image"
+    assert "无人机" in diagram["title"]
