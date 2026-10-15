@@ -458,3 +458,50 @@ def test_usage_cost_exceeding_reservation_is_held_for_review(tmp_path):
     result = store.settle_workbench_usage("req_12345678", 150_000, "wopally-req")
     assert result["status"] == "needs_review"
     assert store.get_workbench_credit_balance("alice")["balance_micro_cny"] == 900_000
+
+
+def test_free_chats_policy_allows_three_chats_before_requiring_credits(monkeypatch, isolated_store):
+    monkeypatch.setattr(server_app, "_platform_bundle_ready", lambda: True)
+    monkeypatch.setenv("WOPALLY_MODEL_BASE_URL", "https://api.wopally.cn/v1")
+    monkeypatch.setenv("WOPALLY_WORKBENCH_API_KEY", "test-key")
+    monkeypatch.setenv("WOPALLY_WORKBENCH_API_KEY_ID", "692")
+
+    bal = client.get("/api/user/balance").json()
+    assert bal["credits"] == 0
+    assert bal["free_chats_remaining"] == 3
+
+    proj = isolated_store.create_project(title="Free Policy Test")
+
+    class FakeChatAgent:
+        def __init__(self, *args, meter=None, **kwargs):
+            self.meter = meter
+        def chat(self, project_id, text):
+            if self.meter is not None:
+                self.meter.reserve("deepseek-v4-flash")
+            return {"message": f"echo: {text}", "tool_calls": []}
+
+    monkeypatch.setattr(server_app, "OllamaAgent", FakeChatAgent)
+
+    payload = {"message": "hello 1", "llm_config": {"provider": "preset", "model": "workbench-bundle"}}
+    res1 = client.post(f"/api/projects/{proj['id']}/chat", json=payload)
+    assert res1.status_code == 200
+    assert res1.json()["free_chat"] is True
+    assert res1.json()["free_chats_remaining"] == 2
+    assert isolated_store.get_workbench_credit_balance("local_user")["balance_micro_cny"] == 0
+
+    payload["message"] = "hello 2"
+    res2 = client.post(f"/api/projects/{proj['id']}/chat", json=payload)
+    assert res2.status_code == 200
+    assert res2.json()["free_chat"] is True
+    assert res2.json()["free_chats_remaining"] == 1
+
+    payload["message"] = "hello 3"
+    res3 = client.post(f"/api/projects/{proj['id']}/chat", json=payload)
+    assert res3.status_code == 200
+    assert res3.json()["free_chat"] is True
+    assert res3.json()["free_chats_remaining"] == 0
+
+    payload["message"] = "hello 4"
+    res4 = client.post(f"/api/projects/{proj['id']}/chat", json=payload)
+    assert res4.status_code == 402
+    assert "免费 3 次对话体验已用完" in res4.json()["detail"]

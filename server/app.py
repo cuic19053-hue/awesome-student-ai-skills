@@ -579,7 +579,8 @@ def _metered_invoke(
     try:
         return invoke(candidate)
     except InsufficientCreditsError as exc:
-        raise HTTPException(status_code=402, detail=str(exc)) from exc
+        detail = "免费 3 次对话体验已用完。请充值积分或使用自带 API Key 继续畅享。" if action == "chat" else str(exc)
+        raise HTTPException(status_code=402, detail=detail) from exc
     except PendingUsageError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except BaseException:
@@ -653,11 +654,13 @@ def get_user_balance(request: Request) -> dict[str, Any]:
     balance_units = int(bal["balance_micro_cny"])
     credited_units = int(bal.get("total_credited_micro_cny", 0))
     spent_units = int(bal.get("total_spent_micro_cny", 0))
+    free_chats = int(bal.get("free_chat_count", 0))
     return {
         "user_id": user_id,
         "credits": round(balance_units / MICRO_CNY_PER_CREDIT, 4),
         "total_credited": round(credited_units / MICRO_CNY_PER_CREDIT, 4),
         "total_consumed": round(spent_units / MICRO_CNY_PER_CREDIT, 4),
+        "free_chats_remaining": free_chats,
         "transactions": txs,
     }
 
@@ -1413,15 +1416,55 @@ def chat(project_id: str, payload: ChatInput, request: Request) -> dict[str, Any
         fields["state"] = state
     if fields:
         store.update_project(project_id, **fields)
+    cfg = payload.llm_config
+    user_id = _current_user_id(request)
+    is_free = False
+    remaining_free = -1
+
+    if cfg is not None and cfg.provider == "preset":
+        remaining_free = store.consume_free_chat(user_id)
+        if remaining_free >= 0:
+            is_free = True
+
     try:
-        result = _metered_invoke(
-            payload.llm_config, request, "chat", project_id,
-            lambda model: model.chat(project_id, text),
-        )
+        if is_free:
+            if not _platform_bundle_ready():
+                store.refund_free_chat(user_id)
+                raise HTTPException(status_code=503, detail="工作台服务账户与实际用量结算尚未接通")
+            candidate = OllamaAgent(
+                store, tools,
+                base_url=os.environ["WOPALLY_MODEL_BASE_URL"].rstrip("/"),
+                model="deepseek-v4-flash",
+                provider="openai_compatible",
+                api_key=os.environ["WOPALLY_WORKBENCH_API_KEY"],
+                meter=None,
+            )
+            result = candidate.chat(project_id, text)
+            result["free_chat"] = True
+            result["free_chats_remaining"] = remaining_free
+        else:
+            result = _metered_invoke(
+                payload.llm_config, request, "chat", project_id,
+                lambda model: model.chat(project_id, text),
+            )
+            result["free_chat"] = False
+            bal = store.get_workbench_credit_balance(user_id)
+            result["free_chats_remaining"] = int(bal.get("free_chat_count", 0))
         result["setup_updated"] = bool(fields)
         return result
+    except InsufficientCreditsError as exc:
+        raise HTTPException(
+            status_code=402,
+            detail="免费 3 次对话体验已用完。请充值积分或使用自带 API Key 继续畅享。"
+        ) from exc
     except ModelUnavailable as exc:
+        if is_free:
+            store.refund_free_chat(user_id)
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except BaseException:
+        if is_free:
+            store.refund_free_chat(user_id)
+        raise
 
 
 @app.post("/api/projects/{project_id}/outline/generate")

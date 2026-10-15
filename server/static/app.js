@@ -38,6 +38,7 @@
     chatCollapsed: false,
     cloudMode: false,
     userCredits: null,
+    freeChatsRemaining: 0,
     cardRedemptionEnabled: false,
     cardShopUrl: "",
     presetModels: [],
@@ -358,9 +359,11 @@
       if (requestSeq !== state.balanceRequestSeq) return;
       if (state.cloudMode && (accountId !== state.authSession?.user?.id || data.user_id !== accountId)) return;
       state.userCredits = data.credits;
+      state.freeChatsRemaining = Number(data.free_chats_remaining || 0);
       if ($("#userCreditsValue")) $("#userCreditsValue").textContent = data.credits;
       if ($("#rechargeModalCredits")) $("#rechargeModalCredits").textContent = data.credits;
       if ($("#presetDialogCredits")) $("#presetDialogCredits").textContent = data.credits;
+      renderFreeChatsIndicator();
       renderCreditTransactions(data.transactions || []);
     } catch (e) {
       console.warn("加载用户积分失败", e);
@@ -374,6 +377,26 @@
   function openRechargeDialog() {
     $("#rechargeDialog")?.showModal();
     void loadUserBalance();
+  }
+
+  function renderFreeChatsIndicator() {
+    const badge = $("#freeChatsTopbarBadge");
+    const hint = $("#freeChatHint");
+    const countNum = $("#freeChatCountNum");
+    const remaining = Number(state.freeChatsRemaining || 0);
+    if (remaining > 0) {
+      if (badge) {
+        badge.textContent = `🎁 免费对话剩 ${remaining} 次`;
+        badge.classList.remove("hidden");
+      }
+      if (hint) {
+        if (countNum) countNum.textContent = String(remaining);
+        hint.classList.remove("hidden");
+      }
+    } else {
+      if (badge) badge.classList.add("hidden");
+      if (hint) hint.classList.add("hidden");
+    }
   }
 
   function renderCreditTransactions(transactions) {
@@ -2516,6 +2539,18 @@
       pending.remove();
       appendMessage("assistant", result.message || "本轮没有生成文字。");
       state.messages.push({ role: "user", content: message }, { role: "assistant", content: result.message || "" });
+      if (result.free_chat) {
+        state.freeChatsRemaining = Number(result.free_chats_remaining || 0);
+        renderFreeChatsIndicator();
+        if (state.freeChatsRemaining > 0) {
+          toast(`本轮为免费体验对话（剩余 ${state.freeChatsRemaining} 次免费对话）`);
+        } else {
+          toast("本轮为最后一次免费体验对话，后续调用将使用积分");
+        }
+      } else if (result.free_chats_remaining !== undefined) {
+        state.freeChatsRemaining = Number(result.free_chats_remaining || 0);
+        renderFreeChatsIndicator();
+      }
       if (result.setup_updated || (result.tool_calls || []).some((name) => ["save_project_fact", "save_section"].includes(name))) {
         await loadProject(state.project.id);
       }

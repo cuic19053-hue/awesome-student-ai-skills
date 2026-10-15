@@ -84,6 +84,7 @@
           <button type="button" id="creditsBadgeBtn" class="credits-badge-btn" title="查看积分余额与充值">
             <span class="gem-icon">💎</span> <span id="userCreditsValue">—</span> 点
           </button>
+          <span id="freeChatsTopbarBadge" class="free-chats-badge hidden">🎁 免费对话剩 3 次</span>
           <button type="button" id="openRechargeBtn" class="button button-small button-primary topbar-recharge-btn">
             ＋ <span class="recharge-cta-label">充值积分</span>
           </button>
@@ -539,6 +540,9 @@
                 <button data-prompt="请根据当前研究构思，帮我提炼项目的核心科学挑战与技术难点。">💡 提炼技术难点</button>
                 <button data-prompt="请帮我拟订一个为期一年的实施进度安排与甘特图里程碑节点。">⏰ 规划一年进度</button>
               </div>
+              <div id="freeChatHint" class="free-chat-hint hidden">
+                <span class="sparkle">🎁</span> 新手福利：免费对话剩余 <strong id="freeChatCountNum">3</strong> 次
+              </div>
               <form id="chatForm" class="chat-compose">
                 <textarea id="chatInput" rows="2" placeholder="描述你的研究想法，或回答 Agent 的启发式提问…" maxlength="12000"></textarea>
                 <input type="file" id="chatFileInput" multiple hidden>
@@ -687,7 +691,7 @@
     <a id="cardShopLink" class="button button-primary button-large hidden" href="#" target="_blank" rel="noopener noreferrer">
       ⚡ 点击一键前往店铺购买 0.5 元极速体验卡密 ↗
     </a>
-    <div class="balance-sub">兑换比例：¥0.5 = 5 积分，¥1 = 10 积分；模型调用按实际用量扣积分。支持工作台 AGT1 卡密和店铺发放的中转站余额码；每张码只能绑定一个工作台账号。试运行阶段建议先购买 0.5 元极速体验卡密体验。</div>
+    <div class="balance-sub">🎁 新用户专享 3 次免费对话体验。体验完毕后，兑换比例：¥0.5 = 5 积分，¥1 = 10 积分；按实际用量扣除积分。支持工作台 AGT1 卡密和店铺发放的中转站余额码。亦可随时在模型配置中切换自定义 API 免费畅享！</div>
     <div class="balance-sub">文字每次预留 5 积分，生图每次预留 20 积分，多余退回；缺少用量或费用超过预留时暂停后续调用，等待核对。图片费用使用固定换算汇率 $1＝¥6.705025。价格表版本：2026-10-14。</div>
 
     <div class="redeem-box">
@@ -823,7 +827,7 @@
           <div class="onboarding-card-body">
             <p>点击右上角 <strong>「⚙ 模型配置」</strong>，可随时自由切换 2 种算力方式：</p>
             <ul>
-              <li><strong>💎 平台融合模型包（默认）</strong>：免配 API Key 开箱即用。文本撰写自动走 DeepSeek Flash，路线图/配图走 GPT Image，按实际用量扣积分（点击「充值积分」可到店铺买卡密兑换）。</li>
+              <li><strong>💎 平台融合模型包（默认）</strong>：免配 API Key 开箱即用。<strong>新用户注册即赠 3 次免费对话体验</strong>！文本撰写自动走 DeepSeek Flash，路线图/配图走 GPT Image，按实际用量扣积分（点击「充值积分」可到店铺买卡密兑换）。</li>
               <li><strong>🔑 自定义 API (自带 Key / BYOK)</strong>：填入你的 DeepSeek、通义千问、硅基流动或 OpenAI Key，<strong>工作台 0 扣积分，无限畅写</strong>！Key 仅保存在当前标签页，绝不存入服务器数据库。</li>
             </ul>
             <div class="onboarding-highlight">

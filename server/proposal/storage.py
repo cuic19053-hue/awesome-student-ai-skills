@@ -174,6 +174,7 @@ class Store:
                     balance_micro_cny INTEGER NOT NULL DEFAULT 0 CHECK (balance_micro_cny >= 0),
                     total_credited_micro_cny INTEGER NOT NULL DEFAULT 0 CHECK (total_credited_micro_cny >= 0),
                     total_spent_micro_cny INTEGER NOT NULL DEFAULT 0 CHECK (total_spent_micro_cny >= 0),
+                    free_chat_count INTEGER NOT NULL DEFAULT 3 CHECK (free_chat_count >= 0),
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
@@ -245,6 +246,9 @@ class Store:
             columns = {row[1] for row in db.execute("PRAGMA table_info(workbench_vouchers)")}
             if "provider_code_ciphertext" not in columns:
                 db.execute("ALTER TABLE workbench_vouchers ADD COLUMN provider_code_ciphertext BLOB")
+            wallet_cols = {row[1] for row in db.execute("PRAGMA table_info(workbench_credit_wallets)")}
+            if "free_chat_count" not in wallet_cols:
+                db.execute("ALTER TABLE workbench_credit_wallets ADD COLUMN free_chat_count INTEGER NOT NULL DEFAULT 3")
 
     @staticmethod
     def _decode_json(value: str, fallback: Any) -> Any:
@@ -893,15 +897,56 @@ class Store:
             db.execute(
                 """
                 INSERT OR IGNORE INTO workbench_credit_wallets
-                    (user_id, balance_micro_cny, total_credited_micro_cny, total_spent_micro_cny, created_at, updated_at)
-                VALUES (?, 0, 0, 0, ?, ?)
+                    (user_id, balance_micro_cny, total_credited_micro_cny, total_spent_micro_cny, free_chat_count, created_at, updated_at)
+                VALUES (?, 0, 0, 0, 3, ?, ?)
                 """,
                 (user_id, now, now),
             )
             row = db.execute(
                 "SELECT * FROM workbench_credit_wallets WHERE user_id = ?", (user_id,)
             ).fetchone()
-            return dict(row)
+            result = dict(row)
+            if "free_chat_count" not in result:
+                result["free_chat_count"] = 3
+            return result
+
+    def consume_free_chat(self, user_id: str) -> int:
+        user_id = str(user_id or "").strip()
+        now = utc_now()
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            db.execute(
+                """
+                INSERT OR IGNORE INTO workbench_credit_wallets
+                    (user_id, balance_micro_cny, total_credited_micro_cny, total_spent_micro_cny, free_chat_count, created_at, updated_at)
+                VALUES (?, 0, 0, 0, 3, ?, ?)
+                """,
+                (user_id, now, now),
+            )
+            row = db.execute(
+                "SELECT free_chat_count FROM workbench_credit_wallets WHERE user_id = ?", (user_id,)
+            ).fetchone()
+            current = int(row["free_chat_count"]) if row and "free_chat_count" in row.keys() else 0
+            if current <= 0:
+                return -1
+            remaining = current - 1
+            db.execute(
+                "UPDATE workbench_credit_wallets SET free_chat_count = ?, updated_at = ? WHERE user_id = ?",
+                (remaining, now, user_id),
+            )
+            return remaining
+
+    def refund_free_chat(self, user_id: str) -> int:
+        user_id = str(user_id or "").strip()
+        now = utc_now()
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            db.execute(
+                "UPDATE workbench_credit_wallets SET free_chat_count = MIN(3, free_chat_count + 1), updated_at = ? WHERE user_id = ?",
+                (now, user_id),
+            )
+            row = db.execute("SELECT free_chat_count FROM workbench_credit_wallets WHERE user_id = ?", (user_id,)).fetchone()
+            return int(row["free_chat_count"]) if row and "free_chat_count" in row.keys() else 3
 
     def get_workbench_credit_transactions(self, user_id: str, limit: int = 30) -> list[dict[str, Any]]:
         with self.connect() as db:

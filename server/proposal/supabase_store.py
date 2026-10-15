@@ -118,6 +118,7 @@ class SupabaseStore:
             "workbench_complete_card_redemption",
             "workbench_reserve_usage", "workbench_settle_usage", "workbench_refund_usage",
             "workbench_get_intent",
+            "workbench_consume_free_chat", "workbench_refund_free_chat",
         }:
             headers = self._headers({
                 "Content-Type": "application/json",
@@ -626,7 +627,7 @@ class SupabaseStore:
         rows = self._rest(
             "workbench_credit_wallets",
             params=[
-                ("select", "user_id,balance_micro_cny,total_credited_micro_cny,total_spent_micro_cny,updated_at"),
+                ("select", "user_id,balance_micro_cny,total_credited_micro_cny,total_spent_micro_cny,free_chat_count,updated_at"),
                 ("user_id", f"eq.{owner_id}"),
                 ("limit", "1"),
             ],
@@ -638,8 +639,23 @@ class SupabaseStore:
             "balance_micro_cny": 0,
             "total_credited_micro_cny": 0,
             "total_spent_micro_cny": 0,
+            "free_chat_count": 3,
             "updated_at": None,
         }
+
+    def consume_free_chat(self, user_id: str) -> int:
+        identity = self._identity()
+        if str(user_id) != identity["user_id"]:
+            raise PermissionError("用户身份不匹配。")
+        res = self._service_rpc("workbench_consume_free_chat", {"p_user_id": user_id})
+        return int(res) if res is not None else -1
+
+    def refund_free_chat(self, user_id: str) -> int:
+        identity = self._identity()
+        if str(user_id) != identity["user_id"]:
+            raise PermissionError("用户身份不匹配。")
+        res = self._service_rpc("workbench_refund_free_chat", {"p_user_id": user_id})
+        return int(res) if res is not None else 3
 
     def get_workbench_credit_transactions(self, user_id: str, limit: int = 30) -> list[dict[str, Any]]:
         identity = self._identity()

@@ -4081,3 +4081,35 @@ button:disabled {
 .chat-recharge-cta a {
   text-decoration: none;
 }
+
+.free-chats-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(5, 150, 105, 0.18));
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+.free-chat-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: #065f46;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  margin: 6px 12px 2px;
+}
+.free-chat-hint strong {
+  color: #047857;
+  font-weight: 700;
+}
