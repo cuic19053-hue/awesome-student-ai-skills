@@ -2,12 +2,17 @@
 
 [![Awesome](https://awesome.re/badge.svg)](https://awesome.re)
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-Compatible-6e3bf0)](https://agentskills.io/specification)
+[![Douyin Likes](https://img.shields.io/badge/抖音获赞-8000+-ff0050?style=flat&logo=tiktok&logoColor=white)](https://www.douyin.com/video/7692700167341985051)
+[![Douyin Collects](https://img.shields.io/badge/精准收藏-6100+-f5a623?style=flat)](https://www.douyin.com/video/7692700167341985051)
+[![Shares](https://img.shields.io/badge/自发转发-1400+-1890ff?style=flat)](https://www.douyin.com/video/7692700167341985051)
 [![Online Demo](https://img.shields.io/badge/Online_Demo-agent.stardust.website-brightgreen)](https://agent.stardust.website)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue)](#)
 [![Subskills](https://img.shields.io/badge/Subskills-35-blue)](#能写哪些申报书)
 [![License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
 
-> **大学生申报材料 AI Agent 工作台 + 35 个专业 Skill**｜自然语言路由、逐章协作，生成可编辑的 Word 草稿。
+> **大学生申报材料 AI Agent 工作台 + 35 个专业 Skill 体系**｜源于挑战杯国赛实战痛点，经 8,000+ 高校学生验证的开箱即用申报利器。
+>
+> **自然语言路由 · 逐章协同撰写 · 严格事实防幻觉 · 规范排版 Word 导出**
 >
 > 覆盖 **大创申报书、挑战杯申报书、互联网+商业计划书、国家奖学金申请书、国家励志奖学金申请材料、保研推免申请、优秀毕业论文、三下乡社会实践报告、入团申请书** 等 **8 大类 · 35 种**高校学生申报材料。
 >
@@ -16,8 +21,62 @@
 [简体中文](./README.md) | [English](./README_EN.md)
 
 > 🌐 **在线体验：** [agent.stardust.website](https://agent.stardust.website) （免安装，浏览器开箱即用）
+> 🎬 **抖音爆款视频（点击直达）：** [一句话写完大创申报书？35 种申报材料交给 AI](https://www.douyin.com/video/7692700167341985051)
 >
-> 🚀 **快速通道：** 🌐 [agent.stardust.website](https://agent.stardust.website) · [快速上手](#-如何使用-how-to-use) · [本地部署](./server/README.md) · [35 赛道清单](#能写哪些申报书) · [常见问题](#-常见问题-faq)
+> 🚀 **快速通道：** 🌐 [在线工作台](https://agent.stardust.website) · 🎬 [抖音实操视频](https://www.douyin.com/video/7692700167341985051) · [系统架构](#-系统技术架构-system-architecture) · [商业与增长验证](#-项目背景与-pmf-验证-background--pmf) · [快速上手](#-如何使用-how-to-use) · [35 赛道清单](#能写哪些申报书)
+
+---
+
+## 💡 项目背景与 PMF 验证 (Background & PMF)
+
+本项目并非停留在实验室的玩具，而是**从真实赛事实战中淬炼、并经受了真实市场考验的 AI 商业化 MVP**：
+
+1. **源于国赛真实痛点**：项目团队在打“挑战杯”从校赛冲入国赛的过程中，申报书经历了十数轮打磨与修改，深知全国高校数千万大学生在面对大创、挑战杯、奖学金等申报时，普遍面临“缺乏结构规范”、“不知道评委想看什么”、“排版格式繁杂”的共同困境。
+2. **零成本爆发验证 PMF**：项目视频在抖音发布仅一周，**0 推广成本实现全自然流破圈**，斩获 **8000+ 点赞、6100+ 精准高意向收藏与近 1400+ 次自发转发**（🎬 [点击直接观看抖音视频](https://www.douyin.com/video/7692700167341985051)），证明了高校学生对于高质量申报辅助的真实强刚需。
+
+---
+
+## 🏗️ 系统技术架构 (System Architecture)
+
+为了解决大模型在撰写复杂长文本时的“上下文漂移”、“幻觉套话”与“生成超时”问题，系统采用了如下企业级分层设计：
+
+```mermaid
+flowchart TD
+    subgraph ClientLayer["交互与用户层 (Client Layer)"]
+        WebUI["🌐 Web 在线工作台<br/>(免安装 / 交互式信息采集)"]
+        IDE["💻 本地 Agent IDE<br/>(Claude Code / Cursor / Codex)"]
+    end
+
+    subgraph GatewayLayer["服务网关与路由层 (Gateway & Routing)"]
+        Gateway["🛡️ 轻量 API 网关<br/>(多 Key 轮询 / 负载均衡 / 429 容灾降级)"]
+        Dispatcher["🧭 意图识别与路由引擎<br/>(utils/dispatcher.py 规则+向量召回 35 赛道)"]
+    end
+
+    subgraph AgentCore["Agent 协同与质量闭环 (Agentic Workflow)"]
+        DraftAgent["✍️ 专项撰写 Agent<br/>(按国赛金奖结构逐章精细生成)"]
+        ReviewAgent["🧐 模拟评委 Agent<br/>(挑刺空泛套话 / 审查数据与政策真实性)"]
+        Evals["📊 自动化 Evals 质检<br/>(结构完整性 / 防幻觉 / 字数达标率评分)"]
+    end
+
+    subgraph TaskEngine["异步生成与排版引擎 (Execution Engine)"]
+        Queue["⚡ 异步任务队列<br/>(Redis / 长任务解耦，防超时卡顿)"]
+        DocxEngine["📄 排版渲染引擎<br/>(docx_common.py 标准公文样式 / 动态生成图表)"]
+    end
+
+    subgraph Output["交付物 (Deliverables)"]
+        Word[".docx 规范排版申报书<br/>(含技术路线图 / 甘特图 / 经费预算表 / 签字栏)"]
+        PDF[".pdf 电子版申报预览"]
+    end
+
+    ClientLayer --> Gateway
+    Gateway --> Dispatcher
+    Dispatcher --> DraftAgent
+    DraftAgent <--> ReviewAgent
+    ReviewAgent --> Evals
+    Evals --> Queue
+    Queue --> DocxEngine
+    DocxEngine --> Output
+```
 
 ---
 

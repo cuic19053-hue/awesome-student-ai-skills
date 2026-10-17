@@ -2,17 +2,72 @@
 
 [![Awesome](https://awesome.re/badge.svg)](https://awesome.re)
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-Compatible-6e3bf0)](https://agentskills.io/specification)
+[![Douyin Likes](https://img.shields.io/badge/Douyin_Likes-8000+-ff0050?style=flat&logo=tiktok&logoColor=white)](https://www.douyin.com/video/7692700167341985051)
+[![Douyin Bookmarks](https://img.shields.io/badge/Bookmarks-6100+-f5a623?style=flat)](https://www.douyin.com/video/7692700167341985051)
+[![Shares](https://img.shields.io/badge/Shares-1400+-1890ff?style=flat)](https://www.douyin.com/video/7692700167341985051)
 [![Online Demo](https://img.shields.io/badge/Online_Demo-agent.stardust.website-brightgreen)](https://agent.stardust.website)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
 
-> *“An Enterprise-Grade LLM Agent Workflow Framework tailored for vertical domains. Encompassing a highly-constrained domain knowledge base for 35 complex proposal documents. Utilizing dynamic decision-tree routing, progressive context loading, and strict anti-hallucination constraints to automate the entire pipeline—from multi-turn intent parsing to complex `.docx` rendering with charts and standardized formatting.”*
+> *“An Enterprise-Grade LLM Agent Workflow Framework for academic & grant proposals. Born from real-world National Gold Award competition teams and validated by over 8,000+ university students. Features intent routing, chapter-by-chapter co-authoring, strict anti-hallucination constraints, and native `.docx` document rendering.”*
 
 [简体中文](./README.md) | [English](./README_EN.md)
 
 > 🌐 **Try it online:** [agent.stardust.website](https://agent.stardust.website) (Zero setup, instant browser access)
+> 🎬 **Douyin Demo Video (Direct Link):** [Watch on Douyin / TikTok China](https://www.douyin.com/video/7692700167341985051)
 >
-> 🚀 **Quick links:** 🌐 [agent.stardust.website](https://agent.stardust.website) · [Quick Start](#-how-to-use) · [Local Deployment](./server/README.md) · [35 Skills](./README.md#能写哪些申报书) · [Architecture](./docs/design/ARCHITECTURE.md)
+> 🚀 **Quick links:** 🌐 [Online Workbench](https://agent.stardust.website) · 🎬 [Demo Video](https://www.douyin.com/video/7692700167341985051) · [Architecture](#-system-architecture) · [PMF & Growth](#-background--pmf-validation) · [Quick Start](#-how-to-use) · [35 Skills](./README.md#能写哪些申报书)
+
+---
+
+## 💡 Background & PMF Validation
+
+This project is not an academic toy—it is a **battle-tested commercial MVP built from real-world competition pain points**:
+
+1. **Originating from National Competitions**: The creators participated in national-level innovation contests ("Challenge Cup"), iterating on proposals dozens of times to meet strict judging criteria.
+2. **Zero-CAC Organic Virality**: Released organically on Douyin (TikTok China), generating **8000+ likes, 6100+ high-intent bookmarks, and ~1400+ shares within 7 days** with zero advertising spend (🎬 [Watch Viral Demo Video](https://www.douyin.com/video/7692700167341985051)), validating strong authentic demand among university students.
+
+---
+
+## 🏗️ System Architecture
+
+```mermaid
+flowchart TD
+    subgraph ClientLayer["Client & Interaction Layer"]
+        WebUI["🌐 Web Workbench<br/>(Zero Setup / Interactive Slot-filling)"]
+        IDE["💻 Local Agent IDE<br/>(Claude Code / Cursor / Codex)"]
+    end
+
+    subgraph GatewayLayer["Gateway & Routing Layer"]
+        Gateway["🛡️ Resilience Gateway<br/>(Multi-Key Pooling / 429 Auto-Failover)"]
+        Dispatcher["🧭 Dispatcher Engine<br/>(utils/dispatcher.py 35-Domain Router)"]
+    end
+
+    subgraph AgentCore["Agentic Workflow & Quality Gate"]
+        DraftAgent["✍️ Drafting Agent<br/>(Chapter-by-chapter Structured Generation)"]
+        ReviewAgent["🧐 Harsh Reviewer Agent<br/>(Audits Fluff, Data Rigor & Policy Citations)"]
+        Evals["📊 Automated Evals Pipeline<br/>(Scoring Completeness, Groundedness & Word Counts)"]
+    end
+
+    subgraph TaskEngine["Async Execution & Document Engine"]
+        Queue["⚡ Async Task Queue<br/>(Redis / Decoupled Long-Running Generation)"]
+        DocxEngine["📄 Rendering Engine<br/>(docx_common.py Standard Word Formatting & Plots)"]
+    end
+
+    subgraph Output["Deliverables"]
+        Word[".docx Official Proposal<br/>(Includes Gantt charts, roadmaps & signature blocks)"]
+        PDF[".pdf Preview Document"]
+    end
+
+    ClientLayer --> Gateway
+    Gateway --> Dispatcher
+    Dispatcher --> DraftAgent
+    DraftAgent <--> ReviewAgent
+    ReviewAgent --> Evals
+    Evals --> Queue
+    Queue --> DocxEngine
+    DocxEngine --> Output
+```
 
 ---
 
