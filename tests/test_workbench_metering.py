@@ -37,12 +37,12 @@ def test_usage_matches_unique_marker_and_key_and_uses_exact_decimal(monkeypatch)
         WopallyUsage(token="test-only").find(request_id, 999, "deepseek-v4-flash")
 
 
-def test_new_requests_charge_official_ninety_percent(monkeypatch, tmp_path):
+def test_new_requests_charge_official_two_times(monkeypatch, tmp_path):
     store = Store(tmp_path)
     store.grant_workbench_payment_credits("alice", "paid-test-event-1", 1_000_000)
     meter = WorkbenchMeter(store, "alice", 684)
     request_id = meter.reserve("deepseek-v4-flash")
-    assert request_id.startswith("o90v1_")
+    assert request_id.startswith("o2x1_")
 
     def open_request(request, timeout):
         return FakeResponse(json.dumps({"code": 0, "data": {"items": [
@@ -54,10 +54,10 @@ def test_new_requests_charge_official_ninety_percent(monkeypatch, tmp_path):
         ]}}).encode())
 
     monkeypatch.setattr("proposal.wopally_usage.urllib.request.urlopen", open_request)
-    assert WopallyUsage(token="test-only").find(request_id, 684, "deepseek-v4-flash") == (90_000, "55")
+    assert WopallyUsage(token="test-only").find(request_id, 684, "deepseek-v4-flash") == (200_000, "55")
     meter.usage = WopallyUsage(token="test-only")
     meter.settle(request_id, "deepseek-v4-flash")
-    assert store.get_workbench_credit_balance("alice")["balance_micro_cny"] == 910_000
+    assert store.get_workbench_credit_balance("alice")["balance_micro_cny"] == 800_000
 
 
 @pytest.mark.parametrize(("legacy_request_id", "expected"), [
@@ -172,3 +172,14 @@ def test_pinned_origin_rejects_other_hosts_and_private_ips(monkeypatch):
     monkeypatch.setenv("WOPALLY_ORIGIN_IP", "127.0.0.1")
     with pytest.raises(ValueError, match="public IP"):
         wopally_urlopen(urllib.request.Request("https://api.wopally.cn/health"))
+
+
+def test_official_2x_pricing():
+    from proposal.official_pricing import official_2x_charge
+    row_text = {"input_tokens": 10000, "output_tokens": 10000, "cache_read_tokens": 10000,
+                "input_cost": ".01", "output_cost": ".04", "cache_read_cost": ".0002",
+                "total_cost": ".0502"}
+    assert official_2x_charge(row_text, "deepseek-v4-flash") == 100400
+
+    row_img = {"input_tokens": 1000, "output_tokens": 1650, "image_output_tokens": 1650, "image_count": 1}
+    assert official_2x_charge(row_img, "gpt-image-2") == 730848

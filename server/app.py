@@ -47,7 +47,7 @@ from proposal.supabase_store import SupabaseStore, request_identity
 from proposal.workbench_metering import WorkbenchMeter
 from proposal.workbench_images import generate_image, generate_custom_image
 from proposal.wopally_usage import UsageUnavailable, WopallyUsage
-from proposal.official_pricing import official_v1_charge
+from proposal.official_pricing import official_v1_charge, official_2x_charge
 from proposal.wopally_transport import wopally_urlopen
 from proposal.tools import ProposalTools
 from proposal.skills import normalize_skill_id, registry as skill_registry, valid_fact_key
@@ -991,7 +991,7 @@ def get_provider_health(request: Request) -> dict[str, Any]:
             if model not in audit:
                 continue
             try:
-                official_v1_charge(row, model)
+                official_2x_charge(row, model)
                 audit[model]["verified"] += 1
             except (KeyError, ValueError, TypeError, InvalidOperation):
                 audit[model]["unverifiable"] += 1

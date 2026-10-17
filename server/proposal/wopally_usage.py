@@ -11,7 +11,7 @@ from typing import Any
 
 from .wopally_auth import ServiceLoginUnavailable, service_token
 from .wopally_transport import wopally_urlopen
-from .official_pricing import official_v1_charge
+from .official_pricing import official_v1_charge, official_2x_charge
 
 class UsageUnavailable(RuntimeError):
     """The provider's authoritative charge cannot currently be confirmed."""
@@ -60,7 +60,9 @@ class WopallyUsage:
                 if int(row.get("api_key_id") or 0) != api_key_id or row.get("model") != model:
                     raise UsageUnavailable("中转站用量归属不符")
                 try:
-                    if re.fullmatch(r"o90v1_[0-9a-f]{32}", request_id):
+                    if re.fullmatch(r"o2x1_[0-9a-f]{32}", request_id):
+                        micro = official_2x_charge(row, model)
+                    elif re.fullmatch(r"o90v1_[0-9a-f]{32}", request_id):
                         micro = official_v1_charge(row, model)
                     else:
                         # Retain historical 3x/12x pricing across deployments.

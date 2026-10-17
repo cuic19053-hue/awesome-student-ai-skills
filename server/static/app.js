@@ -2569,13 +2569,13 @@
           shopLink.href = state.cardShopUrl;
           shopLink.target = "_blank";
           shopLink.rel = "noopener noreferrer";
-          shopLink.textContent = "⚡ 点击一键前往店铺购买 0.5 元极速体验卡密 ↗";
+          shopLink.textContent = "获取卡密 ↗";
           ctaWrap.append(shopLink);
         }
         const openBtn = document.createElement("button");
         openBtn.type = "button";
         openBtn.className = "button button-secondary button-small";
-        openBtn.textContent = "粘贴卡密兑换";
+        openBtn.textContent = "输入卡密";
         openBtn.addEventListener("click", () => openRechargeDialog());
         ctaWrap.append(openBtn);
         appendMessage("assistant", `暂时无法完成：${error.message}`, ctaWrap);
