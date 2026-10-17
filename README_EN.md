@@ -31,43 +31,54 @@ This project is not an academic toy—it is a **battle-tested commercial MVP bui
 
 ## 🏗️ System Architecture
 
+<div align="center">
+  <img src="./assets/architecture.png" alt="System Architecture Diagram" width="400" />
+</div>
+
+<details open>
+<summary><b>🔍 View / Collapse Mermaid Architecture Source</b></summary>
+
 ```mermaid
 flowchart TD
-    subgraph ClientLayer["Client & Interaction Layer"]
+    subgraph ClientLayer["Client and Interaction Layer"]
         WebUI["🌐 Web Workbench<br/>(Zero Setup / Interactive Slot-filling)"]
         IDE["💻 Local Agent IDE<br/>(Claude Code / Cursor / Codex)"]
     end
 
-    subgraph GatewayLayer["Gateway & Routing Layer"]
+    subgraph GatewayLayer["Gateway and Routing Layer"]
         Gateway["🛡️ Resilience Gateway<br/>(Multi-Key Pooling / 429 Auto-Failover)"]
         Dispatcher["🧭 Dispatcher Engine<br/>(utils/dispatcher.py 35-Domain Router)"]
     end
 
-    subgraph AgentCore["Agentic Workflow & Quality Gate"]
+    subgraph AgentCore["Agentic Workflow and Quality Gate"]
         DraftAgent["✍️ Drafting Agent<br/>(Chapter-by-chapter Structured Generation)"]
-        ReviewAgent["🧐 Harsh Reviewer Agent<br/>(Audits Fluff, Data Rigor & Policy Citations)"]
-        Evals["📊 Automated Evals Pipeline<br/>(Scoring Completeness, Groundedness & Word Counts)"]
+        ReviewAgent["🧐 Harsh Reviewer Agent<br/>(Audits Fluff, Data Rigor and Policy Citations)"]
+        Evals["📊 Automated Evals Pipeline<br/>(Scoring Completeness, Groundedness and Word Counts)"]
     end
 
-    subgraph TaskEngine["Async Execution & Document Engine"]
+    subgraph TaskEngine["Async Execution and Document Engine"]
         Queue["⚡ Async Task Queue<br/>(Redis / Decoupled Long-Running Generation)"]
         DocxEngine["📄 Rendering Engine<br/>(docx_common.py Standard Word Formatting & Plots)"]
     end
 
     subgraph Output["Deliverables"]
-        Word[".docx Official Proposal<br/>(Includes Gantt charts, roadmaps & signature blocks)"]
-        PDF[".pdf Preview Document"]
+        Word["📄 .docx Official Proposal<br/>(Includes Gantt charts, roadmaps and signature blocks)"]
+        PDF["📑 .pdf Preview Document"]
     end
 
-    ClientLayer --> Gateway
+    WebUI --> Gateway
+    IDE --> Gateway
     Gateway --> Dispatcher
     Dispatcher --> DraftAgent
     DraftAgent <--> ReviewAgent
     ReviewAgent --> Evals
     Evals --> Queue
     Queue --> DocxEngine
-    DocxEngine --> Output
+    DocxEngine --> Word
+    DocxEngine --> PDF
 ```
+
+</details>
 
 ---
 

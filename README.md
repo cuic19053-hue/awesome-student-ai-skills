@@ -40,6 +40,13 @@
 
 为了解决大模型在撰写复杂长文本时的“上下文漂移”、“幻觉套话”与“生成超时”问题，系统采用了如下企业级分层设计：
 
+<div align="center">
+  <img src="./assets/architecture.png" alt="系统技术架构图" width="400" />
+</div>
+
+<details open>
+<summary><b>🔍 查看 / 折叠 Mermaid 架构图源码</b></summary>
+
 ```mermaid
 flowchart TD
     subgraph ClientLayer["交互与用户层 (Client Layer)"]
@@ -47,7 +54,7 @@ flowchart TD
         IDE["💻 本地 Agent IDE<br/>(Claude Code / Cursor / Codex)"]
     end
 
-    subgraph GatewayLayer["服务网关与路由层 (Gateway & Routing)"]
+    subgraph GatewayLayer["服务网关与路由层 (Gateway and Routing)"]
         Gateway["🛡️ 轻量 API 网关<br/>(多 Key 轮询 / 负载均衡 / 429 容灾降级)"]
         Dispatcher["🧭 意图识别与路由引擎<br/>(utils/dispatcher.py 规则+向量召回 35 赛道)"]
     end
@@ -64,19 +71,23 @@ flowchart TD
     end
 
     subgraph Output["交付物 (Deliverables)"]
-        Word[".docx 规范排版申报书<br/>(含技术路线图 / 甘特图 / 经费预算表 / 签字栏)"]
-        PDF[".pdf 电子版申报预览"]
+        Word["📄 .docx 规范排版申报书<br/>(含技术路线图 / 甘特图 / 经费预算表 / 签字栏)"]
+        PDF["📑 .pdf 电子版申报预览"]
     end
 
-    ClientLayer --> Gateway
+    WebUI --> Gateway
+    IDE --> Gateway
     Gateway --> Dispatcher
     Dispatcher --> DraftAgent
     DraftAgent <--> ReviewAgent
     ReviewAgent --> Evals
     Evals --> Queue
     Queue --> DocxEngine
-    DocxEngine --> Output
+    DocxEngine --> Word
+    DocxEngine --> PDF
 ```
+
+</details>
 
 ---
 
