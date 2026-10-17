@@ -4113,3 +4113,52 @@ button:disabled {
   color: #047857;
   font-weight: 700;
 }
+
+/* 评委评审专家卡片 (Agentic Review Card - 决策 7-A) */
+.agentic-review-card {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #334155;
+  transition: all 0.2s ease;
+}
+.agentic-review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.agentic-review-score {
+  font-weight: 700;
+  color: #0f172a;
+}
+.agentic-review-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #e0f2fe;
+  color: #0284c7;
+}
+.agentic-review-badge.gold {
+  background: #fef3c7;
+  color: #d97706;
+}
+.agentic-review-badge.warning {
+  background: #fee2e2;
+  color: #dc2626;
+}
+.agentic-review-hint {
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: #fffbeb;
+  border-left: 3px solid #f59e0b;
+  color: #b45309;
+  font-size: 12px;
+  border-radius: 0 4px 4px 0;
+  line-height: 1.5;
+}

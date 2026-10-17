@@ -682,31 +682,84 @@ class OllamaAgent:
             + "\n检索到的已确认材料证据："
             + json.dumps(context.get("results", []), ensure_ascii=False)
         )
-        response = self._post(
-            "/api/chat",
-            {
-                "model": self.model,
-                "messages": [
-                    {"role": "system", "content": _system_prompt(project)},
-                    {"role": "user", "content": prompt},
-                ],
-                "stream": False,
-                "options": {"temperature": 0.2},
-            },
-            timeout=180,
+        def llm_caller(messages: list[dict[str, str]], options: dict[str, Any] | None = None) -> str:
+            opts = {"temperature": 0.2}
+            if options:
+                opts.update(options)
+            resp = self._post(
+                "/api/chat",
+                {
+                    "model": self.model,
+                    "messages": messages,
+                    "stream": False,
+                    "options": opts,
+                },
+                timeout=180,
+            )
+            self._record_usage(project_id, f"workflow:{section_id}", resp)
+            res_content = str(resp.get("message", {}).get("content", "")).strip()
+            if not res_content:
+                raise ModelUnavailable("模型没有生成章节正文，请重试。")
+            return res_content
+
+        from .workflow import AgenticWorkflowEngine, ProjectBlackboard
+
+        blackboard = ProjectBlackboard(
+            project_name=state.get("project_name") or project["title"],
+            problem_statement=state.get("problem", ""),
+            scientific_challenge=state.get("goal", ""),
+            technical_approach=state.get("method", ""),
+            quantitative_targets=state.get("expected_output", ""),
+            team_and_advisor=f"指导教师: {state.get('advisor_name', '待补充')}, 负责人: {state.get('leader_name', '待补充')}",
         )
-        content = str(response.get("message", {}).get("content", "")).strip()
-        if not content:
-            raise ModelUnavailable("模型没有生成章节正文，请重试。")
-        self.tools.save_section(project_id, section_id, content)
-        return {
-            "section_id": section_id,
-            "title": title,
-            "content": content,
-            "evidence": context.get("results", []),
-            "retrieval_mode": context.get("retrieval_mode"),
-            "notice": "草稿已保存。请核对事实与来源后再确认。",
-        }
+        for outline_item in project.get("outline", []):
+            oid = outline_item.get("id")
+            otitle = outline_item.get("title", "")
+            if oid and oid != section_id and oid in project.get("sections", {}):
+                c = project["sections"][oid]
+                if c and not str(c).startswith("待补充："):
+                    blackboard.record_chapter_conclusion(oid, otitle, str(c))
+
+        critic_model = os.environ.get("CRITIC_MODEL", "").strip()
+        critic_caller = None
+        if critic_model and critic_model != self.model:
+            def _critic_call(messages: list[dict[str, str]], options: dict[str, Any] | None = None) -> str:
+                opts = {"temperature": 0.0}
+                if options:
+                    opts.update(options)
+                resp = self._post(
+                    "/api/chat",
+                    {
+                        "model": critic_model,
+                        "messages": messages,
+                        "stream": False,
+                        "options": opts,
+                    },
+                    timeout=180,
+                )
+                self._record_usage(project_id, f"critic:{section_id}", resp)
+                return str(resp.get("message", {}).get("content", "")).strip()
+            critic_caller = _critic_call
+
+        guidance = registry.guidance(skill_id) if hasattr(registry, "guidance") else ""
+        engine = AgenticWorkflowEngine(
+            draft_caller=llm_caller,
+            critic_caller=critic_caller,
+            max_retries=2,
+            pass_threshold=80.0,
+        )
+        workflow_res = engine.run_workflow(
+            project_context=state,
+            section_id=section_id,
+            section_title=title,
+            skill_guidance=guidance,
+            evidence_results=context.get("results", []),
+            blackboard=blackboard,
+            retrieval_mode=context.get("retrieval_mode"),
+            notice="草稿已由 Agentic 自愈闭环打磨完成。请核对事实与来源后再确认。",
+        )
+        self.tools.save_section(project_id, section_id, workflow_res.content)
+        return workflow_res.model_dump()
 
     def propose_diagram(self, project_id: str, title: str) -> dict[str, Any]:
         project = self.store.get_project(project_id)

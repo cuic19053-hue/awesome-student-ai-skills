@@ -41,6 +41,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+try:
+    from .hybrid_router import SkillVectors, configured_decider, normalize
+except ImportError:  # python utils/dispatcher.py
+    from hybrid_router import SkillVectors, configured_decider, normalize
+
 # ============================================================================
 # 路径常量
 # ============================================================================
@@ -302,11 +307,20 @@ class Dispatcher:
     TOP_N_DEFAULT = 3
     MIN_SCORE_THRESHOLD = 1  # 低于此分数的候选项会被过滤
 
-    def __init__(self, index_path: Optional[Path] = None) -> None:
+    def __init__(
+        self,
+        index_path: Optional[Path] = None,
+        *,
+        semantic_scorer: Optional[Any] = None,
+        intent_decider: Optional[Any] = None,
+    ) -> None:
         self.index_path: Path = index_path or INDEX_JSON_PATH
         self.index: Dict[str, Any] = {}
         self.skills: List[Dict[str, Any]] = []
         self.load_index()
+        self.vectors = SkillVectors(self.skills)
+        self.semantic_scorer = semantic_scorer or self.vectors.score
+        self.intent_decider = intent_decider if intent_decider is not None else configured_decider()
 
     # ------------------------------------------------------------------
     # 索引加载
@@ -410,6 +424,97 @@ class Dispatcher:
     # ------------------------------------------------------------------
     # 主分流函数 (返回 top N)
     # ------------------------------------------------------------------
+    def _specific_matches(self, user_input: str) -> Dict[str, str]:
+        """Only explicit, non-generic aliases can make a hard routing decision."""
+        text = normalize(user_input)
+        generic = {
+            "大创", "互联网+", "创新创业大赛", "社会实践", "三下乡",
+            "申请书", "创业", "实践",
+        }
+        hits: Dict[str, str] = {}
+        for skill in self.skills:
+            aliases = [skill.get("name", ""), skill.get("display_name", ""), *skill.get("triggers", [])]
+            matches = []
+            for alias in aliases:
+                candidate = normalize(str(alias))
+                if len(candidate) < 2 or candidate in generic or candidate.isdigit():
+                    continue
+                position = text.find(candidate)
+                if position < 0:
+                    continue
+                prefix = text[max(0, position - 8):position]
+                if re.search(r"(?:不想|不要|不报|不申请|不是|不考虑)(?:.{0,4})$", prefix):
+                    continue
+                matches.append(candidate)
+            if matches:
+                hits[skill["name"]] = max(matches, key=len)
+        # A longer name contains a shorter one: "优秀学生干部" is not "优秀学生".
+        return {
+            name: alias
+            for name, alias in hits.items()
+            if not any(alias != other and alias in other for other in hits.values())
+        }
+
+    def route(self, user_input: str, top_n: int = TOP_N_DEFAULT) -> Dict[str, Any]:
+        """Return candidates and an abstaining decision, without breaking dispatch()."""
+        if not user_input.strip():
+            return {"selected": None, "needs_clarification": True, "candidates": [], "method": "empty"}
+        specific = self._specific_matches(user_input)
+        lexical = {item["name"]: item for item in self.keyword_match(user_input)}
+        semantic = self.semantic_scorer(user_input)
+        if not lexical and max(semantic.values(), default=0.0) < 0.60:
+            return {"selected": None, "needs_clarification": True, "candidates": [], "method": "insufficient"}
+        by_name = {skill["name"]: skill for skill in self.skills}
+        candidates: List[Dict[str, Any]] = []
+        for name, skill in by_name.items():
+            base = lexical.get(name)
+            similarity = max(0.0, min(1.0, float(semantic.get(name, 0.0))))
+            if not base and similarity < 0.28 and name not in specific:
+                continue
+            item = dict(base) if base else {
+                "name": name,
+                "display_name": skill.get("display_name", ""),
+                "category": skill.get("category", ""),
+                "category_display": CATEGORY_DISPLAY.get(skill.get("category", ""), ""),
+                "description": skill.get("description", ""),
+                "score": 0,
+                "matched": [],
+                "skill_md_path": skill.get("skill_md_path", ""),
+                "build_py_path": skill.get("build_py_path", ""),
+            }
+            item["score"] += round(similarity * 6)
+            if similarity >= 0.28:
+                item["matched"].append("vector:local")
+            if name in specific:
+                item["score"] += 12
+                item["matched"].append(f"hard:{specific[name]}")
+            candidates.append(item)
+        candidates.sort(key=lambda item: (-item["score"], item["name"]))
+        candidates = candidates[:max(1, top_n)]
+        selected = None
+        method = "hybrid"
+        comparison = any(word in normalize(user_input) for word in ("区别", "对比", "比较", "哪个好"))
+        if len(specific) == 1 and not comparison:
+            selected = next(iter(specific))
+            method = "hard_rule"
+        elif not specific and not comparison and candidates:
+            first = candidates[0]
+            second_score = candidates[1]["score"] if len(candidates) > 1 else 0
+            if (first["score"] >= 8 and first["score"] - second_score >= 4) or (len(candidates) == 1 and first["score"] >= 5):
+                selected = first["name"]
+                method = "hybrid"
+        if selected is None and self.intent_decider and candidates and not comparison and len(specific) < 2:
+            choice = self.intent_decider.decide(user_input, candidates[:3])
+            if choice in {item["name"] for item in candidates[:3]}:
+                selected = choice
+                method = "small_model"
+        return {
+            "selected": selected,
+            "needs_clarification": selected is None,
+            "candidates": candidates,
+            "method": method,
+        }
+
     def dispatch(self, user_input: str, top_n: int = TOP_N_DEFAULT) -> List[Dict[str, Any]]:
         """根据用户输入文本，返回推荐的子 skill 列表（top N）。
 
@@ -420,11 +525,7 @@ class Dispatcher:
         Returns:
             List[Dict]，每项含 name/display_name/category/description/score/matched
         """
-        candidates = self.keyword_match(user_input)
-        if not candidates:
-            # fallback：返回空列表，调用方可触发 interactive_dispatch
-            return []
-        return candidates[:top_n]
+        return self.route(user_input, top_n)["candidates"]
 
     # ------------------------------------------------------------------
     # 交互式决策树

@@ -2004,6 +2004,42 @@
     if (progressText) progressText.textContent = "已发起取消，正在等待当前章节收尾…";
   }
 
+
+  function renderReviewCard(wrapper, card) {
+    if (!wrapper || !card) return;
+    let cardEl = wrapper.querySelector(".agentic-review-card");
+    if (!cardEl) {
+      cardEl = document.createElement("div");
+      cardEl.className = "agentic-review-card";
+      wrapper.append(cardEl);
+    }
+    cardEl.replaceChildren();
+
+    const header = document.createElement("div");
+    header.className = "agentic-review-header";
+
+    const scoreTitle = document.createElement("div");
+    scoreTitle.className = "agentic-review-score";
+    scoreTitle.textContent = `🏆 评委专家评审: ${card.score} 分 · ${card.grade || ""}`;
+
+    const badge = document.createElement("span");
+    const isGold = (card.grade || "").includes("A");
+    badge.className = `agentic-review-badge ${isGold ? "gold" : card.passed ? "" : "warning"}`;
+    badge.textContent = card.iterations > 1 ? `经 ${card.iterations} 轮反思自愈` : "首轮评审达标";
+
+    header.append(scoreTitle, badge);
+    cardEl.append(header);
+
+    if (Array.isArray(card.user_hints) && card.user_hints.length > 0) {
+      for (const hint of card.user_hints) {
+        const hintEl = document.createElement("div");
+        hintEl.className = "agentic-review-hint";
+        hintEl.textContent = hint;
+        cardEl.append(hintEl);
+      }
+    }
+  }
+
   function renderSections() {
     const root = $("#draftSections");
     root.replaceChildren();
@@ -2186,6 +2222,9 @@
             body: JSON.stringify({ content: result.content }),
           });
 
+          if (result.review_card) {
+            renderReviewCard(wrapper, result.review_card);
+          }
           statusPill.className = "section-status-pill saved";
           statusPill.textContent = "✓ 已保存";
           updateDraftStats();

@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "cases": [
+    {"query": "我要申请国家励志奖学金", "expected": "motivation-scholarship"},
+    {"query": "我想报国奖", "expected": "national-scholarship"},
+    {"query": "我不报国奖，要申请励志奖学金", "expected": "motivation-scholarship"},
+    {"query": "互联网+红色之旅赛道商业计划书", "expected": "internet-plus-red-tour"},
+    {"query": "互联网+主赛道商业计划书", "expected": "internet-plus"},
+    {"query": "三下乡支教立项", "expected": "volunteer-teaching"},
+    {"query": "三下乡做问卷访谈", "expected": "social-survey"},
+    {"query": "优秀毕业设计申报书", "expected": "outstanding-thesis"},
+    {"query": "优秀毕业生申请书", "expected": "outstanding-graduate"},
+    {"query": "优秀团员评优", "expected": "civilized-student"},
+    {"query": "国家级项目立项逻辑评测", "expected": "national-project-eval"},
+    {"query": "我已注册公司，要做创业实践项目", "expected": "entrepreneurship-practice"},
+    {"query": "我要做创业训练项目，不是创业实践", "expected": "entrepreneurship-training"},
+    {"query": "我想写申请材料", "expected": null},
+    {"query": "国家奖学金和励志奖学金有什么区别", "expected": null},
+    {"query": "帮我写一份材料", "expected": null},
+    {"query": "我想申请国家奖学金或国家励志奖学金", "expected": null},
+    {"query": "我想去偏远山区给孩子辅导课外功课", "expected": "volunteer-teaching"},
+    {"query": "投笔从戎参军", "expected": "military-enlistment"},
+    {"query": "去西部基层志愿服务", "expected": "western-plan"},
+    {"query": "预备期满转正申请", "expected": "youth-league-conversion"},
+    {"query": "校三好评选", "expected": "outstanding-student"}
+  ]
+}

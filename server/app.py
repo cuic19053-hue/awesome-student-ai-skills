@@ -385,7 +385,8 @@ def route_skill(payload: RouteRequest) -> dict[str, Any]:
     """Match a natural-language request to a skill, asking for clarification when weak."""
     if not dispatcher:
         raise HTTPException(status_code=503, detail="Skill 路由器不可用")
-    matches = dispatcher.dispatch(payload.query, top_n=5)
+    routing = dispatcher.route(payload.query, top_n=5)
+    matches = routing["candidates"]
     candidates = []
     for item in matches:
         skill = skill_registry.get(item.get("name", ""))
@@ -408,14 +409,13 @@ def route_skill(payload: RouteRequest) -> dict[str, Any]:
             "candidates": [],
             "message": "我还不能确定你要准备哪类材料，请选择赛道，或补充材料名称/用途。",
         }
-    top = candidates[0]
-    second_score = candidates[1]["score"] if len(candidates) > 1 else 0
-    confident = top["score"] >= 5 and top["score"] - second_score >= 2
+    selected_id = routing["selected"]
+    selected = next((item for item in candidates if item["id"] == selected_id), None)
     return {
-        "selected": top if confident else None,
-        "needs_clarification": not confident,
+        "selected": selected,
+        "needs_clarification": selected is None,
         "candidates": candidates[:5],
-        "message": "" if confident else "我找到几个可能的赛道，请确认最符合你需求的一项。",
+        "message": "" if selected else "我找到几个可能的赛道，请确认最符合你需求的一项。",
     }
 
 
