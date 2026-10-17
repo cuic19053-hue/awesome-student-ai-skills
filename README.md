@@ -160,6 +160,38 @@ flowchart TD
 - ⚙️ **自动路由**：AI 会自动调用 `utils/dispatcher.py` 决策树帮你确定最匹配的申报类型。
 - 🖨️ **一键生成 Word**：信息收集完毕后，AI 会自动在本地执行 `subskills/xxx/build.py` 脚本，将收集到的 JSON 数据直接渲染为带有标准字号、表格、甚至签字栏的 `.docx` 物理文件交给你！
 
+---
+
+### 🔌 MCP 服务接入 (Model Context Protocol)
+
+本项目提供开箱即用的标准 MCP Server 实现（`mcp_server.py`），为 Claude Desktop、Cursor、Codex 等 AI 客户端提供包括赛道路由、信息采集、评委盲审打分与 Word 自动化渲染等 7 个核心工具。
+
+#### 快速接入 Claude Desktop / Cursor
+在你的 `claude_desktop_config.json` 或 Cursor MCP 配置中添加：
+
+```json
+{
+  "mcpServers": {
+    "student-skills": {
+      "command": "python3",
+      "args": ["<你的项目绝对路径>/mcp_server.py"]
+    }
+  }
+}
+```
+或使用 `uv` 免配置虚拟环境运行：
+```json
+{
+  "mcpServers": {
+    "student-skills": {
+      "command": "uv",
+      "args": ["--directory", "<你的项目绝对路径>", "run", "mcp_server.py"]
+    }
+  }
+}
+```
+接入后，AI 即可在对话中自主调用工具完成 35 个高校赛道的意图识别、规则采集与 Word 渲染生成。
+
 ## 🧪 Agent 工作台（实验版）
 
 > 🌐 **在线体验：** [agent.stardust.website](https://agent.stardust.website)  

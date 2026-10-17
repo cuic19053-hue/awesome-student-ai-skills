@@ -147,6 +147,38 @@ The AI will automatically handle intent parsing, dynamic routing, fact validatio
 
 ---
 
+### 🔌 MCP Server Integration (Model Context Protocol)
+
+This repository includes a native Model Context Protocol (MCP) server (`mcp_server.py`) exposing 7 standardized tools for intent routing, requirement collection, simulated jury review, and automatic `.docx` Word rendering.
+
+#### Quick Setup for Claude Desktop / Cursor
+Add the following to your `claude_desktop_config.json` or Cursor MCP settings:
+
+```json
+{
+  "mcpServers": {
+    "student-skills": {
+      "command": "python3",
+      "args": ["/absolute/path/to/awesome-student-ai-skills/mcp_server.py"]
+    }
+  }
+}
+```
+Or run via `uv`:
+```json
+{
+  "mcpServers": {
+    "student-skills": {
+      "command": "uv",
+      "args": ["--directory", "/absolute/path/to/awesome-student-ai-skills", "run", "mcp_server.py"]
+    }
+  }
+}
+```
+Once connected, your AI assistant can naturally route and invoke all 35 skills directly from your conversation.
+
+---
+
 ## 🧪 Agent Workbench (Experimental)
 
 > 🌐 **Try it online:** [agent.stardust.website](https://agent.stardust.website)  
