@@ -74,14 +74,171 @@
    * ------------------------------------------------------------------- */
   async function boot() {
     S.theme.init();
+    if (S.auth) {
+      let authState = { cloud: false, signedIn: true };
+      try {
+        authState = await S.auth.init();
+      } catch (e) {}
+      if (authState.cloud) {
+        S.auth.onGate(showAuthGate);
+        S.auth.onSignedIn(function () {
+          if (state.booted) {
+            window.location.reload();
+            return;
+          }
+          startApp();
+        });
+        if (!authState.signedIn) {
+          showAuthGate(authState.message || "");
+          return;
+        }
+      }
+    }
+    startApp();
+  }
+
+  async function startApp() {
+    if (state.booted) return;
     renderShell();
     bindGlobalEvents();
+    state.booted = true;
     await loadBootstrap();
     renderRoute();
-    state.booted = true;
     if (!state.ui.welcomeSeen) {
       setTimeout(showWelcome, 120);
     }
+  }
+
+  let authGateMode = "login";
+
+  function authPageHTML() {
+    return (
+      '<div class="auth-page" id="auth-page">' +
+      '<div class="auth-card">' +
+      '<div class="auth-brand">' + icon("sparkles") + "<span>STARDUST</span></div>" +
+      '<h1 class="auth-title" id="auth-title">登录 Stardust</h1>' +
+      '<p class="auth-sub" id="auth-sub">用邮箱和密码进入你的项目空间</p>' +
+      '<form class="auth-form" id="auth-form" novalidate>' +
+      '<label class="auth-field"><span class="auth-label">邮箱</span>' +
+      '<input class="auth-input" id="auth-email" type="email" autocomplete="email" placeholder="you@example.com" required></label>' +
+      '<label class="auth-field"><span class="auth-label">密码</span>' +
+      '<input class="auth-input" id="auth-password" type="password" autocomplete="current-password" placeholder="至少 6 位" required minlength="6"></label>' +
+      '<div class="auth-error" id="auth-error" role="alert"></div>' +
+      '<button class="btn btn-primary auth-submit" id="auth-submit" type="submit">登录</button>' +
+      '</form>' +
+      '<div class="auth-actions">' +
+      '<button class="text-btn" type="button" id="auth-toggle">还没有账号？创建账号</button>' +
+      '<button class="text-btn" type="button" id="auth-forgot">忘记密码？</button>' +
+      "</div>" +
+      '<p class="auth-note">登录状态只保存在这台设备的浏览器里；退出后需要重新登录。</p>' +
+      "</div></div>"
+    );
+  }
+
+  function setAuthFeedback(page, text, ok) {
+    const el = page.querySelector("#auth-error");
+    if (!el) return;
+    el.textContent = text || "";
+    el.classList.toggle("ok", !!ok);
+  }
+
+  function switchAuthMode(page, mode) {
+    authGateMode = mode;
+    const signup = mode === "signup";
+    page.querySelector("#auth-title").textContent = signup ? "创建 Stardust 账号" : "登录 Stardust";
+    page.querySelector("#auth-sub").textContent = signup
+      ? "用邮箱注册，注册后直接进入项目空间"
+      : "用邮箱和密码进入你的项目空间";
+    page.querySelector("#auth-submit").textContent = signup ? "创建账号" : "登录";
+    page.querySelector("#auth-toggle").textContent = signup
+      ? "已有账号？直接登录"
+      : "还没有账号？创建账号";
+    page.querySelector("#auth-password").setAttribute(
+      "autocomplete",
+      signup ? "new-password" : "current-password"
+    );
+    setAuthFeedback(page, "");
+  }
+
+  function bindAuthGate(page) {
+    const form = page.querySelector("#auth-form");
+    const submit = page.querySelector("#auth-submit");
+    const emailInput = page.querySelector("#auth-email");
+    const passwordInput = page.querySelector("#auth-password");
+
+    async function doSubmit() {
+      const email = (emailInput.value || "").trim();
+      const password = passwordInput.value || "";
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        setAuthFeedback(page, "请输入有效的邮箱地址");
+        emailInput.focus();
+        return;
+      }
+      if (password.length < 6) {
+        setAuthFeedback(page, "密码至少需要 6 位");
+        passwordInput.focus();
+        return;
+      }
+      submit.disabled = true;
+      submit.textContent = authGateMode === "signup" ? "创建中…" : "登录中…";
+      setAuthFeedback(page, "");
+      try {
+        if (authGateMode === "signup") {
+          const result = await S.auth.signUp(email, password);
+          if (result && result.needsConfirm) {
+            switchAuthMode(page, "login");
+            setAuthFeedback(page, "确认邮件已发送，请查收后再登录", true);
+            return;
+          }
+        } else {
+          await S.auth.signIn(email, password);
+        }
+        page.remove();
+        document.body.classList.remove("auth-lock");
+        S.auth.emitSignedIn();
+      } catch (err) {
+        setAuthFeedback(page, err.message || "登录失败，请稍后重试");
+      } finally {
+        submit.disabled = false;
+        submit.textContent = authGateMode === "signup" ? "创建账号" : "登录";
+      }
+    }
+
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+      doSubmit();
+    });
+    page.querySelector("#auth-toggle").addEventListener("click", function () {
+      switchAuthMode(page, authGateMode === "signup" ? "login" : "signup");
+      emailInput.focus();
+    });
+    page.querySelector("#auth-forgot").addEventListener("click", async function () {
+      const email = (emailInput.value || "").trim();
+      if (!email) {
+        setAuthFeedback(page, "先填写邮箱，再发送重置邮件");
+        emailInput.focus();
+        return;
+      }
+      try {
+        await S.auth.recover(email);
+        setAuthFeedback(page, "如果该邮箱已注册，重置邮件会发送到你的邮箱", true);
+      } catch (err) {
+        setAuthFeedback(page, err.message || "发送失败，请稍后重试");
+      }
+    });
+  }
+
+  function showAuthGate(message) {
+    let page = document.getElementById("auth-page");
+    if (!page) {
+      document.body.insertAdjacentHTML("beforeend", authPageHTML());
+      page = document.getElementById("auth-page");
+      bindAuthGate(page);
+      document.body.classList.add("auth-lock");
+    }
+    if (message) setAuthFeedback(page, message);
+    const email = page.querySelector("#auth-email");
+    if (email) setTimeout(function () { email.focus(); }, 80);
   }
 
   async function loadBootstrap() {

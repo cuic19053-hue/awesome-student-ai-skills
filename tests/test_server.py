@@ -96,6 +96,16 @@ def test_pricing_copy_omits_official_discount_but_keeps_reservation_notice(clien
     assert "退回预留积分" in text
 
 
+def test_cloud_auth_module_is_served(client):
+    """云端模式依赖前端 auth 模块完成 Supabase 登录，防止再次漏发。"""
+    page = client.get("/")
+    assert "/static/js/auth.js" in page.text
+    auth = client.get("/static/js/auth.js")
+    assert auth.status_code == 200
+    assert "/auth/v1/token?grant_type=password" in auth.text
+    assert "Authorization" in auth.text
+
+
 def test_model_config_connection_test_never_echoes_api_key(client, monkeypatch):
     import app as server_app
 

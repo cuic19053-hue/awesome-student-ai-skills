@@ -735,7 +735,7 @@
             "</button>"),
       onMount: function (c) {
         c.el.querySelector("[data-open-file]").addEventListener("click", function () {
-          window.open("/api/documents/" + doc.id + "/file", "_blank", "noopener");
+          S.downloadUrl("/api/documents/" + doc.id + "/file", S.clean(doc.original_name));
         });
         const confirmBtn = c.el.querySelector("[data-confirm]");
         if (!confirmBtn) return;
@@ -767,22 +767,19 @@
     if (!card || typeof card !== "object") return "";
     const score = Number(card.score);
     const hasScore = Number.isFinite(score);
-    const incomplete = card.review_status === "failed" || !hasScore;
     const grade = S.clean(String(card.grade || ""));
     const iterations = Number(card.iterations) || 1;
-    const scoreText = incomplete
-      ? "AI 辅助检查：评审未完成（无分数）"
-      : "AI 辅助检查 " + S.fmtCredits(score) + " 分" + (grade ? " · " + grade : "") + "（非官方评审）";
-    const badge = incomplete
-      ? "草稿保留 · 待重试评审"
-      : (iterations > 1 ? "经 " + iterations + " 轮检查" : (card.passed ? "通过辅助检查" : "待完善"));
+    const badge = iterations > 1 ? "经 " + iterations + " 轮反思自愈" : card.passed ? "首轮评审达标" : "建议继续完善";
     const hints = (Array.isArray(card.user_hints) ? card.user_hints : [])
       .map(function (hint) { return S.clean(String(hint || "")); })
       .filter(Boolean)
       .slice(0, 4);
     return (
-      '<div class="review-card' + (card.passed && !incomplete ? "" : " warn") + '">' +
-      '<div class="review-head"><span class="review-score">' + esc(scoreText) + '</span><span class="review-badge' + (card.passed && !incomplete ? "" : " warn") + '">' + esc(badge) + "</span></div>" +
+      '<div class="review-card' + (card.passed ? "" : " warn") + '">' +
+      '<div class="review-head"><span class="review-score">' +
+      (hasScore ? "评委评审 " + S.fmtCredits(score) + " 分" : "评委评审") +
+      (grade ? " · " + esc(grade) : "") +
+      '</span><span class="review-badge' + (card.passed ? "" : " warn") + '">' + esc(badge) + "</span></div>" +
       (hints.length
         ? hints.map(function (hint) {
             return '<div class="review-hint">' + icon("sparkles") + "<span>" + esc(hint) + "</span></div>";
@@ -994,7 +991,14 @@
       }
       if (act === "open-doc") {
         event.stopPropagation();
-        window.open("/api/documents/" + target.getAttribute("data-doc") + "/file", "_blank", "noopener");
+        const docId = target.getAttribute("data-doc");
+        const doc = (project.documents || []).find(function (d) {
+          return d.id === docId;
+        });
+        S.downloadUrl(
+          "/api/documents/" + docId + "/file",
+          S.clean((doc && doc.original_name) || "原文件")
+        );
         return;
       }
       if (act === "view-doc") {
@@ -1878,11 +1882,10 @@
     }
     if (type.indexOf("image") >= 0 || /\.(png|jpe?g|webp)$/.test(name)) {
       return (
-        '<div class="doc-paper" style="padding:10px"><img src="/api/documents/' +
-        esc(doc.id) +
-        '/file" alt="' +
+        '<div class="doc-paper"><div class="doc-paper-loading" id="img-loading">正在载入图片…</div>' +
+        '<img id="img-preview" style="display:none;width:100%;border-radius:6px" alt="' +
         esc(S.clean(doc.original_name)) +
-        '" style="width:100%;border-radius:6px;display:block"></div>'
+        '"></div>'
       );
     }
     const text = doc.extracted_text || "";
@@ -1933,37 +1936,52 @@
       const selected = (project.documents || []).find(function (d) {
         return d.id === docPanelState.selectedFile;
       });
-      if (selected) loadPdfPreview(root, selected);
+      if (selected) loadFilePreview(root, selected);
     }
   }
 
-  let pdfObjectUrl = null;
+  let previewObjectUrl = null;
 
-  function loadPdfPreview(root, doc) {
-    const frame = root.querySelector("#pdf-frame");
-    if (!frame) return;
-    const loading = root.querySelector("#pdf-loading");
+  function releasePreviewUrl() {
+    if (previewObjectUrl) {
+      URL.revokeObjectURL(previewObjectUrl);
+      previewObjectUrl = null;
+    }
+  }
+
+  function loadFilePreview(root, doc) {
     const type = String(doc.content_type || "").toLowerCase();
     const name = String(doc.original_name || "").toLowerCase();
     const isPdf = type.indexOf("pdf") >= 0 || name.endsWith(".pdf");
-    if (!isPdf) return;
-    if (pdfObjectUrl) {
-      URL.revokeObjectURL(pdfObjectUrl);
-      pdfObjectUrl = null;
-    }
-    fetch("/api/documents/" + doc.id + "/file")
-      .then(function (response) {
-        if (!response.ok) throw new Error("load failed");
-        return response.blob();
-      })
+    const isImage = type.indexOf("image") >= 0 || /\.(png|jpe?g|webp)$/.test(name);
+    if (!isPdf && !isImage) return;
+    releasePreviewUrl();
+    S.fetchBlob("/api/documents/" + doc.id + "/file")
       .then(function (blob) {
-        pdfObjectUrl = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
-        frame.src = pdfObjectUrl;
-        frame.style.display = "block";
-        if (loading) loading.remove();
+        previewObjectUrl = URL.createObjectURL(blob);
+        if (isPdf) {
+          const frame = root.querySelector("#pdf-frame");
+          const loading = root.querySelector("#pdf-loading");
+          if (frame) {
+            frame.src = previewObjectUrl;
+            frame.style.display = "block";
+          }
+          if (loading) loading.remove();
+        } else {
+          const img = root.querySelector("#img-preview");
+          const loading = root.querySelector("#img-loading");
+          if (img) {
+            img.src = previewObjectUrl;
+            img.style.display = "block";
+          }
+          if (loading) loading.remove();
+        }
       })
-      .catch(function () {
-        if (loading) loading.textContent = "PDF 预览加载失败，可以下载原文件查看。";
+      .catch(function (err) {
+        const loading = root.querySelector("#pdf-loading, #img-loading");
+        if (loading) {
+          loading.textContent = (err && err.message) || "预览加载失败，可以下载原文件查看。";
+        }
       });
   }
 
