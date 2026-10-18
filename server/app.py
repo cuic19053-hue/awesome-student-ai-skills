@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import contextvars
 import hashlib
 import hmac
 import ipaddress
@@ -1523,9 +1524,19 @@ def create_section_job(
     cfg = payload.llm_config if payload else None
     idemp = payload.idempotency_key if payload else ""
 
+    # T0 修复：章节生成现在跑在后台线程，而标准库 ThreadPoolExecutor 不会继承
+    # 请求上下文，导致 request_identity（用户身份 + access_token）在工作线程里丢失，
+    # 平台预设（内置）模型的积分计量在云端模式下会抛 PermissionError。
+    # 先把当前请求的上下文复制一份，再让后台线程在这个上下文里执行模型调用。
+    job_context = contextvars.copy_context()
+
     def _run():
-        return _metered_invoke(
-            cfg, request, f"section:{section_id}", project_id,
+        return job_context.run(
+            _metered_invoke,
+            cfg,
+            request,
+            f"section:{section_id}",
+            project_id,
             lambda model: model.generate_section(project_id, section_id),
         )
 
@@ -1585,9 +1596,19 @@ def generate_section(
     current_content = (project.get("sections") or {}).get(section_id, "")
     cfg = payload.llm_config if payload else None
 
+    # T0 修复：章节生成现在跑在后台线程，而标准库 ThreadPoolExecutor 不会继承
+    # 请求上下文，导致 request_identity（用户身份 + access_token）在工作线程里丢失，
+    # 平台预设（内置）模型的积分计量在云端模式下会抛 PermissionError。
+    # 先把当前请求的上下文复制一份，再让后台线程在这个上下文里执行模型调用。
+    job_context = contextvars.copy_context()
+
     def _run():
-        return _metered_invoke(
-            cfg, request, f"section:{section_id}", project_id,
+        return job_context.run(
+            _metered_invoke,
+            cfg,
+            request,
+            f"section:{section_id}",
+            project_id,
             lambda model: model.generate_section(project_id, section_id),
         )
 
