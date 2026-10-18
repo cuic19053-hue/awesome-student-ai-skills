@@ -193,33 +193,6 @@
   }
 
   function renderPrivacyNotice(project = state.project) {
-    const privacy = $(".privacy-note");
-    const text = $("#materialPrivacyText");
-    if (!privacy || !text) return;
-    const parts = [
-      state.cloudMode
-        ? "云端版：材料上传至 Supabase 私有云存储，由云端服务处理，并按账号权限隔离。"
-        : "本地部署：材料保存在运行 Agent 的设备上。",
-      "来源材料经你确认后才用于当前项目检索。",
-    ];
-    const provider = state.llmConfig.provider;
-    if (provider === "preset") {
-      parts.push("使用平台模型时，本轮对话及必要材料内容会经平台中转服务转发给模型服务商。");
-    } else if (provider === "openai_compatible") {
-      parts.push("使用自定义 API 时，本轮对话及必要材料内容会发送至你配置的模型服务商。");
-    } else if (state.ollamaLocal === false) {
-      parts.push("当前 Ollama 位于远程主机，对话及必要材料内容会发送至该主机。");
-    } else if (state.ollamaLocal === true) {
-      parts.push("当前使用本地 Ollama；主动搜索时仍会向相应服务发送查询关键词。");
-    } else {
-      parts.push("Ollama 的处理位置取决于配置的主机；主动搜索会向相应服务发送查询关键词。");
-    }
-    if (project?.state?.template_preference === "not_asked") {
-      parts.push("请先通过对话确认是否有学校模板。");
-    }
-    privacy.classList.toggle("remote-warning",
-      state.cloudMode || provider !== "ollama" || state.ollamaLocal !== true);
-    text.textContent = parts.join(" ");
   }
 
   function showModelStatus(localStatus) {
