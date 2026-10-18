@@ -16,7 +16,11 @@
 > 🌐 **Try it online:** [agent.stardust.website](https://agent.stardust.website) (Zero setup, instant browser access)
 > 🎬 **Douyin Demo Video (Direct Link):** [Watch on Douyin / TikTok China](https://www.douyin.com/video/7692700167341985051)
 >
-> 🚀 **Quick links:** 🌐 [Online Workbench](https://agent.stardust.website) · 🎬 [Demo Video](https://www.douyin.com/video/7692700167341985051) · [Architecture](#-system-architecture) · [PMF & Growth](#-background--pmf-validation) · [Quick Start](#-how-to-use) · [35 Skills](./README.md#能写哪些申报书)
+> 🌟 **If this project helps with your academic proposals or research grants, please consider giving us a Star ⭐️! Your support keeps this open-source project moving forward.**
+>
+> 💡 **No Setup Required**: Try our zero-installation [🌐 Online Workbench (agent.stardust.website)](https://agent.stardust.website) directly in your browser!
+>
+> 🚀 **Quick links:** 🌐 [Online Workbench](https://agent.stardust.website) · 🚀 [Quick Start](#-how-to-use) · 🎬 [Demo Video](https://www.douyin.com/video/7692700167341985051) · 🏗️ [Architecture](#-system-architecture) · 💡 [Background & PMF](#-background--pmf-validation) · 📋 [35 Skills](./README.md#能写哪些申报书)
 
 ---
 

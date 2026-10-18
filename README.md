@@ -23,71 +23,11 @@
 > 🌐 **在线体验：** [agent.stardust.website](https://agent.stardust.website) （免安装，浏览器开箱即用）
 > 🎬 **抖音爆款视频（点击直达）：** [一句话写完大创申报书？35 种申报材料交给 AI](https://www.douyin.com/video/7692700167341985051)
 >
-> 🚀 **快速通道：** 🌐 [在线工作台](https://agent.stardust.website) · 🎬 [抖音实操视频](https://www.douyin.com/video/7692700167341985051) · [系统架构](#-系统技术架构-system-architecture) · [商业与增长验证](#-项目背景与-pmf-验证-background--pmf) · [快速上手](#-如何使用-how-to-use) · [35 赛道清单](#能写哪些申报书)
-
----
-
-## 💡 项目背景与 PMF 验证 (Background & PMF)
-
-本项目并非停留在实验室的玩具，而是**从真实赛事实战中淬炼、并经受了真实市场考验的 AI 商业化 MVP**：
-
-1. **源于国赛真实痛点**：项目团队在打“挑战杯”从校赛冲入国赛的过程中，申报书经历了十数轮打磨与修改，深知全国高校数千万大学生在面对大创、挑战杯、奖学金等申报时，普遍面临“缺乏结构规范”、“不知道评委想看什么”、“排版格式繁杂”的共同困境。
-2. **零成本爆发验证 PMF**：项目视频在抖音发布仅一周，**0 推广成本实现全自然流破圈**，斩获 **8000+ 点赞、6100+ 精准高意向收藏与近 1400+ 次自发转发**（🎬 [点击直接观看抖音视频](https://www.douyin.com/video/7692700167341985051)），证明了高校学生对于高质量申报辅助的真实强刚需。
-
----
-
-## 🏗️ 系统技术架构 (System Architecture)
-
-为了解决大模型在撰写复杂长文本时的“上下文漂移”、“幻觉套话”与“生成超时”问题，系统采用了如下企业级分层设计：
-
-<div align="center">
-  <img src="https://cdn.jsdelivr.net/gh/cuic19053-hue/awesome-student-ai-skills@main/assets/architecture.png" alt="系统技术架构图" width="400" />
-</div>
-
-<details open>
-<summary><b>🔍 查看 / 折叠 Mermaid 架构图源码</b></summary>
-
-```mermaid
-flowchart TD
-    subgraph ClientLayer["交互与用户层 (Client Layer)"]
-        WebUI["🌐 Web 在线工作台<br/>(免安装 / 交互式信息采集)"]
-        IDE["💻 本地 Agent IDE<br/>(Claude Code / Cursor / Codex)"]
-    end
-
-    subgraph GatewayLayer["服务网关与路由层 (Gateway and Routing)"]
-        Gateway["🛡️ 轻量 API 网关<br/>(多 Key 轮询 / 负载均衡 / 429 容灾降级)"]
-        Dispatcher["🧭 意图识别与路由引擎<br/>(utils/dispatcher.py 规则+向量召回 35 赛道)"]
-    end
-
-    subgraph AgentCore["Agent 协同与质量闭环 (Agentic Workflow)"]
-        DraftAgent["✍️ 专项撰写 Agent<br/>(按国赛金奖结构逐章精细生成)"]
-        ReviewAgent["🧐 模拟评委 Agent<br/>(挑刺空泛套话 / 审查数据与政策真实性)"]
-        Evals["📊 自动化 Evals 质检<br/>(结构完整性 / 防幻觉 / 字数达标率评分)"]
-    end
-
-    subgraph TaskEngine["异步生成与排版引擎 (Execution Engine)"]
-        Queue["⚡ 异步任务队列<br/>(Redis / 长任务解耦，防超时卡顿)"]
-        DocxEngine["📄 排版渲染引擎<br/>(docx_common.py 标准公文样式 / 动态生成图表)"]
-    end
-
-    subgraph Output["交付物 (Deliverables)"]
-        Word["📄 .docx 规范排版申报书<br/>(含技术路线图 / 甘特图 / 经费预算表 / 签字栏)"]
-        PDF["📑 .pdf 电子版申报预览"]
-    end
-
-    WebUI --> Gateway
-    IDE --> Gateway
-    Gateway --> Dispatcher
-    Dispatcher --> DraftAgent
-    DraftAgent <--> ReviewAgent
-    ReviewAgent --> Evals
-    Evals --> Queue
-    Queue --> DocxEngine
-    DocxEngine --> Word
-    DocxEngine --> PDF
-```
-
-</details>
+> 🌟 **如果本项目对你的大创申报、竞赛立项或奖学金评定有所启发，请右上角点个 Star ⭐️ 支持一下！这是我们持续开源维护 35 个高校赛道最大的动力！**
+>
+> 💡 **小白同学免配置环境**：直接使用免安装的 [🌐 在线工作台 (agent.stardust.website)](https://agent.stardust.website)，浏览器开箱即用，无需配置 Python 环境！
+>
+> 🚀 **快速通道：** 🌐 [在线工作台](https://agent.stardust.website) · 🎯 [它能写什么](#-它能帮你写什么) · 📄 [下载样例 Word](#-规范排版-word-样例直接下载所见即所得) · 🚀 [如何使用](#-如何使用-how-to-use) · 🎬 [抖音实操视频](https://www.douyin.com/video/7692700167341985051) · 🏗️ [系统架构](#-系统技术架构-system-architecture) · 📋 [35 赛道清单](#能写哪些申报书)
 
 ---
 
@@ -110,19 +50,27 @@ flowchart TD
 
 ---
 
-## 📖 目录 (Table of Contents)
 
-- [🎯 它能帮你写什么](#-它能帮你写什么)
-- [🚀 如何使用 (How to Use)](#-如何使用-how-to-use)
-- [🧪 Agent 工作台（实验版）](#-agent-工作台实验版)
-- [❓ 常见问题 (FAQ)](#-常见问题-faq)
-- [为什么做这个](#为什么做这个)
-- [能写哪些申报书](#能写哪些申报书)
-- [项目结构](#项目结构)
-- [核心设计原则](#核心设计原则)
-- [免责声明](#免责声明)
+### 📄 规范排版 Word 样例直接下载（所见即所得）
 
+无需漫长摸索，[examples/demos/](https://github.com/cuic19053-hue/awesome-student-ai-skills/tree/main/examples/demos) 目录提供了 10 个排版好的真实 `.docx` 成果样例供直接下载参考：
 
+| 样例下载 | 所属类别 | 格式与规范亮点 |
+|---|---|---|
+| [📄 大创创新训练申报书.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_innovation_research.docx) | 国家级科研 | 规范公文红头、三段式科学挑战、算法对比表、3 张技术路线图与经费预算表 |
+| [📄 挑战杯课外学术作品申报书.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_challenge_cup.docx) | 国赛级竞赛 | 30+ 篇文献综述、国赛金奖立项逻辑链、三级评审意见栏与附录清单 |
+| [📄 互联网+ 商业计划书.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_internet_plus.docx) | 双创商业计划 | 4P+3C+SWOT 商业闭环分析、5 年财务三表与规范股权结构设计 |
+| [📄 国家奖学金申请书.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_national_scholarship.docx) | 顶级奖学金 | 严格对齐最新财教评定政策，规范呈现成绩排名证明、学术科研与突出贡献 |
+| [📄 保研推免个人陈述.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_graduate_recommendation.docx) | 升学保研 | 表格体+陈述体双重结构，针对目标院校导师的学术亮点量化聚焦 |
+| [📄 大创创业训练申报书.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_entrepreneurship_training.docx) | 创客训练 | 完整商业模式画布、专利壁垒、实践过程与甘特进度安排 |
+| [📄 院级科研立项申请书.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_college_research.docx) | 基础科研 | 16 栏目标准公文表格体，适合新手入门级科研立项快速起步 |
+| [📄 校级科研立项申报书.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_university_research.docx) | 校级科研 | 22 栏目表格体、15+ 篇文献综述（含英文文献）与数学公式规范 |
+| [📄 优秀毕业生申报书.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_outstanding_graduate.docx) | 综合评优 | 四年成长叙事脉络、德智体美劳五维度量化实绩与毕业去向证明 |
+| [📄 CSC 公派留学申请书.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_csc_scholarship.docx) | 公派深造 | 留学动机、研修计划可行性、外导对接与严密归国承诺论述 |
+
+> 💡 **使用建议**：点击链接下载 → 本地 Word 打开查看规范排版与结构 → 确认满足需求后使用本项目一键生成自己的版本。
+
+---
 
 ## 🚀 如何使用 (How to Use)
 
@@ -191,6 +139,88 @@ flowchart TD
 }
 ```
 接入后，AI 即可在对话中自主调用工具完成 35 个高校赛道的意图识别、规则采集与 Word 渲染生成。
+
+## 💡 项目背景与 PMF 验证 (Background & PMF)
+
+本项目并非停留在实验室的玩具，而是**从真实赛事实战中淬炼、并经受了真实市场考验的 AI 商业化 MVP**：
+
+1. **源于国赛真实痛点**：项目团队在打“挑战杯”从校赛冲入国赛的过程中，申报书经历了十数轮打磨与修改，深知全国高校数千万大学生在面对大创、挑战杯、奖学金等申报时，普遍面临“缺乏结构规范”、“不知道评委想看什么”、“排版格式繁杂”的共同困境。
+2. **零成本爆发验证 PMF**：项目视频在抖音发布仅一周，**0 推广成本实现全自然流破圈**，斩获 **8000+ 点赞、6100+ 精准高意向收藏与近 1400+ 次自发转发**（🎬 [点击直接观看抖音视频](https://www.douyin.com/video/7692700167341985051)），证明了高校学生对于高质量申报辅助的真实强刚需。
+
+---
+
+## 🏗️ 系统技术架构 (System Architecture)
+
+为了解决大模型在撰写复杂长文本时的“上下文漂移”、“幻觉套话”与“生成超时”问题，系统采用了如下企业级分层设计：
+
+<div align="center">
+  <img src="https://cdn.jsdelivr.net/gh/cuic19053-hue/awesome-student-ai-skills@main/assets/architecture.png" alt="系统技术架构图" width="400" />
+</div>
+
+<details open>
+<summary><b>🔍 查看 / 折叠 Mermaid 架构图源码</b></summary>
+
+```mermaid
+flowchart TD
+    subgraph ClientLayer["交互与用户层 (Client Layer)"]
+        WebUI["🌐 Web 在线工作台<br/>(免安装 / 交互式信息采集)"]
+        IDE["💻 本地 Agent IDE<br/>(Claude Code / Cursor / Codex)"]
+    end
+
+    subgraph GatewayLayer["服务网关与路由层 (Gateway and Routing)"]
+        Gateway["🛡️ 轻量 API 网关<br/>(多 Key 轮询 / 负载均衡 / 429 容灾降级)"]
+        Dispatcher["🧭 意图识别与路由引擎<br/>(utils/dispatcher.py 规则+向量召回 35 赛道)"]
+    end
+
+    subgraph AgentCore["Agent 协同与质量闭环 (Agentic Workflow)"]
+        DraftAgent["✍️ 专项撰写 Agent<br/>(按国赛金奖结构逐章精细生成)"]
+        ReviewAgent["🧐 模拟评委 Agent<br/>(挑刺空泛套话 / 审查数据与政策真实性)"]
+        Evals["📊 自动化 Evals 质检<br/>(结构完整性 / 防幻觉 / 字数达标率评分)"]
+    end
+
+    subgraph TaskEngine["异步生成与排版引擎 (Execution Engine)"]
+        Queue["⚡ 异步任务队列<br/>(Redis / 长任务解耦，防超时卡顿)"]
+        DocxEngine["📄 排版渲染引擎<br/>(docx_common.py 标准公文样式 / 动态生成图表)"]
+    end
+
+    subgraph Output["交付物 (Deliverables)"]
+        Word["📄 .docx 规范排版申报书<br/>(含技术路线图 / 甘特图 / 经费预算表 / 签字栏)"]
+        PDF["📑 .pdf 电子版申报预览"]
+    end
+
+    WebUI --> Gateway
+    IDE --> Gateway
+    Gateway --> Dispatcher
+    Dispatcher --> DraftAgent
+    DraftAgent <--> ReviewAgent
+    ReviewAgent --> Evals
+    Evals --> Queue
+    Queue --> DocxEngine
+    DocxEngine --> Word
+    DocxEngine --> PDF
+```
+
+</details>
+
+---
+
+## 📖 目录 (Table of Contents)
+
+- [🎯 它能帮你写什么](#-它能帮你写什么)
+  - [📄 规范排版 Word 样例直接下载](#-规范排版-word-样例直接下载所见即所得)
+- [🚀 如何使用 (How to Use)](#-如何使用-how-to-use)
+  - [模式一：在线工作台（零门槛免安装）](#模式一在线-agent-工作台零门槛免安装)
+  - [模式二：本地 Agent IDE 流程](#模式二本地-agent-ide-使用流程)
+  - [模式三：MCP 服务接入](#-mcp-服务接入-model-context-protocol)
+- [💡 项目背景与 PMF 验证](#-项目背景与-pmf-验证-background--pmf)
+- [🏗️ 系统技术架构](#-系统技术架构-system-architecture)
+- [❓ 常见问题 (FAQ)](#-常见问题-faq)
+- [能写哪些申报书 (35 赛道清单)](#能写哪些申报书)
+- [项目结构](#项目结构)
+- [核心设计原则](#核心设计原则)
+- [免责声明](#免责声明)
+
+---
 
 ## 🧪 Agent 工作台（实验版）
 
@@ -455,24 +485,7 @@ AI 会自动：
 
 > ⚠️ 网页 AI 输出纯文本，不包含图片和 Word 排版。图文并茂的文档需要用支持 Agent Skills 的工具。
 
-### 备选：直接下载成品模板
-
-[examples/demos/](https://github.com/cuic19053-hue/awesome-student-ai-skills/tree/main/examples/demos) 目录存放了 10 个排版好的 .docx 文档：
-
-| 下载 | 类型 |
-|---|---|
-| [📄 国家奖学金.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_national_scholarship.docx) | 奖学金 |
-| [📄 申请材料.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_youth_league_application.docx) | 政治身份 |
-| [📄 挑战杯.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_challenge_cup.docx) | 竞赛 |
-| [📄 互联网+商业计划书.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_internet_plus.docx) | 竞赛 |
-| [📄 大创创新训练.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_innovation_research.docx) | 科研 |
-| [📄 优秀毕业生.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_outstanding_graduate.docx) | 评优 |
-| [📄 院级科研立项.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_college_research.docx) | 科研 |
-| [📄 应征入伍.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_military_enlistment.docx) | 征兵 |
-| [📄 CSC 公派留学.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_csc_scholarship.docx) | 公派留学 |
-| [📄 大创创业训练.docx](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_entrepreneurship_training.docx) | 科研 |
-
-点击链接 → 浏览器下载 → Word 打开 → 替换成自己的信息。
+👉 **成品 Word 模板样例已前置**，请直接在上方 [规范排版 Word 样例直接下载](#-规范排版-word-样例直接下载所见即所得) 中预览并下载。
 
 ---
 
