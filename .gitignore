@@ -67,3 +67,5 @@ supabase/.temp/
 .vercel
 .env*
 !.env.example
+shots/
+tools/
