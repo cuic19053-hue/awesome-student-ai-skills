@@ -20,10 +20,11 @@
         <label class="field"><span>邮箱</span><input id="authEmail" type="email" autocomplete="email" required placeholder="name@example.com"></label>
         <label class="field"><span>密码</span><input id="authPassword" type="password" autocomplete="current-password" minlength="8" required placeholder="至少 8 位"></label>
         <div id="turnstileWidget" class="turnstile-slot hidden"></div>
-        <button id="authSubmitBtn" type="submit" class="button button-primary button-large">登录</button>
+        <button id="authSubmitBtn" type="submit" class="button button-primary button-large" disabled>正在加载登录组件…</button>
       </form>
-      <button type="button" id="authModeToggle" class="auth-mode-toggle">还没有账号？创建账号</button>
+      <button type="button" id="authModeToggle" class="auth-mode-toggle" disabled>还没有账号？创建账号</button>
       <div id="authFeedback" class="auth-feedback" role="status"></div>
+      <button type="button" id="retryAuthBtn" class="button button-secondary hidden">重新连接登录服务</button>
       <small class="auth-disclaimer">云端项目数据保存在 Supabase；模型 API Key 仅留在当前标签页会话中。</small>
     </div>
   </section>
@@ -924,7 +925,7 @@
   </dialog>
 
   <div id="toast" class="toast hidden" role="status"></div>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/static/vendor/supabase-js-2.118.0.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

@@ -29,6 +29,7 @@ class Element {
   replaceChildren(...children) { this.children = children; this.textContent = ""; }
   setAttribute(name, value) { this.attributes[name] = value; }
   addEventListener(name, callback) { this.listeners[name] = callback; }
+  closest() { return null; }
   showModal() { this.open = true; }
   close() { this.open = false; this.listeners.close?.(); }
 }
@@ -49,6 +50,7 @@ function harness() {
   };
   const context = vm.createContext({
     document,
+    window: { location: { origin: "https://workbench.example.test" } },
     localStorage: { removeItem() {} },
     sessionStorage: { getItem: () => null },
     Headers,
@@ -73,6 +75,7 @@ function harness() {
       state, renderUploadResult, renderDocuments, previewDocument,
       clearDocumentPreview, fetchDocumentBlob, uploadFiles,
       renderPrivacyNotice, showModelStatus, updateTemplateQuickActions,
+      syncAuthControls, initializeCloudAuth, submitAuthForm,
       setApi(fn) { api = fn; },
       setLoadProject(fn) { loadProject = fn; },
     };
@@ -280,4 +283,130 @@ test("remote Ollama warning survives subsequent project loading", () => {
   h.ui.showModelStatus({ ollama_local: true, ollama_available: true, ollama_model_installed: true });
   assert.match(h.element("#materialPrivacyText").textContent, /本地 Ollama.*搜索.*查询关键词/);
   assert.equal(h.element(".privacy-note").classList.contains("remote-warning"), false);
+});
+
+test("registration refuses an uninitialized auth client without reading null.auth", async () => {
+  const h = harness();
+  h.ui.state.authMode = "signup";
+  await h.ui.submitAuthForm({ preventDefault() {} });
+  assert.match(h.element("#authFeedback").textContent, /正在初始化.*尚未发送/);
+  assert.doesNotMatch(h.element("#authFeedback").textContent, /Cannot read|TypeError/);
+  assert.equal(h.element("#authSubmitBtn").disabled, true);
+  assert.equal(h.element("#authModeToggle").disabled, true);
+});
+
+test("missing SDK shows recovery and cannot enable registration after an error", async () => {
+  const h = harness();
+  await h.ui.initializeCloudAuth({ cloud_mode: true });
+  assert.equal(h.ui.state.authClient, null);
+  assert.equal(h.ui.state.authStatus, "error");
+  assert.equal(h.element("#retryAuthBtn").classList.contains("hidden"), false);
+  assert.equal(h.element("#authSubmitBtn").disabled, true);
+  await h.ui.submitAuthForm({ preventDefault() {} });
+  assert.match(h.element("#authFeedback").textContent, /尚未就绪.*重新连接/);
+  assert.equal(h.element("#authSubmitBtn").disabled, true);
+});
+
+test("constructor or session failure leaves auth disabled instead of leaking technical errors", async () => {
+  for (const createClient of [
+    () => { throw new TypeError("bad client configuration"); },
+    () => ({ auth: { getSession: async () => ({ error: new Error("session unavailable") }) } }),
+  ]) {
+    const h = harness();
+    h.context.window.supabase = { createClient };
+    await h.ui.initializeCloudAuth({ cloud_mode: true });
+    assert.equal(h.ui.state.authClient, null);
+    assert.equal(h.ui.state.authStatus, "error");
+    assert.equal(h.ui.state.authInitializing, false);
+    assert.equal(h.element("#authSubmitBtn").disabled, true);
+    assert.match(h.element("#authFeedback").textContent, /无法初始化登录服务/);
+  }
+});
+
+test("initialization holds submit disabled until session recovery completes", async () => {
+  const h = harness();
+  let finish;
+  let clientsCreated = 0;
+  const client = { auth: {
+    getSession: () => new Promise((resolve) => { finish = resolve; }),
+    onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
+  } };
+  h.context.window.supabase = { createClient: () => { clientsCreated++; return client; } };
+  const config = { cloud_mode: true };
+  const initializing = h.ui.initializeCloudAuth(config);
+  assert.equal(h.element("#authSubmitBtn").disabled, true);
+  assert.equal(h.ui.state.authClient, null);
+  await h.ui.initializeCloudAuth(config);
+  assert.equal(clientsCreated, 1); // Concurrent retries must not create duplicate clients.
+  finish({ data: { session: null }, error: null });
+  await initializing;
+  assert.equal(h.ui.state.authStatus, "ready");
+  assert.equal(h.ui.state.authClient, client);
+  assert.equal(h.element("#authSubmitBtn").disabled, false);
+  assert.equal(h.element("#authModeToggle").disabled, false);
+  assert.equal(h.element("#retryAuthBtn").classList.contains("hidden"), true);
+});
+
+test("signup sends one request only after explicit submission and preserves email verification flow", async () => {
+  const h = harness();
+  const calls = [];
+  let finish;
+  h.ui.state.authStatus = "ready";
+  h.ui.state.authMode = "signup";
+  h.ui.state.authClient = { auth: { signUp: (input) => {
+    calls.push(input);
+    return new Promise((resolve) => { finish = resolve; });
+  } } };
+  h.element("#authEmail").value = "TEST@GMAIL.COM";
+  h.element("#authPassword").value = "fake-password-for-unit-test";
+  const submitting = h.ui.submitAuthForm({ preventDefault() {} });
+  assert.equal(h.element("#authSubmitBtn").disabled, true);
+  assert.equal(h.element("#authModeToggle").disabled, true);
+  await h.ui.submitAuthForm({ preventDefault() {} });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].email, "test@gmail.com");
+  assert.equal(calls[0].options.emailRedirectTo, "https://workbench.example.test");
+  finish({ data: { session: null }, error: null });
+  await submitting;
+  assert.match(h.element("#authFeedback").textContent, /账号已创建.*验证后登录/);
+  assert.equal(h.element("#authSubmitBtn").disabled, false);
+  assert.equal(h.ui.state.authBusy, false);
+});
+
+test("network failures render actionable text and never automatically retry a signup", async () => {
+  const h = harness();
+  let requests = 0;
+  h.ui.state.authStatus = "ready";
+  h.ui.state.authMode = "signup";
+  h.ui.state.authClient = { auth: { signUp: async () => {
+    requests++;
+    throw new TypeError("Failed to fetch");
+  } } };
+  h.element("#authEmail").value = "test@gmail.com";
+  h.element("#authPassword").value = "fake-password-for-unit-test";
+  await h.ui.submitAuthForm({ preventDefault() {} });
+  assert.match(h.element("#authFeedback").textContent, /无法连接登录服务/);
+  assert.equal(requests, 1);
+  assert.equal(h.element("#authSubmitBtn").disabled, false);
+});
+
+test("vendored Supabase SDK is pinned, checksummed, and served from this origin before app.js", () => {
+  const { createHash } = require("node:crypto");
+  const vendor = resolve(__dirname, "../../server/static/vendor");
+  const lock = JSON.parse(readFileSync(resolve(vendor, "supabase-js.lock.json")));
+  assert.equal(lock.version, "2.118.0");
+  const bundle = readFileSync(resolve(vendor, lock.bundle));
+  assert.equal(createHash("sha256").update(bundle).digest("hex"), lock.bundle_sha256);
+  const html = readFileSync(resolve(__dirname, "../../server/static/index.html"), "utf8");
+  const sdkScript = `/static/vendor/${lock.bundle}`;
+  assert.ok(html.includes(sdkScript));
+  assert.ok(html.indexOf(sdkScript) < html.indexOf('/static/app.js'));
+  assert.doesNotMatch(html, /https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase/);
+  assert.match(html, /id="authSubmitBtn"[^>]*disabled/);
+  assert.match(html, /id="retryAuthBtn"/);
+  // Evaluate the real bundle without constructing a client, sending credentials,
+  // making any network call, or creating an account.
+  const context = vm.createContext({ console, URL, TextEncoder, TextDecoder });
+  vm.runInContext(bundle.toString("utf8"), context);
+  assert.equal(typeof context.supabase.createClient, "function");
 });

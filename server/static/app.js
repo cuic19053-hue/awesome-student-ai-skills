@@ -46,6 +46,11 @@
     presetModels: [],
     rechargePlans: [],
     authClient: null,
+    authStatus: "loading",
+    authBusy: false,
+    authInitializing: false,
+    authConfig: null,
+    authSubscription: null,
     authSession: null,
     authMode: "signin",
     turnstileSiteKey: "",
@@ -689,12 +694,25 @@
     }
   }
 
+  function syncAuthControls() {
+    const ready = state.authStatus === "ready" && Boolean(state.authClient?.auth);
+    const submit = $("#authSubmitBtn");
+    submit.disabled = !ready || state.authBusy;
+    submit.textContent = state.authBusy
+      ? state.authMode === "signup" ? "正在创建账号…" : "正在登录…"
+      : ready ? state.authMode === "signup" ? "创建账号" : "登录"
+      : state.authStatus === "loading" ? "正在加载登录组件…" : "登录服务暂不可用";
+    $("#authModeToggle").disabled = !ready || state.authBusy;
+    $("#retryAuthBtn").classList.toggle("hidden", state.authStatus !== "error");
+  }
+
   function showAuthGate(message = "") {
     state.appStarted = false;
     $("#appShell").classList.add("hidden");
     $("#authGate").classList.remove("hidden");
     $("#signOutBtn").classList.add("hidden");
     $("#authFeedback").textContent = message;
+    syncAuthControls();
     updateTurnstileState();
   }
 
@@ -720,6 +738,8 @@
   }
 
   async function initializeCloudAuth(config) {
+    if (state.authInitializing) return;
+    state.authConfig = config;
     state.cloudMode = Boolean(config.cloud_mode);
     renderPrivacyNotice();
     if (!state.cloudMode) {
@@ -737,7 +757,9 @@
         : "云端版通过用户自备的 OpenAI 兼容 API 推理；模型服务费用由你与提供商结算。";
     }
     if (!window.supabase?.createClient) {
-      showAuthGate("登录组件暂不可用，请刷新页面后重试。");
+      state.authClient = null;
+      state.authStatus = "error";
+      showAuthGate("登录组件加载失败，请点击“重新连接登录服务”；无需更换邮箱或密码。");
       return;
     }
     if (config.preset_enabled) {
@@ -750,17 +772,33 @@
       state.llmConfig = { provider: "openai_compatible", model: "", base_url: "", api_key: "" };
     }
     $("#providerOllama").closest(".model-provider-option")?.classList.add("hidden");
-    state.authClient = window.supabase.createClient(
-      config.supabase_url,
-      config.supabase_publishable_key,
-      { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
-    );
-    const { data, error } = await state.authClient.auth.getSession();
-    if (error) {
-      showAuthGate("无法读取登录状态，请重试。");
+    state.authInitializing = true;
+    state.authStatus = "loading";
+    state.authClient = null;
+    state.authSubscription?.unsubscribe();
+    state.authSubscription = null;
+    syncAuthControls();
+    let data;
+    try {
+      const client = window.supabase.createClient(
+        config.supabase_url,
+        config.supabase_publishable_key,
+        { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
+      );
+      const result = await client.auth.getSession();
+      if (result.error) throw result.error;
+      data = result.data;
+      state.authClient = client;
+      state.authStatus = "ready";
+    } catch {
+      state.authStatus = "error";
+      showAuthGate("无法初始化登录服务，请点击“重新连接登录服务”或稍后重试。");
       return;
+    } finally {
+      state.authInitializing = false;
+      syncAuthControls();
     }
-    state.authClient.auth.onAuthStateChange((event, session) => {
+    const subscription = state.authClient.auth.onAuthStateChange((event, session) => {
       state.authSession = session;
       if (session && !state.appStarted) {
         void startApplication(session);
@@ -778,6 +816,7 @@
         showAuthGate("已退出登录。");
       }
     });
+    state.authSubscription = subscription.data.subscription;
     if (data.session) {
       await startApplication(data.session);
     } else {
@@ -787,10 +826,19 @@
 
   async function submitAuthForm(event) {
     event.preventDefault();
+    const feedback = $("#authFeedback");
+    if (state.authBusy) return;
+    if (state.authStatus !== "ready" || !state.authClient?.auth) {
+      feedback.className = "auth-feedback error";
+      feedback.textContent = state.authStatus === "loading"
+        ? "登录组件正在初始化，请稍候；当前尚未发送注册或登录请求。"
+        : "登录服务尚未就绪，请点击“重新连接登录服务”；无需更换邮箱或密码。";
+      syncAuthControls();
+      return;
+    }
+    const authClient = state.authClient;
     const email = $("#authEmail").value.trim().toLowerCase();
     const password = $("#authPassword").value;
-    const submit = $("#authSubmitBtn");
-    const feedback = $("#authFeedback");
 
     if (state.authMode === "signup") {
       const domain = (email.split("@")[1] || "").toLowerCase();
@@ -811,7 +859,8 @@
       }
     }
 
-    submit.disabled = true;
+    state.authBusy = true;
+    syncAuthControls();
     feedback.className = "auth-feedback";
     feedback.textContent = state.authMode === "signup" ? "正在创建账号…" : "正在登录…";
     try {
@@ -823,12 +872,12 @@
       }
 
       const result = state.authMode === "signup"
-        ? await state.authClient.auth.signUp({
+        ? await authClient.auth.signUp({
             email,
             password,
             options: signupOptions,
           })
-        : await state.authClient.auth.signInWithPassword({ email, password });
+        : await authClient.auth.signInWithPassword({ email, password });
       if (result.error) throw result.error;
       if (result.data.session) {
         await startApplication(result.data.session);
@@ -840,7 +889,10 @@
         feedback.textContent = "登录成功，正在载入你的项目…";
       }
     } catch (error) {
-      feedback.textContent = error.message || "登录失败，请检查邮箱和密码。";
+      const message = error.message || "";
+      feedback.textContent = /Cannot read properties|undefined|Failed to fetch|NetworkError|fetch failed/i.test(message)
+        ? "无法连接登录服务，请稍后重试或检查网络。"
+        : message || "登录失败，请检查邮箱和密码。";
       feedback.classList.add("error");
     } finally {
       if (window.turnstile && state.turnstileWidgetId !== null && state.authMode === "signup") {
@@ -849,7 +901,8 @@
         } catch (_) {}
         state.turnstileToken = "";
       }
-      submit.disabled = false;
+      state.authBusy = false;
+      syncAuthControls();
     }
   }
 
@@ -3227,10 +3280,20 @@
       tab.addEventListener("click", () => setOnboardingStep(parseInt(tab.dataset.step, 10)));
     });
     $("#authForm").addEventListener("submit", submitAuthForm);
+    $("#retryAuthBtn").addEventListener("click", () => {
+      // No credential resubmission or automatic signup retries.
+      if (state.authInitializing || state.authBusy) return;
+      if (!window.supabase?.createClient || !state.authConfig) {
+        window.location.reload();
+      } else {
+        void initializeCloudAuth(state.authConfig);
+      }
+    });
     $("#authModeToggle").addEventListener("click", () => {
+      if (state.authStatus !== "ready" || state.authBusy) return;
       state.authMode = state.authMode === "signin" ? "signup" : "signin";
       $("#authTitle").textContent = state.authMode === "signup" ? "创建你的项目空间" : "登录你的项目空间";
-      $("#authSubmitBtn").textContent = state.authMode === "signup" ? "创建账号" : "登录";
+      syncAuthControls();
       $("#authModeToggle").textContent = state.authMode === "signup"
         ? "已有账号？返回登录"
         : "还没有账号？创建账号";
@@ -3350,7 +3413,14 @@
   }
 
   document.addEventListener("DOMContentLoaded", () => {
-    init().catch((error) => toast(error.message, true));
+    init().catch((error) => {
+      if (state.authStatus !== "ready" && !state.appStarted) {
+        state.authStatus = "error";
+        showAuthGate("工作台初始化失败，请点击“重新连接登录服务”或刷新页面重试。");
+      } else {
+        toast(error.message, true);
+      }
+    });
   });
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden && state.authSession?.access_token) void loadUserBalance();
