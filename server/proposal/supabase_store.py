@@ -46,6 +46,8 @@ class SupabaseStore:
         self.data_dir = Path(configured).expanduser().resolve()
         self.files_dir = self.data_dir / "projects"
         self.files_dir.mkdir(parents=True, exist_ok=True)
+        from .storage import Store
+        self._job_store = Store(self.data_dir / "jobs_store.db")
 
     @staticmethod
     def _json(value: Any, fallback: Any) -> Any:
@@ -856,3 +858,34 @@ class SupabaseStore:
                 {"p_request_id": request_id, "p_reason": reason[:120]},
             )
         )
+
+    # ------------------------------------------------------------------
+    # 异步生成任务 (Generation Jobs) 与版本保护代理
+    # ------------------------------------------------------------------
+
+    def create_generation_job(self, project_id: str, section_id: str, idempotency_key: str = "", base_version: str = "") -> dict[str, Any]:
+        return self._job_store.create_generation_job(project_id, section_id, idempotency_key, base_version)
+
+    def get_generation_job(self, job_id: str) -> dict[str, Any] | None:
+        return self._job_store.get_generation_job(job_id)
+
+    def find_job_by_idempotency_key(self, project_id: str, idempotency_key: str) -> dict[str, Any] | None:
+        return self._job_store.find_job_by_idempotency_key(project_id, idempotency_key)
+
+    def find_active_job(self, project_id: str, section_id: str) -> dict[str, Any] | None:
+        return self._job_store.find_active_job(project_id, section_id)
+
+    def update_generation_job(self, job_id: str, status: str, step: str | None = None, result: dict[str, Any] | None = None, error: str | None = None) -> dict[str, Any] | None:
+        return self._job_store.update_generation_job(job_id, status, step, result, error)
+
+    def cancel_generation_job(self, job_id: str) -> bool:
+        return self._job_store.cancel_generation_job(job_id)
+
+    def save_section_version(self, project_id: str, section_id: str, content: str, source: str = "user_edit", review_card: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self._job_store.save_section_version(project_id, section_id, content, source, review_card)
+
+    def list_section_versions(self, project_id: str, section_id: str, limit: int = 10) -> list[dict[str, Any]]:
+        return self._job_store.list_section_versions(project_id, section_id, limit)
+
+    def get_section_version(self, version_id: str) -> dict[str, Any] | None:
+        return self._job_store.get_section_version(version_id)

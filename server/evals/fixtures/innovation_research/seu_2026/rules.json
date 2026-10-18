@@ -1,0 +1,84 @@
+{
+  "id": "seu-2026-innovation-training",
+  "version": 1,
+  "institution": "东南大学",
+  "skill_id": "innovation-research",
+  "scope": "仅用于东南大学2026年国省创附件2-1的历史批次回归；不得泛化为全国统一规定",
+  "retrieved_date": "2026-10-18",
+  "notice_url": "https://jwc.seu.edu.cn/2026/0326/c69791a559495/page.htm",
+  "sources": {
+    "notice": {
+      "url": "https://jwc.seu.edu.cn/_upload/article/files/71/75/58681d784ea4a3430f796a7d7003/f9da8747-fcdb-4048-8a57-8ba5a35cfdfc.pdf",
+      "sha256": "e310b14a11b23d5f643033721b385510f7b2e799c8f468c7ba86afe6a7fd9b3a"
+    },
+    "guide": {
+      "url": "https://jwc.seu.edu.cn/_upload/article/files/71/75/58681d784ea4a3430f796a7d7003/f2be4fc1-b099-4458-adb5-f546070b6839.pdf",
+      "sha256": "70194f98fefb8bc3361db8ca3c3727e6d8cf22c656b578af6c27383090bb79cc"
+    },
+    "template": {
+      "url": "https://jwc.seu.edu.cn/_upload/article/files/71/75/58681d784ea4a3430f796a7d7003/9b21fcc4-42ed-4b0f-be2a-9f735b00f871.docx",
+      "sha256": "c7b6d9e4f9bac24efab4ada678ac825388c8fdfe2d838b583da9601ee7be42c9"
+    }
+  },
+  "requirements": [
+    {
+      "id": "eligibility",
+      "source": "notice",
+      "locator": "第2页，二、申报要求，第1条",
+      "rule": "2026年中期检查成绩优良的校级SRTP项目及研学作品具有申报资格；初步想法不等于已具备资格。"
+    },
+    {
+      "id": "duration",
+      "source": "notice",
+      "locator": "第3页，二、申报要求，第6条",
+      "rule": "研究周期原则上一年，项目结题应在负责人毕业前一学期完成。"
+    },
+    {
+      "id": "team",
+      "source": "guide",
+      "locator": "第1页，项目申报说明，创新训练项目",
+      "rule": "创新训练团队不得超过5人。"
+    },
+    {
+      "id": "deadline",
+      "source": "notice",
+      "locator": "第4页，四、申报与评审流程，第1条",
+      "rule": "学生申报与指导教师审核截止2026-04-20；当前已过期，不提示用户仍可申报该批次。"
+    },
+    {
+      "id": "level",
+      "source": "guide",
+      "locator": "第3页，填写项目基本情况",
+      "rule": "该批次拟申报项目级别统一选择省级一般，重点支持项目统一选择一般项目；推荐级别以学校公示结果为准。"
+    },
+    {
+      "id": "outline",
+      "source": "template",
+      "locator": "附件2-1，二、立项依据",
+      "rule": "按七项栏目组织立项依据，不套用创业训练或创业实践的商业计划书结构。"
+    },
+    {
+      "id": "budget",
+      "source": "template",
+      "locator": "附件2-1，三、经费预算",
+      "rule": "预算包含开支科目、预算经费、主要用途及前后阶段经费计划；学校批准经费不等于申请金额。"
+    }
+  ],
+  "top_level_sections": ["基本情况", "立项依据", "经费预算", "指导教师意见", "院系意见", "学校意见"],
+  "rationale_sections": [
+    {"id": "purpose", "title": "研究目的"},
+    {"id": "research_content", "title": "研究内容"},
+    {"id": "research_status", "title": "国内外研究现状和发展动态"},
+    {"id": "innovation", "title": "创新点与项目特色"},
+    {"id": "technical_route", "title": "技术路线、拟解决的问题及预期成果"},
+    {"id": "schedule", "title": "项目研究进度安排"},
+    {"id": "foundation", "title": "已有基础"}
+  ],
+  "not_established_by_these_sources": [
+    "统一最低字数15000",
+    "统一至少30篇文献",
+    "统一24个月周期",
+    "官方百分制评审权重",
+    "试点课题已获准立项或达到获奖水平"
+  ]
+}

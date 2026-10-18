@@ -114,6 +114,10 @@ class OllamaIntentDecider:
         self.base_url = base_url.rstrip("/")
 
     def decide(self, query: str, candidates: list[dict[str, Any]]) -> str | None:
+        available, choice = self.decide_with_status(query, candidates)
+        return choice if available else None
+
+    def decide_with_status(self, query: str, candidates: list[dict[str, Any]]) -> tuple[bool, str | None]:
         options = [
             {"id": item["name"], "name": item["display_name"], "description": item.get("description", "")[:180]}
             for item in candidates[:3]
@@ -139,9 +143,11 @@ class OllamaIntentDecider:
             with urllib.request.urlopen(request, timeout=3) as response:
                 data = json.loads(response.read().decode("utf-8"))
             selected = json.loads(data["message"]["content"]).get("id")
-            return selected if selected in {option["id"] for option in options} else None
-        except (urllib.error.URLError, TimeoutError, OSError, ValueError, KeyError, TypeError):
-            return None
+            if selected in {option["id"] for option in options}:
+                return True, selected
+            return True, None
+        except Exception:
+            return False, None
 
 
 class CloudIntentDecider:
@@ -155,6 +161,10 @@ class CloudIntentDecider:
             self.base_url += "/chat/completions"
 
     def decide(self, query: str, candidates: list[dict[str, Any]]) -> str | None:
+        available, choice = self.decide_with_status(query, candidates)
+        return choice if available else None
+
+    def decide_with_status(self, query: str, candidates: list[dict[str, Any]]) -> tuple[bool, str | None]:
         options = [
             {"id": item["name"], "name": item["display_name"], "description": item.get("description", "")[:180]}
             for item in candidates[:3]
@@ -182,10 +192,12 @@ class CloudIntentDecider:
             with urllib.request.urlopen(request, timeout=4) as response:
                 data = json.loads(response.read().decode("utf-8"))
             content = data["choices"][0]["message"]["content"]
-            selected = json.loads(content).get("id")
-            return selected if selected in {option["id"] for option in options} else None
+            selected = json.loads(content or "{}").get("id")
+            if selected in {option["id"] for option in options}:
+                return True, selected
+            return True, None
         except Exception:
-            return None
+            return False, None
 
 
 class HybridIntentDecider:
@@ -201,9 +213,14 @@ class HybridIntentDecider:
 
     def decide(self, query: str, candidates: list[dict[str, Any]]) -> str | None:
         if self.local:
-            res = self.local.decide(query, candidates)
-            if res is not None:
-                return res
+            if hasattr(self.local, "decide_with_status"):
+                avail, choice = self.local.decide_with_status(query, candidates)
+                if avail:
+                    return choice
+            else:
+                res = self.local.decide(query, candidates)
+                if res is not None:
+                    return res
         if self.cloud:
             return self.cloud.decide(query, candidates)
         return None

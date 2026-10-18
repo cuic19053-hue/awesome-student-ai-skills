@@ -424,6 +424,33 @@ class Dispatcher:
     # ------------------------------------------------------------------
     # 主分流函数 (返回 top N)
     # ------------------------------------------------------------------
+    def _negated_skills(self, user_input: str) -> set[str]:
+        """识别用户明确表示不想/不要/不报的子技能。"""
+        text = normalize(user_input)
+        negated = set()
+        extra_catalog = {}
+        cat_file = Path(__file__).resolve().parent / "semantic_catalog.json"
+        if cat_file.is_file():
+            try:
+                extra_catalog = json.loads(cat_file.read_text(encoding="utf-8")).get("skills_semantic_profiles", {})
+            except Exception:
+                pass
+
+        for skill in self.skills:
+            name = skill.get("name", "")
+            aliases = [name, skill.get("display_name", ""), *skill.get("triggers", []), *extra_catalog.get(name, [])]
+            for alias in aliases:
+                candidate = normalize(str(alias))
+                if len(candidate) < 2:
+                    continue
+                position = text.find(candidate)
+                if position >= 0:
+                    prefix = text[max(0, position - 8):position]
+                    if re.search(r"(?:不想|不要|不报|不申请|不是|不考虑|不参加|别)(?:.{0,4})$", prefix):
+                        negated.add(name)
+                        break
+        return negated
+
     def _specific_matches(self, user_input: str) -> Dict[str, str]:
         """Only explicit, non-generic aliases can make a hard routing decision."""
         text = normalize(user_input)
@@ -459,16 +486,18 @@ class Dispatcher:
         """Return candidates and an abstaining decision, without breaking dispatch()."""
         if not user_input.strip():
             return {"selected": None, "needs_clarification": True, "candidates": [], "method": "empty"}
-        specific = self._specific_matches(user_input)
-        lexical = {item["name"]: item for item in self.keyword_match(user_input)}
+        negated = self._negated_skills(user_input)
+        specific = {k: v for k, v in self._specific_matches(user_input).items() if k not in negated}
+        lexical = {item["name"]: item for item in self.keyword_match(user_input) if item["name"] not in negated}
         semantic = self.semantic_scorer(user_input)
-        if not lexical and max(semantic.values(), default=0.0) < 0.60:
+        filtered_semantic = {k: v for k, v in semantic.items() if k not in negated}
+        if not lexical and max(filtered_semantic.values(), default=0.0) < 0.60:
             return {"selected": None, "needs_clarification": True, "candidates": [], "method": "insufficient"}
-        by_name = {skill["name"]: skill for skill in self.skills}
-        candidates: List[Dict[str, Any]] = []
+        by_name = {skill["name"]: skill for skill in self.skills if skill["name"] not in negated}
+        all_candidates: List[Dict[str, Any]] = []
         for name, skill in by_name.items():
             base = lexical.get(name)
-            similarity = max(0.0, min(1.0, float(semantic.get(name, 0.0))))
+            similarity = max(0.0, min(1.0, float(filtered_semantic.get(name, 0.0))))
             if not base and similarity < 0.28 and name not in specific:
                 continue
             item = dict(base) if base else {
@@ -488,26 +517,29 @@ class Dispatcher:
             if name in specific:
                 item["score"] += 12
                 item["matched"].append(f"hard:{specific[name]}")
-            candidates.append(item)
-        candidates.sort(key=lambda item: (-item["score"], item["name"]))
-        candidates = candidates[:max(1, top_n)]
+            all_candidates.append(item)
+        all_candidates.sort(key=lambda item: (-item["score"], item["name"]))
+
+        # 决策必须基于未截断的完整有效候选 all_candidates，不能被展示参数 top_n 改变决策
         selected = None
         method = "hybrid"
         comparison = any(word in normalize(user_input) for word in ("区别", "对比", "比较", "哪个好"))
         if len(specific) == 1 and not comparison:
             selected = next(iter(specific))
             method = "hard_rule"
-        elif not specific and not comparison and candidates:
-            first = candidates[0]
-            second_score = candidates[1]["score"] if len(candidates) > 1 else 0
-            if (first["score"] >= 8 and first["score"] - second_score >= 4) or (len(candidates) == 1 and first["score"] >= 5):
+        elif not specific and not comparison and all_candidates:
+            first = all_candidates[0]
+            second_score = all_candidates[1]["score"] if len(all_candidates) > 1 else 0
+            if (first["score"] >= 8 and first["score"] - second_score >= 4) or (len(all_candidates) == 1 and first["score"] >= 5):
                 selected = first["name"]
                 method = "hybrid"
-        if selected is None and self.intent_decider and candidates and not comparison and len(specific) < 2:
-            choice = self.intent_decider.decide(user_input, candidates[:3])
-            if choice in {item["name"] for item in candidates[:3]}:
+        if selected is None and self.intent_decider and all_candidates and not comparison and len(specific) < 2:
+            choice = self.intent_decider.decide(user_input, all_candidates[:3])
+            if choice in {item["name"] for item in all_candidates[:3]}:
                 selected = choice
                 method = "small_model"
+
+        candidates = all_candidates[:max(1, top_n)]
         return {
             "selected": selected,
             "needs_clarification": selected is None,

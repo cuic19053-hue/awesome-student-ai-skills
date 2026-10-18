@@ -113,14 +113,16 @@ class OllamaAgent:
         except Exception:
             return {"running": False, "model_installed": False, "model": self.model, "local": is_local}
 
-    def _record_usage(self, project_id: str, task_type: str, response: dict[str, Any]) -> None:
+    def _record_usage(
+        self, project_id: str, task_type: str, response: dict[str, Any], model: str | None = None
+    ) -> None:
         if not response or "usage" not in response:
             return
         u = response["usage"]
         self.store.record_token_usage(
             project_id=project_id,
             task_type=task_type,
-            model=self.model,
+            model=model or self.model,
             prompt_tokens=u.get("prompt_tokens", 0),
             completion_tokens=u.get("completion_tokens", 0),
             total_tokens=u.get("total_tokens", 0),
@@ -198,8 +200,9 @@ class OllamaAgent:
                 ]
             messages.append(converted)
 
+        actual_model = str(payload.get("model") or self.model)
         request_body: dict[str, Any] = {
-            "model": payload.get("model", self.model),
+            "model": actual_model,
             "messages": messages,
             "stream": False,
         }
@@ -213,10 +216,19 @@ class OllamaAgent:
             request_body["max_tokens"] = options["num_predict"]
         if self.meter is not None:
             request_body["max_tokens"] = min(int(request_body.get("max_tokens") or 2048), 2048)
-        if payload.get("format"):
+        if isinstance(payload.get("format"), dict):
+            request_body["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "structured_response",
+                    "strict": True,
+                    "schema": payload["format"],
+                },
+            }
+        elif payload.get("format"):
             request_body["response_format"] = {"type": "json_object"}
 
-        usage_request_id = self.meter.reserve(self.model) if self.meter is not None else ""
+        usage_request_id = self.meter.reserve(actual_model) if self.meter is not None else ""
         request = urllib.request.Request(
             url,
             data=json.dumps(request_body, ensure_ascii=False).encode("utf-8"),
@@ -227,23 +239,31 @@ class OllamaAgent:
             },
             method="POST",
         )
-        try:
-            with (wopally_urlopen(request, timeout=timeout) if self.meter is not None
-                  else urllib.request.urlopen(request, timeout=timeout)) as response:
-                body = json.loads(response.read().decode("utf-8"))
-        except urllib.error.HTTPError as exc:
-            if usage_request_id:
-                # A provider rejection has no usable answer. Never charge the user.
-                self.meter.refund(usage_request_id)
-            # Avoid returning request headers or any credential material.
-            raise ModelUnavailable(
-                f"模型服务返回 HTTP {exc.code}。请检查 API 地址、密钥、模型名和账户额度。"
-            ) from exc
-        except urllib.error.URLError as exc:
-            # A timeout can have succeeded upstream. Leave the hold for reconciliation.
-            raise ModelUnavailable("无法连接自定义模型服务，请检查 HTTPS 地址和网络。") from exc
-        except (TimeoutError, json.JSONDecodeError) as exc:
-            raise ModelUnavailable(f"自定义模型请求失败：{exc}") from exc
+        body = None
+        for attempt in range(3):
+            try:
+                opener = wopally_urlopen if self.meter is not None else urllib.request.urlopen
+                with opener(request, timeout=timeout) as response:
+                    body = json.loads(response.read().decode("utf-8"))
+                break
+            except urllib.error.HTTPError as exc:
+                if exc.code in {429, 502, 503, 504} and attempt < 2:
+                    time.sleep(0.5 * (attempt + 1))
+                    continue
+                if usage_request_id:
+                    self.meter.refund(usage_request_id)
+                raise ModelUnavailable(
+                    f"模型服务返回 HTTP {exc.code}。请检查 API 地址、密钥、模型名和账户额度。"
+                ) from exc
+            except (TimeoutError, urllib.error.URLError) as exc:
+                if attempt < 2:
+                    time.sleep(0.5 * (attempt + 1))
+                    continue
+                raise ModelUnavailable("无法连接模型服务，请检查网络或稍后重试。") from exc
+            except json.JSONDecodeError as exc:
+                if usage_request_id:
+                    self.meter.refund(usage_request_id)
+                raise ModelUnavailable(f"模型返回内容解析失败：{exc}") from exc
         choices = body.get("choices") or []
         if not choices:
             if usage_request_id:
@@ -269,7 +289,7 @@ class OllamaAgent:
         key_fp = ("key_" + hashlib.sha256(self.api_key.encode()).hexdigest()[:8]) if self.api_key else "local"
         latency_ms = int((time.perf_counter() - start_t) * 1000) if "start_t" in locals() else 0
         if usage_request_id:
-            self.meter.settle(usage_request_id, self.model)
+            self.meter.settle(usage_request_id, actual_model)
 
         return {
             "message": {
@@ -686,6 +706,7 @@ class OllamaAgent:
             opts = {"temperature": 0.2}
             if options:
                 opts.update(options)
+            schema = opts.pop("response_schema", None)
             resp = self._post(
                 "/api/chat",
                 {
@@ -693,6 +714,7 @@ class OllamaAgent:
                     "messages": messages,
                     "stream": False,
                     "options": opts,
+                    **({"format": schema} if schema else {}),
                 },
                 timeout=180,
             )
@@ -727,6 +749,7 @@ class OllamaAgent:
                 opts = {"temperature": 0.0}
                 if options:
                     opts.update(options)
+                schema = opts.pop("response_schema", None)
                 resp = self._post(
                     "/api/chat",
                     {
@@ -734,10 +757,11 @@ class OllamaAgent:
                         "messages": messages,
                         "stream": False,
                         "options": opts,
+                        **({"format": schema} if schema else {}),
                     },
                     timeout=180,
                 )
-                self._record_usage(project_id, f"critic:{section_id}", resp)
+                self._record_usage(project_id, f"critic:{section_id}", resp, model=critic_model)
                 return str(resp.get("message", {}).get("content", "")).strip()
             critic_caller = _critic_call
 

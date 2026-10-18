@@ -50,6 +50,7 @@ from proposal.wopally_usage import UsageUnavailable, WopallyUsage
 from proposal.official_pricing import official_v1_charge, official_2x_charge
 from proposal.wopally_transport import wopally_urlopen
 from proposal.tools import ProposalTools
+from proposal.jobs import GenerationJobRunner
 from proposal.skills import normalize_skill_id, registry as skill_registry, valid_fact_key
 from proposal.wopally_client import WopallyCardRejected, WopallyClient, WopallyUnavailable
 
@@ -131,6 +132,11 @@ class SectionUpdate(BaseModel):
     content: str = Field(max_length=30000)
 
 
+class CreateJobInput(BaseModel):
+    idempotency_key: str = Field(default="", max_length=120)
+    llm_config: LLMConfigInput | None = None
+
+
 class FactConfirm(BaseModel):
     key: str = Field(min_length=1, max_length=80)
     value: str = Field(min_length=1, max_length=2000)
@@ -179,6 +185,14 @@ store = (
 retriever = ProjectRetriever(store, KeywordOnlyEmbedder() if CLOUD_MODE else None)
 tools = ProposalTools(store, retriever)
 agent = OllamaAgent(store, tools)
+job_runner = GenerationJobRunner(store)
+
+
+def _current_job_runner() -> GenerationJobRunner:
+    global job_runner
+    if job_runner.store is not store:
+        job_runner = GenerationJobRunner(store)
+    return job_runner
 dispatcher = Dispatcher() if Dispatcher else None
 
 app = FastAPI(
@@ -1497,20 +1511,116 @@ def generate_outline(project_id: str, payload: LLMRequest | None = None, request
     return {"outline": outline, "warning": warning, "confirmed": False}
 
 
+@app.post("/api/projects/{project_id}/sections/{section_id}/jobs")
+def create_section_job(
+    project_id: str,
+    section_id: str,
+    payload: CreateJobInput | None = None,
+    request: Request = None,
+) -> dict[str, Any]:
+    project = _safe_project(project_id)
+    current_content = (project.get("sections") or {}).get(section_id, "")
+    cfg = payload.llm_config if payload else None
+    idemp = payload.idempotency_key if payload else ""
+
+    def _run():
+        return _metered_invoke(
+            cfg, request, f"section:{section_id}", project_id,
+            lambda model: model.generate_section(project_id, section_id),
+        )
+
+    runner = _current_job_runner()
+    job = runner.submit_job(
+        project_id=project_id,
+        section_id=section_id,
+        invoke_fn=_run,
+        idempotency_key=idemp,
+        current_section_content=current_content,
+    )
+    return job
+
+
+@app.get("/api/projects/{project_id}/sections/{section_id}/jobs/{job_id}")
+def get_section_job(project_id: str, section_id: str, job_id: str) -> dict[str, Any]:
+    _safe_project(project_id)
+    runner = _current_job_runner()
+    job = runner.get_job_status(job_id)
+    if not job or job.get("project_id") != project_id or job.get("section_id") != section_id:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    return job
+
+
+@app.post("/api/projects/{project_id}/sections/{section_id}/jobs/{job_id}/cancel")
+def cancel_section_job(project_id: str, section_id: str, job_id: str) -> dict[str, Any]:
+    _safe_project(project_id)
+    runner = _current_job_runner()
+    cancelled = runner.cancel_job(job_id)
+    return {"cancelled": cancelled}
+
+
+@app.get("/api/projects/{project_id}/sections/{section_id}/versions")
+def list_section_versions(project_id: str, section_id: str, limit: int = 10) -> dict[str, Any]:
+    _safe_project(project_id)
+    versions = store.list_section_versions(project_id, section_id, limit=limit)
+    return {"versions": versions}
+
+
+@app.post("/api/projects/{project_id}/sections/{section_id}/versions/{version_id}/restore")
+def restore_section_version(project_id: str, section_id: str, version_id: str) -> dict[str, Any]:
+    project = _safe_project(project_id)
+    ver = store.get_section_version(version_id)
+    if not ver or ver.get("project_id") != project_id or ver.get("section_id") != section_id:
+        raise HTTPException(status_code=404, detail="版本不存在")
+    content = ver.get("content", "")
+    tools.save_section(project_id, section_id, content)
+    store.save_section_version(project_id, section_id, content, source="restore")
+    return {"restored": True, "version_id": version_id, "content": content}
+
+
 @app.post("/api/projects/{project_id}/sections/{section_id}/generate")
 def generate_section(
     project_id: str, section_id: str, payload: LLMRequest | None = None, request: Request = None
 ) -> dict[str, Any]:
-    _safe_project(project_id)
-    try:
+    project = _safe_project(project_id)
+    current_content = (project.get("sections") or {}).get(section_id, "")
+    cfg = payload.llm_config if payload else None
+
+    def _run():
         return _metered_invoke(
-            payload.llm_config if payload else None, request, f"section:{section_id}", project_id,
+            cfg, request, f"section:{section_id}", project_id,
             lambda model: model.generate_section(project_id, section_id),
         )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except ModelUnavailable as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    runner = _current_job_runner()
+    job = runner.submit_job(
+        project_id=project_id,
+        section_id=section_id,
+        invoke_fn=_run,
+        current_section_content=current_content,
+    )
+    import time
+    start = time.time()
+    while time.time() - start < 50:
+        latest = runner.get_job_status(job["id"])
+        if latest and latest["status"] == "completed":
+            return latest.get("result", {})
+        if latest and latest["status"] == "failed":
+            err = latest.get("error_message", "生成失败")
+            if any(k in err for k in ("请先确认", "章节不存在", "找不到这个项目", "章节标识无效")):
+                raise HTTPException(status_code=400, detail=err)
+            if any(k in err for k in ("无法连接", "模型服务返回", "自定义模型没有返回")):
+                raise HTTPException(status_code=503, detail=err)
+            raise HTTPException(status_code=500, detail=err)
+        time.sleep(0.4)
+
+    return JSONResponse(
+        status_code=202,
+        content={
+            "status": "processing",
+            "job_id": job["id"],
+            "message": "生成任务在后台持续执行中，请通过任务接口查询结果。",
+        },
+    )
 
 
 @app.put("/api/projects/{project_id}/outline")

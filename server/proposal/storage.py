@@ -241,6 +241,35 @@ class Store:
                 );
                 CREATE INDEX IF NOT EXISTS idx_workbench_usage_user_created
                     ON workbench_usage_events(user_id, created_at DESC);
+                CREATE TABLE IF NOT EXISTS generation_jobs (
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL,
+                    section_id TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    step TEXT NOT NULL DEFAULT 'queued',
+                    attempt INTEGER NOT NULL DEFAULT 1,
+                    idempotency_key TEXT NOT NULL DEFAULT '',
+                    base_version TEXT NOT NULL DEFAULT '',
+                    result_json TEXT NOT NULL DEFAULT '{}',
+                    error_message TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_gen_jobs_project_section
+                    ON generation_jobs(project_id, section_id, status);
+                CREATE INDEX IF NOT EXISTS idx_gen_jobs_idempotency
+                    ON generation_jobs(project_id, idempotency_key);
+                CREATE TABLE IF NOT EXISTS section_versions (
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL,
+                    section_id TEXT NOT NULL,
+                    source TEXT NOT NULL DEFAULT 'user_edit',
+                    content TEXT NOT NULL,
+                    review_card_json TEXT NOT NULL DEFAULT '{}',
+                    created_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_section_versions_proj_sec
+                    ON section_versions(project_id, section_id, created_at DESC);
                 """
             )
             columns = {row[1] for row in db.execute("PRAGMA table_info(workbench_vouchers)")}
@@ -1441,3 +1470,158 @@ class Store:
                 (now, event["id"]),
             )
             return {"status": "refunded", "duplicate": False, "balance_micro_cny": balance}
+
+    # ------------------------------------------------------------------
+    # 异步生成任务 (Generation Jobs) 与版本保护
+    # ------------------------------------------------------------------
+
+    def create_generation_job(
+        self, project_id: str, section_id: str, idempotency_key: str = "", base_version: str = ""
+    ) -> dict[str, Any]:
+        with self.connect() as db:
+            job_id = new_id()
+            now = utc_now()
+            db.execute(
+                """INSERT INTO generation_jobs
+                (id, project_id, section_id, status, step, attempt, idempotency_key, base_version, result_json, error_message, created_at, updated_at)
+                VALUES (?, ?, ?, 'pending', 'queued', 1, ?, ?, '{}', '', ?, ?)""",
+                (job_id, project_id, section_id, idempotency_key or "", base_version or "", now, now),
+            )
+        return self.get_generation_job(job_id)  # type: ignore[return-value]
+
+    def get_generation_job(self, job_id: str) -> dict[str, Any] | None:
+        with self.connect() as db:
+            row = db.execute("SELECT * FROM generation_jobs WHERE id=?", (job_id,)).fetchone()
+        if not row:
+            return None
+        res = dict(row)
+        res["result"] = self._decode_json(res.pop("result_json", "{}"), {})
+        return res
+
+    def find_job_by_idempotency_key(self, project_id: str, idempotency_key: str) -> dict[str, Any] | None:
+        if not idempotency_key:
+            return None
+        with self.connect() as db:
+            row = db.execute(
+                "SELECT * FROM generation_jobs WHERE project_id=? AND idempotency_key=? ORDER BY created_at DESC LIMIT 1",
+                (project_id, idempotency_key),
+            ).fetchone()
+        if not row:
+            return None
+        res = dict(row)
+        res["result"] = self._decode_json(res.pop("result_json", "{}"), {})
+        return res
+
+    def find_active_job(self, project_id: str, section_id: str) -> dict[str, Any] | None:
+        with self.connect() as db:
+            row = db.execute(
+                """SELECT * FROM generation_jobs
+                WHERE project_id=? AND section_id=? AND status IN ('pending', 'running')
+                ORDER BY created_at DESC LIMIT 1""",
+                (project_id, section_id),
+            ).fetchone()
+        if not row:
+            return None
+        res = dict(row)
+        res["result"] = self._decode_json(res.pop("result_json", "{}"), {})
+        return res
+
+    def update_generation_job(
+        self,
+        job_id: str,
+        status: str,
+        step: str | None = None,
+        result: dict[str, Any] | None = None,
+        error: str | None = None,
+    ) -> dict[str, Any] | None:
+        with self.connect() as db:
+            cur = self.get_generation_job(job_id)
+            if not cur:
+                return None
+            # 终态防重入保护：已取消或已终态的任务不能被中间态覆盖
+            if cur.get("status") == "cancelled" and status != "cancelled":
+                return cur
+            updates = ["status=?", "updated_at=?"]
+            params: list[Any] = [status, utc_now()]
+            if step is not None:
+                updates.append("step=?")
+                params.append(step)
+            if result is not None:
+                updates.append("result_json=?")
+                params.append(json.dumps(result, ensure_ascii=False))
+            if error is not None:
+                updates.append("error_message=?")
+                params.append(error)
+            params.append(job_id)
+            db.execute(f"UPDATE generation_jobs SET {', '.join(updates)} WHERE id=?", params)
+        return self.get_generation_job(job_id)
+
+    def cancel_generation_job(self, job_id: str) -> bool:
+        with self.connect() as db:
+            job = self.get_generation_job(job_id)
+            if not job or job["status"] in {"completed", "failed", "cancelled"}:
+                return False
+            db.execute(
+                "UPDATE generation_jobs SET status='cancelled', updated_at=? WHERE id=?",
+                (utc_now(), job_id),
+            )
+        return True
+
+    def save_section_version(
+        self,
+        project_id: str,
+        section_id: str,
+        content: str,
+        source: str = "user_edit",
+        review_card: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        version_id = new_id()
+        now = utc_now()
+        with self.connect() as db:
+            db.execute(
+                """INSERT INTO section_versions
+                (id, project_id, section_id, source, content, review_card_json, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    version_id,
+                    project_id,
+                    section_id,
+                    source,
+                    content,
+                    json.dumps(review_card or {}, ensure_ascii=False),
+                    now,
+                ),
+            )
+        return {
+            "id": version_id,
+            "project_id": project_id,
+            "section_id": section_id,
+            "source": source,
+            "content": content,
+            "review_card": review_card or {},
+            "created_at": now,
+        }
+
+    def list_section_versions(self, project_id: str, section_id: str, limit: int = 10) -> list[dict[str, Any]]:
+        with self.connect() as db:
+            rows = db.execute(
+                """SELECT * FROM section_versions
+                WHERE project_id=? AND section_id=?
+                ORDER BY created_at DESC LIMIT ?""",
+                (project_id, section_id, max(1, min(limit, 50))),
+            ).fetchall()
+        results = []
+        for r in rows:
+            item = dict(r)
+            item["review_card"] = self._decode_json(item.pop("review_card_json", "{}"), {})
+            results.append(item)
+        return results
+
+    def get_section_version(self, version_id: str) -> dict[str, Any] | None:
+        with self.connect() as db:
+            row = db.execute("SELECT * FROM section_versions WHERE id=?", (version_id,)).fetchone()
+        if not row:
+            return None
+        res = dict(row)
+        res["review_card"] = self._decode_json(res.pop("review_card_json", "{}"), {})
+        return res

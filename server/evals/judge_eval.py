@@ -1,27 +1,28 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-LLM-as-a-Judge 评测套件：高校申报书质量与防伪评测
-=================================================
-
-设计严密的多维度打分 Prompt 与 Golden Cases：
-  - 维度 1: 真实性与防伪事实 (Factuality & Grounding, 权重 35%)
-  - 维度 2: 科学挑战与技术深度 (Scientific Rigor & Depth, 权重 30%)
-  - 维度 3: 格式与结构规范 (Compliance & Structure, 权重 20%)
-  - 维度 4: 学术行文与成熟度 (Tone & Style, 权重 15%)
+LLM-as-a-Judge 自动化评测套件
+============================
 
 评测目标：
-  1. 验证评委模型能否准确识别出虚构数据、空洞套话；
-  2. 验证达标样本（国奖金奖标准）与不达标样本的分数区分度（Pass / Fail 辨别力）；
-  3. 统计评测延迟与判断一致性。
+  使用独立的裁判大模型（如 DeepSeek-R1 / GPT-4o / Claude 3.5）对学生申报书草稿进行
+  盲审打分与事实防伪评测，检验真实模型在 4 维度 Rubrics 下的区分度与一致性。
+
+运行模式：
+  1. 真实大模型模式（需配置 EVAL_API_KEY / EVAL_MODEL 或 OPENAI_API_KEY）：
+     调用真实模型对正向样本与对抗样本打分，输出区分度指标与延迟统计。
+  2. 离线校验模式（未提供外部密钥时）：
+     明确提示未配置真实模型密钥，不将规则模拟冒充真实评测结论。
 """
 
 from __future__ import annotations
 
 import json
+import os
 import statistics
 import sys
 import time
+import urllib.request
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -32,19 +33,15 @@ if str(ROOT) not in sys.path:
 if str(SERVER) not in sys.path:
     sys.path.insert(0, str(SERVER))
 
-from proposal.workflow import AgenticWorkflowEngine, CriticReview, ProjectBlackboard
+from proposal.workflow import AgenticWorkflowEngine, CriticResponse, ProjectBlackboard
 
-
-# ============================================================================
-# 评测用例集 (Golden Test Cases)
-# ============================================================================
 
 GOLDEN_CASES: List[Dict[str, Any]] = [
     {
         "id": "gold_case_01",
         "title": "国家级大创优秀技术路线草稿（正向样本）",
         "expected_pass": True,
-        "min_score": 82.0,
+        "min_score": 80.0,
         "content": """
 ### 2.2 多模态注意力特征对齐与融合算法
 针对复杂火场烟雾遮蔽问题，本项目设计双流特征提取网络，分别提取可见光色彩纹理与长波红外热辐射特征。
@@ -65,7 +62,7 @@ GOLDEN_CASES: List[Dict[str, Any]] = [
         "id": "gold_case_02",
         "title": "套话虚构型草稿（负向样本 - 空洞且虚构奖项）",
         "expected_pass": False,
-        "max_score": 75.0,
+        "max_score": 70.0,
         "content": """
 ### 1.1 立项背景
 在当今信息技术飞速发展的时代，科技创新是推动社会前进的伟大力量。
@@ -79,7 +76,7 @@ GOLDEN_CASES: List[Dict[str, Any]] = [
         "id": "gold_case_03",
         "title": "未标记硬性缺失的半成品草稿（负向样本 - 缺少关键事实且未标待补充）",
         "expected_pass": False,
-        "max_score": 78.0,
+        "max_score": 75.0,
         "content": """
 ### 3.1 进度安排与经费预算
 本项目计划用时两年完成。第一阶段进行文献调研，第二阶段进行代码编写，第三阶段进行测试。
@@ -91,49 +88,43 @@ GOLDEN_CASES: List[Dict[str, Any]] = [
 
 
 def run_evals(custom_critic_caller=None) -> Dict[str, Any]:
-    """运行 LLM-as-a-Judge 评测套件并输出质量统计报告。"""
+    api_key = os.environ.get("EVAL_API_KEY", os.environ.get("OPENAI_API_KEY", "")).strip()
+    api_base = os.environ.get("EVAL_API_BASE", os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1")).rstrip("/")
+    eval_model = os.environ.get("EVAL_MODEL", "gpt-4o-mini").strip()
 
-    # 若未注入真实远程模型，采用严谨的离线规则评审器模拟判定，确保随时可离线自测
-    def default_judge(messages: List[Dict[str, str]], options: Any = None) -> str:
-        prompt_text = messages[-1]["content"]
-        # 真实性与虚构检查
-        has_fabrication = "张三院士" in prompt_text or "完美无缺" in prompt_text or "消灭所有" in prompt_text
-        has_placeholder = "【待补充" in prompt_text or "待补充：" in prompt_text
-        has_metrics = "mAP@" in prompt_text or "ms" in prompt_text
-        has_empty_talk = "飞速发展的时代" in prompt_text
+    if custom_critic_caller is None and not api_key:
+        return {
+            "suite": "LLM-as-a-Judge Student Proposal Evals",
+            "status": "skipped",
+            "message": "未配置 EVAL_API_KEY 或 OPENAI_API_KEY。为避免误将规则模拟作为模型评测，已跳过线上真实评测。离线结构测试请运行 pytest tests/test_review_safety.py",
+            "total_cases": len(GOLDEN_CASES),
+            "pass_rate": None,
+        }
 
-        if has_fabrication or has_empty_talk:
-            score = 58.0
-            passed = False
-            weaknesses = ["存在虚构表述或夸大事实", "行文充斥AI套话与空泛口号"]
-            actions = ["剔除虚构人物与未经核实成果", "将泛化描述替换为具体科学问题"]
-        elif not has_metrics and "经费预算" in prompt_text:
-            score = 68.0
-            passed = False
-            weaknesses = ["预算缺乏测算依据", "阶段交付物缺少量化指标"]
-            actions = ["细化预算科目依据与季度产出"]
-        else:
-            score = 88.0
-            passed = True
-            weaknesses = ["字数规模可进一步扩展"]
-            actions = ["在材料库补充真实试验数据"]
+    def remote_llm_judge(messages: List[Dict[str, str]], options: Any = None) -> str:
+        req = urllib.request.Request(
+            f"{api_base}/chat/completions",
+            data=json.dumps({
+                "model": eval_model,
+                "temperature": 0.0,
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "critic_response",
+                        "strict": True,
+                        "schema": CriticResponse.model_json_schema(),
+                    },
+                },
+                "messages": messages,
+            }, ensure_ascii=False).encode("utf-8"),
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=45) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        return data["choices"][0]["message"]["content"]
 
-        return json.dumps({
-            "overall_score": score,
-            "passed": passed,
-            "dimensions": [
-                {"name": "真实性与防伪事实", "score": 90.0 if not has_fabrication else 45.0, "weight": 0.35, "comment": "防伪审查"},
-                {"name": "科学挑战与技术深度", "score": 85.0 if has_metrics else 60.0, "weight": 0.30, "comment": "技术指标"},
-                {"name": "格式与结构规范", "score": 88.0, "weight": 0.20, "comment": "格式规范"},
-                {"name": "学术行文与成熟度", "score": 86.0 if not has_empty_talk else 50.0, "weight": 0.15, "comment": "语言成熟度"},
-            ],
-            "strengths": ["技术路线清晰量化" if has_metrics else "提出了基本规划"],
-            "weaknesses": weaknesses,
-            "actionable_revisions": actions,
-            "user_action_required": ["请核实补充真实试验数据"] if has_placeholder else [],
-        })
-
-    critic_fn = custom_critic_caller or default_judge
+    critic_fn = custom_critic_caller or remote_llm_judge
     engine = AgenticWorkflowEngine(draft_caller=lambda msgs, opts: "", critic_caller=critic_fn)
     bb = ProjectBlackboard(project_name="评测基准项目")
 
@@ -154,40 +145,47 @@ def run_evals(custom_critic_caller=None) -> Dict[str, Any]:
         elapsed_ms = (time.perf_counter() - t0) * 1000
         latencies.append(elapsed_ms)
 
-        passed_match = (review.passed == case["expected_pass"])
         score_match = True
-        if "min_score" in case and review.overall_score < case["min_score"]:
+        if review.overall_score is None:
             score_match = False
-        if "max_score" in case and review.overall_score > case["max_score"]:
-            score_match = False
+        else:
+            if "min_score" in case and review.overall_score < case["min_score"]:
+                score_match = False
+            if "max_score" in case and review.overall_score > case["max_score"]:
+                score_match = False
 
+        passed_match = (review.overall_score is not None and (review.overall_score >= 80.0) == case["expected_pass"])
         case_passed = passed_match and score_match
+
         results.append({
             "case_id": case["id"],
             "title": case["title"],
             "expected_pass": case["expected_pass"],
-            "actual_pass": review.passed,
             "score": review.overall_score,
             "passed": case_passed,
+            "review_status": review.review_status,
             "weaknesses": review.weaknesses,
-            "user_action_required": review.user_action_required,
+            "blocking_issues": review.blocking_issues,
             "latency_ms": round(elapsed_ms, 2),
         })
 
     all_passed = sum(1 for r in results if r["passed"])
     total = len(results)
 
-    report = {
+    return {
         "suite": "LLM-as-a-Judge Student Proposal Evals",
+        "status": "completed",
+        "eval_model": eval_model,
         "total_cases": total,
         "pass_rate": round(all_passed / total, 4),
-        "mean_latency_ms": round(statistics.mean(latencies), 2),
+        "mean_latency_ms": round(statistics.mean(latencies), 2) if latencies else 0,
         "cases": results,
     }
-    return report
 
 
 if __name__ == "__main__":
     rep = run_evals()
     print(json.dumps(rep, ensure_ascii=False, indent=2))
-    sys.exit(0 if rep["pass_rate"] == 1.0 else 1)
+    if rep.get("status") == "skipped":
+        sys.exit(0)
+    sys.exit(0 if rep.get("pass_rate") == 1.0 else 1)

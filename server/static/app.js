@@ -2020,12 +2020,15 @@
 
     const scoreTitle = document.createElement("div");
     scoreTitle.className = "agentic-review-score";
-    scoreTitle.textContent = `🏆 评委专家评审: ${card.score} 分 · ${card.grade || ""}`;
+    const incomplete = card.review_status === "failed" || !Number.isFinite(card.score);
+    scoreTitle.textContent = incomplete
+      ? "AI 辅助检查：评审未完成（无分数）"
+      : `AI 辅助检查：${card.score} 分 · ${card.grade || ""}（非官方评审）`;
 
     const badge = document.createElement("span");
-    const isGold = (card.grade || "").includes("A");
-    badge.className = `agentic-review-badge ${isGold ? "gold" : card.passed ? "" : "warning"}`;
-    badge.textContent = card.iterations > 1 ? `经 ${card.iterations} 轮反思自愈` : "首轮评审达标";
+    badge.className = `agentic-review-badge ${card.passed && !incomplete ? "" : "warning"}`;
+    badge.textContent = incomplete ? "草稿保留 · 待重试评审"
+      : `${card.iterations} 轮检查 · ${card.passed ? "通过辅助检查" : "待完善"}`;
 
     header.append(scoreTitle, badge);
     cardEl.append(header);
@@ -2208,27 +2211,52 @@
         statusPill.textContent = "✦ 生成中…";
         wrapper.classList.add("generating");
         try {
-          const result = await api(`/api/projects/${state.project.id}/sections/${section.id}/generate`, { method: "POST" });
-          editor.value = result.content;
-          wordBadge.textContent = `${countWords(result.content)} 字`;
-          const evidence = (result.evidence || []).map((e) => `${e.source_name} · ${e.source_ref}`).join("；");
-          sources.textContent = evidence ? `检索依据：${evidence}` : "未检索到可用材料；请补充事实或保留“待补充”标记。";
-          state.project.sections = state.project.sections || {};
-          state.project.sections[section.id] = result.content;
-
-          await api(`/api/projects/${state.project.id}/sections/${section.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ content: result.content }),
-          });
-
-          if (result.review_card) {
-            renderReviewCard(wrapper, result.review_card);
+          let result = await api(`/api/projects/${state.project.id}/sections/${section.id}/generate`, { method: "POST" });
+          if (result && result.status === "processing" && result.job_id) {
+            statusPill.textContent = "✦ 后台生成中…";
+            for (let i = 0; i < 45; i++) {
+              await new Promise(r => setTimeout(r, 2000));
+              const jobSt = await api(`/api/projects/${state.project.id}/sections/${section.id}/jobs/${result.job_id}`);
+              if (jobSt && jobSt.status === "completed") {
+                result = jobSt.result || {};
+                break;
+              }
+              if (jobSt && jobSt.status === "failed") {
+                throw new Error(jobSt.error_message || "后台生成失败");
+              }
+              statusPill.textContent = `✦ 生成中(${jobSt.step || "执行中"})…`;
+            }
           }
-          statusPill.className = "section-status-pill saved";
-          statusPill.textContent = "✓ 已保存";
-          updateDraftStats();
-          toast("章节草稿已生成并自动保存。");
+
+          if (result.conflict_status === "user_edit_preserved") {
+            toast(result.notice || "检测到您已编辑该章节，AI最新草稿已安全存入历史版本，未覆盖您的正文。", false);
+            statusPill.className = "section-status-pill saved";
+            statusPill.textContent = "● 有新备选版本";
+            if (result.review_card) {
+              renderReviewCard(wrapper, result.review_card);
+            }
+          } else if (result.content) {
+            editor.value = result.content;
+            wordBadge.textContent = `${countWords(result.content)} 字`;
+            const evidence = (result.evidence || []).map((e) => `${e.source_name} · ${e.source_ref}`).join("；");
+            sources.textContent = evidence ? `检索依据：${evidence}` : "未检索到可用材料；请补充事实或保留“待补充”标记。";
+            state.project.sections = state.project.sections || {};
+            state.project.sections[section.id] = result.content;
+
+            await api(`/api/projects/${state.project.id}/sections/${section.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ content: result.content }),
+            });
+
+            if (result.review_card) {
+              renderReviewCard(wrapper, result.review_card);
+            }
+            statusPill.className = "section-status-pill saved";
+            statusPill.textContent = "✓ 已保存";
+            updateDraftStats();
+            toast("章节草稿已生成并自动保存。");
+          }
         } catch (error) {
           statusPill.className = "section-status-pill unsaved";
           statusPill.textContent = "● 生成失败";
