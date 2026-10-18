@@ -68,6 +68,41 @@ def test_supabase_store_rejects_calls_without_authenticated_request_context(tmp_
         store.list_projects()
 
 
+def test_generated_file_uses_ascii_storage_key_for_chinese_filename(monkeypatch, tmp_path):
+    captured = {}
+
+    def fake_urlopen(request, timeout=0):
+        captured["url"] = request.full_url
+        captured["body"] = request.data
+        captured["upsert"] = request.get_header("X-upsert")
+        return io.BytesIO(b"")
+
+    import proposal.supabase_store as module
+
+    monkeypatch.setattr(module.urllib.request, "urlopen", fake_urlopen)
+    store = SupabaseStore("https://example.supabase.co", "sb_publishable_test", tmp_path)
+    source = tmp_path / "draft.docx"
+    source.write_bytes(b"word document")
+    context = request_identity.set(
+        {"user_id": "owner-id", "access_token": "user-jwt"}
+    )
+    try:
+        storage_path = store.persist_generated_file(
+            "project-id",
+            "申报书草稿.docx",
+            source,
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
+    finally:
+        request_identity.reset(context)
+
+    assert storage_path == "owner-id/project-id/_generated/generated-docx"
+    assert "generated-docx" in captured["url"]
+    assert "申报书草稿" not in captured["url"]
+    assert captured["body"] == b"word document"
+    assert captured["upsert"] == "true"
+
+
 def test_cloud_upload_storage_path_must_match_user_and_project(tmp_path):
     store = SupabaseStore("https://example.supabase.co", "sb_publishable_test", tmp_path)
     context = request_identity.set(

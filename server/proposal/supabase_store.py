@@ -188,11 +188,12 @@ class SupabaseStore:
         path: str,
         content: bytes | None = None,
         content_type: str = "application/octet-stream",
+        upsert: bool = False,
     ) -> bytes:
         url = f"{self.project_url}/storage/v1/object/{self.bucket}/{urllib.parse.quote(path, safe='/')}"
         headers = self._headers({"Content-Type": content_type})
         if method == "POST":
-            headers["x-upsert"] = "false"
+            headers["x-upsert"] = "true" if upsert else "false"
         request = urllib.request.Request(url, data=content, headers=headers, method=method)
         try:
             with urllib.request.urlopen(request, timeout=45) as response:
@@ -393,9 +394,18 @@ class SupabaseStore:
         self, project_id: str, filename: str, local_path: str | Path, content_type: str
     ) -> str:
         identity = self._identity()
-        safe_name = Path(filename).name
+        # Keep storage object keys ASCII-only. Supabase Storage rejects some
+        # non-ASCII object keys (e.g. the Chinese "申报书草稿.docx") as InvalidKey.
+        # The user-facing download name is set separately in download_docx.
+        safe_name = "generated-" + Path(filename).suffix.lower().lstrip(".")
         storage_path = f"{identity['user_id']}/{project_id}/_generated/{safe_name}"
-        self._storage("POST", storage_path, Path(local_path).read_bytes(), content_type)
+        self._storage(
+            "POST",
+            storage_path,
+            Path(local_path).read_bytes(),
+            content_type,
+            upsert=True,
+        )
         return storage_path
 
     def read_generated_file(self, storage_path: str) -> bytes:
