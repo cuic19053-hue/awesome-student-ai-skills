@@ -23,7 +23,7 @@
 - `server/proposal/billing_policy.py`：固定时间、账号资格、对外可见免费次数。
 - `server/proposal/storage.py`：本地 SQLite 同等规则；原子扣次与付款后的自动清零。
 - `server/proposal/supabase_store.py`：云端双重校验，缺失记录不虚构免费次数。
-- `20261018085406_workbench_registration_trial_cutoff.sql`：
+- `20261018092506_workbench_registration_trial_cutoff.sql`：
   - 仅调整老用户/已入账用户的免费次数，不变更任何货币字段；
   - 充值防护触发器覆盖所有修改同一钱包的付款/卡密路径；
   - 新注册触发器只发放一次；复用已有注册触发器，不重复注册；

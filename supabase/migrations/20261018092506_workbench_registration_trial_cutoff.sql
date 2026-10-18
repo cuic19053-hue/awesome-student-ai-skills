@@ -1,4 +1,5 @@
 -- User-approved boundary: 2026-10-18 16:51:47 Asia/Shanghai.
+-- Filename matches the production migration history version assigned on apply.
 -- Registration time comes from auth.users, never user-editable metadata.
 -- This migration changes trial counts only; it never changes monetary balances.
 BEGIN;

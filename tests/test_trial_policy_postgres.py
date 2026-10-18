@@ -108,7 +108,7 @@ def test_registration_policy_migration_in_real_postgres(existing_signup_trigger)
               AFTER INSERT ON auth.users
               FOR EACH ROW EXECUTE FUNCTION public.handle_new_user_welcome_credits();
             """)
-        migration = (ROOT / "supabase/migrations/20261018085406_workbench_registration_trial_cutoff.sql").read_text()
+        migration = (ROOT / "supabase/migrations/20261018092506_workbench_registration_trial_cutoff.sql").read_text()
         sql(migration)
         sql("""
           DO $$
