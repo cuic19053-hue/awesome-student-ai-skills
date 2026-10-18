@@ -1535,12 +1535,15 @@ class Store:
         error: str | None = None,
     ) -> dict[str, Any] | None:
         with self.connect() as db:
-            cur = self.get_generation_job(job_id)
-            if not cur:
+            row = db.execute("SELECT status FROM generation_jobs WHERE id=?", (job_id,)).fetchone()
+            if not row:
                 return None
-            # 终态防重入保护：已取消或已终态的任务不能被中间态覆盖
-            if cur.get("status") == "cancelled" and status != "cancelled":
-                return cur
+            cur_status = row["status"]
+            # 终态防重入保护：已取消或已终态的任务不能被非对应终态覆盖
+            if cur_status == "cancelled" and status != "cancelled":
+                return self.get_generation_job(job_id)
+            if cur_status in {"completed", "failed"} and status in {"pending", "running"}:
+                return self.get_generation_job(job_id)
             updates = ["status=?", "updated_at=?"]
             params: list[Any] = [status, utc_now()]
             if step is not None:
@@ -1553,18 +1556,25 @@ class Store:
                 updates.append("error_message=?")
                 params.append(error)
             params.append(job_id)
-            db.execute(f"UPDATE generation_jobs SET {', '.join(updates)} WHERE id=?", params)
+            where_clauses = ["WHERE id=?"]
+            if status != "cancelled":
+                where_clauses.append("AND status != 'cancelled'")
+            if status in {"pending", "running"}:
+                where_clauses.append("AND status NOT IN ('completed', 'failed')")
+            db.execute(f"UPDATE generation_jobs SET {', '.join(updates)} {' '.join(where_clauses)}", params)
         return self.get_generation_job(job_id)
 
     def cancel_generation_job(self, job_id: str) -> bool:
         with self.connect() as db:
-            job = self.get_generation_job(job_id)
-            if not job or job["status"] in {"completed", "failed", "cancelled"}:
+            row = db.execute("SELECT status FROM generation_jobs WHERE id=?", (job_id,)).fetchone()
+            if not row or row["status"] in {"completed", "failed", "cancelled"}:
                 return False
-            db.execute(
-                "UPDATE generation_jobs SET status='cancelled', updated_at=? WHERE id=?",
+            cursor = db.execute(
+                "UPDATE generation_jobs SET status='cancelled', updated_at=? WHERE id=? AND status NOT IN ('completed', 'failed', 'cancelled')",
                 (utc_now(), job_id),
             )
+            if cursor.rowcount == 0:
+                return False
         return True
 
     def save_section_version(

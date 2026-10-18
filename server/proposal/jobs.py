@@ -105,7 +105,9 @@ class GenerationJobRunner:
             if not job or job.get("status") == "cancelled":
                 return
 
-            self.store.update_generation_job(job_id, status="running", step="drafting")
+            updated = self.store.update_generation_job(job_id, status="running", step="drafting")
+            if not updated or updated.get("status") == "cancelled":
+                return
 
             # 核心调用（执行 Agentic 生成工作流）
             result = invoke_fn()
