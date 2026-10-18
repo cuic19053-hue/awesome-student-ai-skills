@@ -4176,3 +4176,27 @@ select:focus-visible,
     font-size: 21px;
   }
 }
+
+/* 窄屏：页签标题与操作按钮分行，避免标题被挤成竖排 */
+@media (max-width: 700px) {
+  .section-head {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    row-gap: 10px;
+  }
+  .section-head > div:first-child {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .section-head > div:last-child {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .section-head > button:last-child {
+    align-self: flex-start;
+  }
+  .section-desc {
+    line-height: 1.6;
+  }
+}
