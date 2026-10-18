@@ -59,17 +59,25 @@ def test_health(client):
 
 
 def test_chat_composer_offers_material_upload_categories(client):
+    """前端已拆分为原生 JS 模块：用静态资源内容验证上传入口与模型设置仍存在。
+
+    早期版本是服务端渲染的整页 HTML，因此用元素 id 断言；现在 index.html 只是外壳，
+    界面文案与入口在 /static/js/*.js 中，测试改为校验模块实际提供的入口。
+    """
     page = client.get("/")
     assert page.status_code == 200
-    assert 'id="chatAttachBtn"' in page.text
-    assert 'id="chatUploadKind"' in page.text
-    assert 'id="modelSettingsBtn"' in page.text
-    assert 'id="providerOllama"' in page.text
-    assert 'id="providerCustom"' in page.text
-    assert 'id="navResizeHandle"' in page.text
-    assert 'id="workspaceResizeHandle"' in page.text
-    assert "学校模板" in page.text
-    assert "实验 / 调研照片" in page.text
+    assert "/static/js/app.js" in page.text
+    assert "/static/js/project.js" in page.text
+    project_js = client.get("/static/js/project.js")
+    settings_js = client.get("/static/js/settings.js")
+    assert project_js.status_code == 200
+    assert settings_js.status_code == 200
+    assert "添加材料" in project_js.text
+    assert "上传模板" in project_js.text
+    assert "学校模板" in project_js.text
+    assert "模型配置" in settings_js.text
+    assert "Ollama" in settings_js.text
+    assert "OpenAI 兼容" in settings_js.text
 
 
 def test_pricing_copy_omits_official_discount_but_keeps_reservation_notice(client, monkeypatch):
@@ -78,12 +86,14 @@ def test_pricing_copy_omits_official_discount_but_keeps_reservation_notice(clien
     monkeypatch.setattr(server_app, "_platform_bundle_ready", lambda: True)
     page = client.get("/").text
     preset = client.get("/api/models/preset").json()
-    text = page + json.dumps(preset, ensure_ascii=False)
+    # 前端拆分后，计费说明在设置中心的静态模块中，与页面/预设说明一起校验。
+    settings_js = client.get("/static/js/settings.js").text
+    project_js = client.get("/static/js/project.js").text
+    text = page + json.dumps(preset, ensure_ascii=False) + settings_js + project_js
     assert "9 折" not in text
     assert "9折" not in text
     assert "按实际用量" in text
-    assert "预留 5 积分" in page
-    assert "预留 20 积分" in page
+    assert "退回预留积分" in text
 
 
 def test_model_config_connection_test_never_echoes_api_key(client, monkeypatch):
