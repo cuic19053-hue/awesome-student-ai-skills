@@ -15,10 +15,7 @@
 
 > 🌐 **Try it online:** [agent.stardust.website](https://agent.stardust.website) (Zero setup, instant browser access)
 > 🎬 **Douyin Demo Video (Direct Link):** [Watch on Douyin / TikTok China](https://www.douyin.com/video/7692700167341985051)
->
 > 🌟 **If this project helps with your academic proposals or research grants, please consider giving us a Star ⭐️! Your support keeps this open-source project moving forward.**
->
-> 💡 **No Setup Required**: Try our zero-installation [🌐 Online Workbench (agent.stardust.website)](https://agent.stardust.website) directly in your browser!
 >
 > 🚀 **Quick links:** 🌐 [Online Workbench](https://agent.stardust.website) · 🚀 [Quick Start](#-how-to-use) · 🎬 [Demo Video](https://www.douyin.com/video/7692700167341985051) · 🏗️ [Architecture](#-system-architecture) · 💡 [Background & PMF](#-background--pmf-validation) · 📋 [35 Skills](./README.md#能写哪些申报书)
 
@@ -238,3 +235,9 @@ Please let us know. Be sure to read `references/writing_guide.md` before contrib
 ## 📄 License
 
 MIT License — feel free to use, modify, and build upon this project. We only ask that you retain the original authorship and disclaimer. See [LICENSE](./LICENSE).
+
+---
+
+## 📈 Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=cuic19053-hue/awesome-student-ai-skills&type=Date)](https://star-history.com/#cuic19053-hue/awesome-student-ai-skills&Date)

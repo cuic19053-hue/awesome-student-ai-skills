@@ -21,13 +21,10 @@
 [简体中文](./README.md) | [English](./README_EN.md)
 
 > 🌐 **在线体验：** [agent.stardust.website](https://agent.stardust.website) （免安装，浏览器开箱即用）
-> 🎬 **抖音爆款视频（点击直达）：** [一句话写完大创申报书？35 种申报材料交给 AI](https://www.douyin.com/video/7692700167341985051)
+> 🎬 **抖音实战演示（点击直达）：** [一句话写完大创申报书？35 种申报材料交给 AI](https://www.douyin.com/video/7692700167341985051)
+> 🌟 **如果本项目对你的大创申报、竞赛立项或奖学金评定有所启发，欢迎右上角点个 Star ⭐️ 支持开源！**
 >
-> 🌟 **如果本项目对你的大创申报、竞赛立项或奖学金评定有所启发，请右上角点个 Star ⭐️ 支持一下！这是我们持续开源维护 35 个高校赛道最大的动力！**
->
-> 💡 **小白同学免配置环境**：直接使用免安装的 [🌐 在线工作台 (agent.stardust.website)](https://agent.stardust.website)，浏览器开箱即用，无需配置 Python 环境！
->
-> 🚀 **快速通道：** 🌐 [在线工作台](https://agent.stardust.website) · 🎯 [它能写什么](#-它能帮你写什么) · 📄 [下载样例 Word](#-规范排版-word-样例直接下载所见即所得) · 🚀 [如何使用](#-如何使用-how-to-use) · 🎬 [抖音实操视频](https://www.douyin.com/video/7692700167341985051) · 🏗️ [系统架构](#-系统技术架构-system-architecture) · 📋 [35 赛道清单](#能写哪些申报书)
+> 🚀 **快速通道：** 🌐 [在线工作台](https://agent.stardust.website) · 🎯 [它能写什么](#-它能帮你写什么) · 📄 [下载样例 Word](#-规范排版-word-样例直接下载所见即所得) · 🚀 [如何使用](#-如何使用-how-to-use) · 🏗️ [系统架构](#-系统技术架构-system-architecture) · 📋 [35 赛道清单](#能写哪些申报书)
 
 ---
 
@@ -202,23 +199,6 @@ flowchart TD
 
 </details>
 
----
-
-## 📖 目录 (Table of Contents)
-
-- [🎯 它能帮你写什么](#-它能帮你写什么)
-  - [📄 规范排版 Word 样例直接下载](#-规范排版-word-样例直接下载所见即所得)
-- [🚀 如何使用 (How to Use)](#-如何使用-how-to-use)
-  - [模式一：在线工作台（零门槛免安装）](#模式一在线-agent-工作台零门槛免安装)
-  - [模式二：本地 Agent IDE 流程](#模式二本地-agent-ide-使用流程)
-  - [模式三：MCP 服务接入](#-mcp-服务接入-model-context-protocol)
-- [💡 项目背景与 PMF 验证](#-项目背景与-pmf-验证-background--pmf)
-- [🏗️ 系统技术架构](#-系统技术架构-system-architecture)
-- [❓ 常见问题 (FAQ)](#-常见问题-faq)
-- [能写哪些申报书 (35 赛道清单)](#能写哪些申报书)
-- [项目结构](#项目结构)
-- [核心设计原则](#核心设计原则)
-- [免责声明](#免责声明)
 
 ---
 
@@ -573,3 +553,9 @@ MIT License —— 随便用、随便改，但请保留原作者署名和免责�
 本项目在 Windows / macOS / Linux 均提供完整支持。为了获得最佳终端交互体验：
 - **推荐启用 UTF-8**：在 Windows 控制台中建议设置环境变量 `set PYTHONUTF8=1`（或 PowerShell 中 `/Users/mac/.gemini/antigravity/scratch/awesome-student-ai-skillsYTHONUTF8=1`），保证所有特殊状态标识符与中文格式完美显示。
 - **内置 GBK 容错**：即使在未开启 UTF-8 的原生 GBK 控制台下，所有子技能的 `build.py` 脚本均已内置标准流容错机制，自动降级安全输出，绝不会因 Unicode 状态符号抛出 `UnicodeEncodeError` 崩溃。
+
+---
+
+## 📈 Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=cuic19053-hue/awesome-student-ai-skills&type=Date)](https://star-history.com/#cuic19053-hue/awesome-student-ai-skills&Date)
