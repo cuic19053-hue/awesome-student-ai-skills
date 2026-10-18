@@ -41,7 +41,7 @@
 为了解决大模型在撰写复杂长文本时的“上下文漂移”、“幻觉套话”与“生成超时”问题，系统采用了如下企业级分层设计：
 
 <div align="center">
-  <img src="./assets/architecture.png" alt="系统技术架构图" width="400" />
+  <img src="https://cdn.jsdelivr.net/gh/cuic19053-hue/awesome-student-ai-skills@main/assets/architecture.png" alt="系统技术架构图" width="400" />
 </div>
 
 <details open>
@@ -499,7 +499,7 @@ AI 会自动：
 <br>
 
 <div align="center">
-  <img src="assets/contact_qr.png" width="220" alt="作者微信二维码">
+  <img src="https://cdn.jsdelivr.net/gh/cuic19053-hue/awesome-student-ai-skills@main/assets/contact_qr.png" width="220" alt="作者微信二维码">
   <p>👉 <b>扫码添加微信</b>（进群备注：<b>进群</b> ｜ 合作私聊：<b>合作+具体需求</b>）</p>
 </div>
 

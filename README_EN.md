@@ -32,7 +32,7 @@ This project is not an academic toy—it is a **battle-tested commercial MVP bui
 ## 🏗️ System Architecture
 
 <div align="center">
-  <img src="./assets/architecture.png" alt="System Architecture Diagram" width="400" />
+  <img src="https://cdn.jsdelivr.net/gh/cuic19053-hue/awesome-student-ai-skills@main/assets/architecture.png" alt="System Architecture Diagram" width="400" />
 </div>
 
 <details open>
