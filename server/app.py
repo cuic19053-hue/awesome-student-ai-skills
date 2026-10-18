@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import contextvars
 import hashlib
 import hmac
 import ipaddress
@@ -1524,19 +1523,9 @@ def create_section_job(
     cfg = payload.llm_config if payload else None
     idemp = payload.idempotency_key if payload else ""
 
-    # T0 修复：章节生成现在跑在后台线程，而标准库 ThreadPoolExecutor 不会继承
-    # 请求上下文，导致 request_identity（用户身份 + access_token）在工作线程里丢失，
-    # 平台预设（内置）模型的积分计量在云端模式下会抛 PermissionError。
-    # 先把当前请求的上下文复制一份，再让后台线程在这个上下文里执行模型调用。
-    job_context = contextvars.copy_context()
-
     def _run():
-        return job_context.run(
-            _metered_invoke,
-            cfg,
-            request,
-            f"section:{section_id}",
-            project_id,
+        return _metered_invoke(
+            cfg, request, f"section:{section_id}", project_id,
             lambda model: model.generate_section(project_id, section_id),
         )
 
@@ -1592,56 +1581,16 @@ def restore_section_version(project_id: str, section_id: str, version_id: str) -
 def generate_section(
     project_id: str, section_id: str, payload: LLMRequest | None = None, request: Request = None
 ) -> dict[str, Any]:
-    project = _safe_project(project_id)
-    current_content = (project.get("sections") or {}).get(section_id, "")
-    cfg = payload.llm_config if payload else None
-
-    # T0 修复：章节生成现在跑在后台线程，而标准库 ThreadPoolExecutor 不会继承
-    # 请求上下文，导致 request_identity（用户身份 + access_token）在工作线程里丢失，
-    # 平台预设（内置）模型的积分计量在云端模式下会抛 PermissionError。
-    # 先把当前请求的上下文复制一份，再让后台线程在这个上下文里执行模型调用。
-    job_context = contextvars.copy_context()
-
-    def _run():
-        return job_context.run(
-            _metered_invoke,
-            cfg,
-            request,
-            f"section:{section_id}",
-            project_id,
+    _safe_project(project_id)
+    try:
+        return _metered_invoke(
+            payload.llm_config if payload else None, request, f"section:{section_id}", project_id,
             lambda model: model.generate_section(project_id, section_id),
         )
-
-    runner = _current_job_runner()
-    job = runner.submit_job(
-        project_id=project_id,
-        section_id=section_id,
-        invoke_fn=_run,
-        current_section_content=current_content,
-    )
-    import time
-    start = time.time()
-    while time.time() - start < 50:
-        latest = runner.get_job_status(job["id"])
-        if latest and latest["status"] == "completed":
-            return latest.get("result", {})
-        if latest and latest["status"] == "failed":
-            err = latest.get("error_message", "生成失败")
-            if any(k in err for k in ("请先确认", "章节不存在", "找不到这个项目", "章节标识无效")):
-                raise HTTPException(status_code=400, detail=err)
-            if any(k in err for k in ("无法连接", "模型服务返回", "自定义模型没有返回")):
-                raise HTTPException(status_code=503, detail=err)
-            raise HTTPException(status_code=500, detail=err)
-        time.sleep(0.4)
-
-    return JSONResponse(
-        status_code=202,
-        content={
-            "status": "processing",
-            "job_id": job["id"],
-            "message": "生成任务在后台持续执行中，请通过任务接口查询结果。",
-        },
-    )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ModelUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @app.put("/api/projects/{project_id}/outline")
