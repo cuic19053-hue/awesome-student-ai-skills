@@ -767,19 +767,22 @@
     if (!card || typeof card !== "object") return "";
     const score = Number(card.score);
     const hasScore = Number.isFinite(score);
+    const incomplete = card.review_status === "failed" || !hasScore;
     const grade = S.clean(String(card.grade || ""));
     const iterations = Number(card.iterations) || 1;
-    const badge = iterations > 1 ? "经 " + iterations + " 轮反思自愈" : card.passed ? "首轮评审达标" : "建议继续完善";
+    const scoreText = incomplete
+      ? "AI 辅助检查：评审未完成（无分数）"
+      : "AI 辅助检查 " + S.fmtCredits(score) + " 分" + (grade ? " · " + grade : "") + "（非官方评审）";
+    const badge = incomplete
+      ? "草稿保留 · 待重试评审"
+      : (iterations > 1 ? "经 " + iterations + " 轮检查" : (card.passed ? "通过辅助检查" : "待完善"));
     const hints = (Array.isArray(card.user_hints) ? card.user_hints : [])
       .map(function (hint) { return S.clean(String(hint || "")); })
       .filter(Boolean)
       .slice(0, 4);
     return (
-      '<div class="review-card' + (card.passed ? "" : " warn") + '">' +
-      '<div class="review-head"><span class="review-score">' +
-      (hasScore ? "评委评审 " + S.fmtCredits(score) + " 分" : "评委评审") +
-      (grade ? " · " + esc(grade) : "") +
-      '</span><span class="review-badge' + (card.passed ? "" : " warn") + '">' + esc(badge) + "</span></div>" +
+      '<div class="review-card' + (card.passed && !incomplete ? "" : " warn") + '">' +
+      '<div class="review-head"><span class="review-score">' + esc(scoreText) + '</span><span class="review-badge' + (card.passed && !incomplete ? "" : " warn") + '">' + esc(badge) + "</span></div>" +
       (hints.length
         ? hints.map(function (hint) {
             return '<div class="review-hint">' + icon("sparkles") + "<span>" + esc(hint) + "</span></div>";
