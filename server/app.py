@@ -288,6 +288,7 @@ def _agent_for_config(
             provider="openai_compatible",
             api_key=os.environ["WOPALLY_WORKBENCH_API_KEY"],
             meter=WorkbenchMeter(store, _current_user_id(request), key_id, project_id),
+            platform_transport=True,
         )
     if config.provider == "ollama":
         if CLOUD_MODE:
@@ -1443,7 +1444,6 @@ def chat(project_id: str, payload: ChatInput, request: Request) -> dict[str, Any
     try:
         if is_free:
             if not _platform_bundle_ready():
-                store.refund_free_chat(user_id)
                 raise HTTPException(status_code=503, detail="工作台服务账户与实际用量结算尚未接通")
             candidate = OllamaAgent(
                 store, tools,
@@ -1452,6 +1452,7 @@ def chat(project_id: str, payload: ChatInput, request: Request) -> dict[str, Any
                 provider="openai_compatible",
                 api_key=os.environ["WOPALLY_WORKBENCH_API_KEY"],
                 meter=None,
+                platform_transport=True,
             )
             result = candidate.chat(project_id, text)
             result["free_chat"] = True
