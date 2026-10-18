@@ -11,6 +11,7 @@ from typing import Any
 
 from .credit_security import workbench_voucher_digest
 from .models_config import DEFAULT_INITIAL_CREDITS
+from .billing_policy import TRIAL_REGISTRATION_CUTOFF, normalize_trial_wallet
 
 
 class CreditRateLimitError(RuntimeError):
@@ -277,7 +278,37 @@ class Store:
                 db.execute("ALTER TABLE workbench_vouchers ADD COLUMN provider_code_ciphertext BLOB")
             wallet_cols = {row[1] for row in db.execute("PRAGMA table_info(workbench_credit_wallets)")}
             if "free_chat_count" not in wallet_cols:
-                db.execute("ALTER TABLE workbench_credit_wallets ADD COLUMN free_chat_count INTEGER NOT NULL DEFAULT 3")
+                # Upgrading an old wallet is not a new registration.
+                db.execute("ALTER TABLE workbench_credit_wallets ADD COLUMN free_chat_count INTEGER NOT NULL DEFAULT 0")
+            # Apply to all credit-grant paths (payment, vouchers, paired codes),
+            # not just one HTTP endpoint. A late free-request refund cannot
+            # re-enable trials after payment.
+            guard = f"""
+                NEW.free_chat_count > 0 AND (
+                    NEW.total_credited_micro_cny > 0 OR NEW.balance_micro_cny > 0
+                    OR NEW.total_spent_micro_cny > 0
+                    OR julianday(NEW.created_at) <= julianday('{TRIAL_REGISTRATION_CUTOFF}')
+                )
+            """
+            for operation, name in (("INSERT", "insert"), ("UPDATE", "update")):
+                db.execute(f"""
+                    CREATE TRIGGER IF NOT EXISTS workbench_trial_guard_{name}
+                    AFTER {operation} ON workbench_credit_wallets
+                    WHEN {guard}
+                    BEGIN
+                        UPDATE workbench_credit_wallets SET free_chat_count = 0
+                        WHERE user_id = NEW.user_id;
+                    END
+                """)
+            db.execute(
+                """UPDATE workbench_credit_wallets SET free_chat_count = 0
+                   WHERE free_chat_count > 0 AND (
+                       total_credited_micro_cny > 0 OR balance_micro_cny > 0
+                       OR total_spent_micro_cny > 0
+                       OR julianday(created_at) <= julianday(?)
+                   )""",
+                (TRIAL_REGISTRATION_CUTOFF,),
+            )
 
     @staticmethod
     def _decode_json(value: str, fallback: Any) -> Any:
@@ -934,10 +965,7 @@ class Store:
             row = db.execute(
                 "SELECT * FROM workbench_credit_wallets WHERE user_id = ?", (user_id,)
             ).fetchone()
-            result = dict(row)
-            if "free_chat_count" not in result:
-                result["free_chat_count"] = 3
-            return result
+            return normalize_trial_wallet(dict(row))
 
     def consume_free_chat(self, user_id: str) -> int:
         user_id = str(user_id or "").strip()
@@ -953,9 +981,9 @@ class Store:
                 (user_id, now, now),
             )
             row = db.execute(
-                "SELECT free_chat_count FROM workbench_credit_wallets WHERE user_id = ?", (user_id,)
+                "SELECT * FROM workbench_credit_wallets WHERE user_id = ?", (user_id,)
             ).fetchone()
-            current = int(row["free_chat_count"]) if row and "free_chat_count" in row.keys() else 0
+            current = normalize_trial_wallet(dict(row))["free_chat_count"] if row else 0
             if current <= 0:
                 return -1
             remaining = current - 1
@@ -970,12 +998,17 @@ class Store:
         now = utc_now()
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT * FROM workbench_credit_wallets WHERE user_id = ?", (user_id,)
+            ).fetchone()
+            if not row or not normalize_trial_wallet(dict(row))["trial_eligible"]:
+                return 0
             db.execute(
                 "UPDATE workbench_credit_wallets SET free_chat_count = MIN(3, free_chat_count + 1), updated_at = ? WHERE user_id = ?",
                 (now, user_id),
             )
             row = db.execute("SELECT free_chat_count FROM workbench_credit_wallets WHERE user_id = ?", (user_id,)).fetchone()
-            return int(row["free_chat_count"]) if row and "free_chat_count" in row.keys() else 3
+            return int(row["free_chat_count"]) if row else 0
 
     def get_workbench_credit_transactions(self, user_id: str, limit: int = 30) -> list[dict[str, Any]]:
         with self.connect() as db:

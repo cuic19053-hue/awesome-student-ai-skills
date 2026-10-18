@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from .storage import CreditRateLimitError, InsufficientCreditsError, PendingUsageError, new_id
+from .billing_policy import normalize_trial_wallet
 
 
 request_identity: ContextVar[dict[str, str] | None] = ContextVar(
@@ -629,19 +630,23 @@ class SupabaseStore:
         rows = self._rest(
             "workbench_credit_wallets",
             params=[
-                ("select", "user_id,balance_micro_cny,total_credited_micro_cny,total_spent_micro_cny,free_chat_count,updated_at"),
+                ("select", "user_id,balance_micro_cny,total_credited_micro_cny,total_spent_micro_cny,free_chat_count,created_at,updated_at"),
                 ("user_id", f"eq.{owner_id}"),
                 ("limit", "1"),
             ],
         )
         if rows:
-            return rows[0]
+            return normalize_trial_wallet(
+                rows[0], registered_at=identity.get("registered_at"), require_registration=True,
+            )
         return {
             "user_id": owner_id,
             "balance_micro_cny": 0,
             "total_credited_micro_cny": 0,
             "total_spent_micro_cny": 0,
-            "free_chat_count": 3,
+            # Only the signup trigger grants trials; a missing wallet is not a new user.
+            "free_chat_count": 0,
+            "trial_eligible": False,
             "updated_at": None,
         }
 
@@ -649,6 +654,8 @@ class SupabaseStore:
         identity = self._identity()
         if str(user_id) != identity["user_id"]:
             raise PermissionError("用户身份不匹配。")
+        if self.get_workbench_credit_balance(user_id)["free_chat_count"] <= 0:
+            return -1
         res = self._service_rpc("workbench_consume_free_chat", {"p_user_id": user_id})
         return int(res) if res is not None else -1
 
@@ -656,8 +663,10 @@ class SupabaseStore:
         identity = self._identity()
         if str(user_id) != identity["user_id"]:
             raise PermissionError("用户身份不匹配。")
+        if not self.get_workbench_credit_balance(user_id).get("trial_eligible"):
+            return 0
         res = self._service_rpc("workbench_refund_free_chat", {"p_user_id": user_id})
-        return int(res) if res is not None else 3
+        return int(res) if res is not None else 0
 
     def get_workbench_credit_transactions(self, user_id: str, limit: int = 30) -> list[dict[str, Any]]:
         identity = self._identity()

@@ -44,9 +44,8 @@ def test_agent_limits_each_reply_to_one_question():
     )
 
 
-@pytest.mark.parametrize("has_balance", [False, True])
 def test_free_preset_chat_uses_platform_transport_without_deducting_credits(
-    workspace, monkeypatch, has_balance
+    workspace, monkeypatch
 ):
     client, store, _retriever, _tools, _agent = workspace
     import proposal.agent as agent_module
@@ -55,8 +54,6 @@ def test_free_preset_chat_uses_platform_transport_without_deducting_credits(
     monkeypatch.setattr(app_module, "_platform_bundle_ready", lambda: True)
     monkeypatch.setenv("WOPALLY_MODEL_BASE_URL", "https://api.wopally.cn/v1")
     monkeypatch.setenv("WOPALLY_WORKBENCH_API_KEY", "platform-test-only")
-    if has_balance:
-        store.grant_workbench_payment_credits("local_user", "test-paid-credit", 1_000_000)
     initial = store.get_workbench_credit_balance("local_user")
     requests = []
 
@@ -95,7 +92,6 @@ def test_failed_free_preset_chat_restores_free_attempt_and_preserves_balance(wor
     monkeypatch.setattr(app_module, "_platform_bundle_ready", lambda: True)
     monkeypatch.setenv("WOPALLY_MODEL_BASE_URL", "https://api.wopally.cn/v1")
     monkeypatch.setenv("WOPALLY_WORKBENCH_API_KEY", "platform-test-secret")
-    store.grant_workbench_payment_credits("local_user", "test-paid-credit", 1_000_000)
 
     def rejected(request, timeout=0):
         raise urllib.error.HTTPError(request.full_url, 403, "Forbidden", {}, io.BytesIO(
@@ -113,7 +109,7 @@ def test_failed_free_preset_chat_restores_free_attempt_and_preserves_balance(wor
     assert "secret upstream detail" not in response.text
     balance = store.get_workbench_credit_balance("local_user")
     assert balance["free_chat_count"] == 3
-    assert balance["balance_micro_cny"] == 1_000_000
+    assert balance["balance_micro_cny"] == 0
     assert balance["total_spent_micro_cny"] == 0
     assert store.pending_workbench_usage("local_user") == []
 
