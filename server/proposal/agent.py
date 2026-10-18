@@ -224,7 +224,7 @@ class OllamaAgent:
             request_body["temperature"] = options["temperature"]
         if "num_predict" in options:
             request_body["max_tokens"] = options["num_predict"]
-        if self.meter is not None:
+        if self.platform_transport:
             request_body["max_tokens"] = min(int(request_body.get("max_tokens") or 2048), 2048)
         if isinstance(payload.get("format"), dict):
             request_body["response_format"] = {

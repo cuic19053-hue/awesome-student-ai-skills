@@ -88,6 +88,7 @@ def test_free_platform_also_disables_thinking_and_rejects_blank_content(tmp_path
     with pytest.raises(ModelUnavailable, match="未返回可用正文"):
         agent._post("/api/chat", {"messages": []})
     assert bodies[0]["thinking"] == {"type": "disabled"}
+    assert bodies[0]["max_tokens"] == 2048
 
 
 def test_byok_does_not_force_provider_specific_thinking_configuration(tmp_path, monkeypatch):
