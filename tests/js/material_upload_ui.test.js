@@ -30,6 +30,7 @@ class Element {
   setAttribute(name, value) { this.attributes[name] = value; }
   addEventListener(name, callback) { this.listeners[name] = callback; }
   closest() { return null; }
+  remove() { this.removed = true; }
   showModal() { this.open = true; }
   close() { this.open = false; this.listeners.close?.(); }
 }
@@ -39,6 +40,8 @@ function harness() {
   const revoked = [];
   const created = [];
   const requests = [];
+  const timers = new Map();
+  let nextTimer = 1;
   const document = {
     querySelector(selector) {
       if (!elements.has(selector)) elements.set(selector, new Element());
@@ -68,6 +71,8 @@ function harness() {
     },
     setTimeout: () => 0,
     clearTimeout() {},
+    setInterval(callback) { const id = nextTimer++; timers.set(id, callback); return id; },
+    clearInterval(id) { timers.delete(id); },
   });
   const file = resolve(__dirname, "../../server/static/app.js");
   const source = readFileSync(file, "utf8").replace(/\}\)\(\);\s*$/, `
@@ -76,13 +81,15 @@ function harness() {
       clearDocumentPreview, fetchDocumentBlob, uploadFiles,
       renderPrivacyNotice, showModelStatus, updateTemplateQuickActions,
       syncAuthControls, initializeCloudAuth, submitAuthForm,
+      sendChat, syncChatControls,
       setApi(fn) { api = fn; },
       setLoadProject(fn) { loadProject = fn; },
+      setChatRefresh(fn) { refreshProjects = fn; loadUserBalance = fn; },
     };
   })();`);
   vm.runInContext(source, context, { filename: file });
   return {
-    ui: context.ui, context, requests, revoked, created,
+    ui: context.ui, context, requests, revoked, created, timers,
     element: (selector) => document.querySelector(selector),
   };
 }
@@ -409,4 +416,57 @@ test("vendored Supabase SDK is pinned, checksummed, and served from this origin 
   const context = vm.createContext({ console, URL, TextEncoder, TextDecoder });
   vm.runInContext(bundle.toString("utf8"), context);
   assert.equal(typeof context.supabase.createClient, "function");
+});
+
+test("chat allows only one pending request and clears its timer after a visible answer", async () => {
+  const h = harness();
+  h.ui.state.project = { id: "project-one" };
+  h.ui.setChatRefresh(async () => {});
+  let finish;
+  let requests = 0;
+  h.ui.setApi(async () => {
+    requests++;
+    return new Promise((resolve) => { finish = resolve; });
+  });
+  const first = h.ui.sendChat(null, "hello");
+  assert.equal(h.ui.state.chatSending, true);
+  assert.equal(h.element("#sendBtn").disabled, true);
+  assert.equal(h.timers.size, 1);
+  await h.ui.sendChat(null, "duplicate");
+  assert.equal(requests, 1);
+  finish({ message: "有正文的答复" });
+  await first;
+  assert.equal(h.ui.state.chatSending, false);
+  assert.equal(h.element("#sendBtn").disabled, false);
+  assert.equal(h.timers.size, 0);
+  assert.equal(h.ui.state.messages[1].content, "有正文的答复");
+});
+
+test("blank success payload is an explicit error, never a successful empty answer", async () => {
+  const h = harness();
+  h.ui.state.project = { id: "project-one" };
+  h.ui.setChatRefresh(async () => {});
+  h.ui.setLoadProject(async () => {});
+  h.ui.setApi(async () => ({ message: "" }));
+  await h.ui.sendChat(null, "test");
+  assert.equal(h.ui.state.messages.length, 0);
+  const bubbles = h.element("#chatMessages").children.flatMap((item) => item.children);
+  assert.ok(bubbles.some((item) => item.innerHTML?.includes("未返回可用正文")));
+  assert.equal(h.ui.state.chatSending, false);
+  assert.equal(h.timers.size, 0);
+});
+
+test("a late reply does not enter another project's conversation", async () => {
+  const h = harness();
+  h.ui.state.project = { id: "project-one" };
+  h.ui.setChatRefresh(async () => {});
+  let finish;
+  h.ui.setApi(() => new Promise((resolve) => { finish = resolve; }));
+  const pending = h.ui.sendChat(null, "test");
+  h.ui.state.project = { id: "project-two" };
+  finish({ message: "answer for project one" });
+  await pending;
+  assert.equal(h.ui.state.messages.length, 0);
+  assert.equal(h.timers.size, 0);
+  assert.equal(h.ui.state.chatSending, false);
 });
