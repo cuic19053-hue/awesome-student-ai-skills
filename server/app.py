@@ -239,14 +239,19 @@ async def require_supabase_session(request: Request, call_next):
             )
         if response.status_code != 200:
             return JSONResponse({"detail": "登录已过期，请重新登录。"}, status_code=401)
-        user_id = response.json().get("id")
+        verified_user = response.json()
+        user_id = verified_user.get("id")
         if not user_id:
             return JSONResponse({"detail": "无法确认登录用户。"}, status_code=401)
     except Exception:
         return JSONResponse({"detail": "暂时无法验证登录状态，请稍后重试。"}, status_code=503)
 
     context_token = request_identity.set(
-        {"access_token": access_token.strip(), "user_id": str(user_id)}
+        {
+            "access_token": access_token.strip(), "user_id": str(user_id),
+            # Auth server-owned field, never client metadata or a request header.
+            "registered_at": str(verified_user.get("created_at") or ""),
+        }
     )
     try:
         return await call_next(request)
@@ -288,6 +293,7 @@ def _agent_for_config(
             provider="openai_compatible",
             api_key=os.environ["WOPALLY_WORKBENCH_API_KEY"],
             meter=WorkbenchMeter(store, _current_user_id(request), key_id, project_id),
+            platform_transport=True,
         )
     if config.provider == "ollama":
         if CLOUD_MODE:
@@ -593,7 +599,7 @@ def _metered_invoke(
     try:
         return invoke(candidate)
     except InsufficientCreditsError as exc:
-        detail = "免费 3 次对话体验已用完。请充值积分或使用自带 API Key 继续畅享。" if action == "chat" else str(exc)
+        detail = "积分不足，请充值后继续，或使用自带 API Key。" if action == "chat" else str(exc)
         raise HTTPException(status_code=402, detail=detail) from exc
     except PendingUsageError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
@@ -675,6 +681,7 @@ def get_user_balance(request: Request) -> dict[str, Any]:
         "total_credited": round(credited_units / MICRO_CNY_PER_CREDIT, 4),
         "total_consumed": round(spent_units / MICRO_CNY_PER_CREDIT, 4),
         "free_chats_remaining": free_chats,
+        "billing_mode": "trial" if bal.get("trial_eligible") else "credits",
         "transactions": txs,
     }
 
@@ -1436,14 +1443,17 @@ def chat(project_id: str, payload: ChatInput, request: Request) -> dict[str, Any
     remaining_free = -1
 
     if cfg is not None and cfg.provider == "preset":
-        remaining_free = store.consume_free_chat(user_id)
-        if remaining_free >= 0:
-            is_free = True
+        wallet = store.get_workbench_credit_balance(user_id)
+        if wallet.get("trial_eligible") and wallet["free_chat_count"] > 0:
+            # The atomic store operation rechecks eligibility in case recharge
+            # races this balance read.
+            remaining_free = store.consume_free_chat(user_id)
+            if remaining_free >= 0:
+                is_free = True
 
     try:
         if is_free:
             if not _platform_bundle_ready():
-                store.refund_free_chat(user_id)
                 raise HTTPException(status_code=503, detail="工作台服务账户与实际用量结算尚未接通")
             candidate = OllamaAgent(
                 store, tools,
@@ -1452,6 +1462,7 @@ def chat(project_id: str, payload: ChatInput, request: Request) -> dict[str, Any
                 provider="openai_compatible",
                 api_key=os.environ["WOPALLY_WORKBENCH_API_KEY"],
                 meter=None,
+                platform_transport=True,
             )
             result = candidate.chat(project_id, text)
             result["free_chat"] = True
@@ -1469,7 +1480,7 @@ def chat(project_id: str, payload: ChatInput, request: Request) -> dict[str, Any
     except InsufficientCreditsError as exc:
         raise HTTPException(
             status_code=402,
-            detail="免费 3 次对话体验已用完。请充值积分或使用自带 API Key 继续畅享。"
+            detail="积分不足，请充值后继续，或使用自带 API Key。"
         ) from exc
     except ModelUnavailable as exc:
         if is_free:

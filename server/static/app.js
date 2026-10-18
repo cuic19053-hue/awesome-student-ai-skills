@@ -38,6 +38,7 @@
     llmConfig: readSavedLlmConfig(),
     chatCollapsed: false,
     cloudMode: false,
+    ollamaLocal: null,
     userCredits: null,
     freeChatsRemaining: 0,
     cardRedemptionEnabled: false,
@@ -45,6 +46,11 @@
     presetModels: [],
     rechargePlans: [],
     authClient: null,
+    authStatus: "loading",
+    authBusy: false,
+    authInitializing: false,
+    authConfig: null,
+    authSubscription: null,
     authSession: null,
     authMode: "signin",
     turnstileSiteKey: "",
@@ -183,17 +189,46 @@
       : "没有模板时，Agent 会按所选赛道拟定通用结构，并提醒你提交前按学校要求核对。";
   }
 
+  function renderPrivacyNotice(project = state.project) {
+    const privacy = $(".privacy-note");
+    const text = $("#materialPrivacyText");
+    if (!privacy || !text) return;
+    const parts = [
+      state.cloudMode
+        ? "云端版：材料上传至 Supabase 私有云存储，由云端服务处理，并按账号权限隔离。"
+        : "本地部署：材料保存在运行 Agent 的设备上。",
+      "来源材料经你确认后才用于当前项目检索。",
+    ];
+    const provider = state.llmConfig.provider;
+    if (provider === "preset") {
+      parts.push("使用平台模型时，本轮对话及必要材料内容会经平台中转服务转发给模型服务商。");
+    } else if (provider === "openai_compatible") {
+      parts.push("使用自定义 API 时，本轮对话及必要材料内容会发送至你配置的模型服务商。");
+    } else if (state.ollamaLocal === false) {
+      parts.push("当前 Ollama 位于远程主机，对话及必要材料内容会发送至该主机。");
+    } else if (state.ollamaLocal === true) {
+      parts.push("当前使用本地 Ollama；主动搜索时仍会向相应服务发送查询关键词。");
+    } else {
+      parts.push("Ollama 的处理位置取决于配置的主机；主动搜索会向相应服务发送查询关键词。");
+    }
+    if (project?.state?.template_preference === "not_asked") {
+      parts.push("请先通过对话确认是否有学校模板。");
+    }
+    privacy.classList.toggle("remote-warning",
+      state.cloudMode || provider !== "ollama" || state.ollamaLocal !== true);
+    text.textContent = parts.join(" ");
+  }
+
   function showModelStatus(localStatus) {
+    if (typeof localStatus?.ollama_local === "boolean") {
+      state.ollamaLocal = localStatus.ollama_local;
+    }
+    renderPrivacyNotice();
     const status = $("#modelStatus");
     if (state.llmConfig.provider === "preset") {
       status.textContent = "平台融合模型 · DeepSeek Flash + GPT Image";
       status.classList.remove("offline");
       status.classList.add("remote-warning");
-      const privacy = $(".privacy-note");
-      if (privacy) {
-        privacy.classList.add("remote-warning");
-        privacy.lastChild.textContent = "平台模型调用会将本次必要的材料内容发送至中转站；积分按实际用量结算。";
-      }
       return;
     }
     if (state.llmConfig.provider === "openai_compatible") {
@@ -201,11 +236,6 @@
       status.textContent = `自定义 API · ${state.llmConfig.model || "未设置模型"}${imgTag}`;
       status.classList.remove("offline");
       status.classList.add("remote-warning");
-      const privacy = $(".privacy-note");
-      if (privacy) {
-        privacy.classList.add("remote-warning");
-        privacy.lastChild.textContent = "当前使用自定义远程模型；对话内容会发送到此 Agent 服务，再转发给你填写的模型服务商。";
-      }
       return;
     }
     if (!localStatus) {
@@ -227,13 +257,6 @@
         : `缺少模型 · 请先 ollama pull ${model}`;
     status.classList.toggle("offline", !localStatus.ollama_available || (selectedIsHealthModel && !ready));
     status.classList.remove("remote-warning");
-    const privacy = $(".privacy-note");
-    if (privacy) {
-      privacy.classList.toggle("remote-warning", !localStatus.ollama_local);
-      if (!localStatus.ollama_local) {
-        privacy.lastChild.textContent = "当前 Ollama 位于远程主机；聊天与检索内容会发送到该主机。请勿上传不应外传的资料。";
-      }
-    }
   }
 
   function selectedLlmConfig() {
@@ -671,12 +694,25 @@
     }
   }
 
+  function syncAuthControls() {
+    const ready = state.authStatus === "ready" && Boolean(state.authClient?.auth);
+    const submit = $("#authSubmitBtn");
+    submit.disabled = !ready || state.authBusy;
+    submit.textContent = state.authBusy
+      ? state.authMode === "signup" ? "正在创建账号…" : "正在登录…"
+      : ready ? state.authMode === "signup" ? "创建账号" : "登录"
+      : state.authStatus === "loading" ? "正在加载登录组件…" : "登录服务暂不可用";
+    $("#authModeToggle").disabled = !ready || state.authBusy;
+    $("#retryAuthBtn").classList.toggle("hidden", state.authStatus !== "error");
+  }
+
   function showAuthGate(message = "") {
     state.appStarted = false;
     $("#appShell").classList.add("hidden");
     $("#authGate").classList.remove("hidden");
     $("#signOutBtn").classList.add("hidden");
     $("#authFeedback").textContent = message;
+    syncAuthControls();
     updateTurnstileState();
   }
 
@@ -702,7 +738,10 @@
   }
 
   async function initializeCloudAuth(config) {
+    if (state.authInitializing) return;
+    state.authConfig = config;
     state.cloudMode = Boolean(config.cloud_mode);
+    renderPrivacyNotice();
     if (!state.cloudMode) {
       await startApplication();
       return;
@@ -711,11 +750,6 @@
     if (localBadge) localBadge.textContent = "账号隔离 · 云端存储";
     const sidebarNote = $(".sidebar-footer p");
     if (sidebarNote) sidebarNote.textContent = "登录后仅能访问自己的项目；项目材料保存在云端私有存储中。";
-    const privacy = $(".privacy-note");
-    if (privacy) {
-      privacy.classList.add("remote-warning");
-      privacy.lastChild.textContent = "云端版：项目材料存入 Supabase 私有存储，并受账号权限隔离；模型 API Key 不写入项目数据库。";
-    }
     const modelIntro = $(".model-settings-intro");
     if (modelIntro) {
       modelIntro.textContent = config.preset_enabled
@@ -723,7 +757,9 @@
         : "云端版通过用户自备的 OpenAI 兼容 API 推理；模型服务费用由你与提供商结算。";
     }
     if (!window.supabase?.createClient) {
-      showAuthGate("登录组件暂不可用，请刷新页面后重试。");
+      state.authClient = null;
+      state.authStatus = "error";
+      showAuthGate("登录组件加载失败，请点击“重新连接登录服务”；无需更换邮箱或密码。");
       return;
     }
     if (config.preset_enabled) {
@@ -736,17 +772,33 @@
       state.llmConfig = { provider: "openai_compatible", model: "", base_url: "", api_key: "" };
     }
     $("#providerOllama").closest(".model-provider-option")?.classList.add("hidden");
-    state.authClient = window.supabase.createClient(
-      config.supabase_url,
-      config.supabase_publishable_key,
-      { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
-    );
-    const { data, error } = await state.authClient.auth.getSession();
-    if (error) {
-      showAuthGate("无法读取登录状态，请重试。");
+    state.authInitializing = true;
+    state.authStatus = "loading";
+    state.authClient = null;
+    state.authSubscription?.unsubscribe();
+    state.authSubscription = null;
+    syncAuthControls();
+    let data;
+    try {
+      const client = window.supabase.createClient(
+        config.supabase_url,
+        config.supabase_publishable_key,
+        { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
+      );
+      const result = await client.auth.getSession();
+      if (result.error) throw result.error;
+      data = result.data;
+      state.authClient = client;
+      state.authStatus = "ready";
+    } catch {
+      state.authStatus = "error";
+      showAuthGate("无法初始化登录服务，请点击“重新连接登录服务”或稍后重试。");
       return;
+    } finally {
+      state.authInitializing = false;
+      syncAuthControls();
     }
-    state.authClient.auth.onAuthStateChange((event, session) => {
+    const subscription = state.authClient.auth.onAuthStateChange((event, session) => {
       state.authSession = session;
       if (session && !state.appStarted) {
         void startApplication(session);
@@ -764,6 +816,7 @@
         showAuthGate("已退出登录。");
       }
     });
+    state.authSubscription = subscription.data.subscription;
     if (data.session) {
       await startApplication(data.session);
     } else {
@@ -773,10 +826,19 @@
 
   async function submitAuthForm(event) {
     event.preventDefault();
+    const feedback = $("#authFeedback");
+    if (state.authBusy) return;
+    if (state.authStatus !== "ready" || !state.authClient?.auth) {
+      feedback.className = "auth-feedback error";
+      feedback.textContent = state.authStatus === "loading"
+        ? "登录组件正在初始化，请稍候；当前尚未发送注册或登录请求。"
+        : "登录服务尚未就绪，请点击“重新连接登录服务”；无需更换邮箱或密码。";
+      syncAuthControls();
+      return;
+    }
+    const authClient = state.authClient;
     const email = $("#authEmail").value.trim().toLowerCase();
     const password = $("#authPassword").value;
-    const submit = $("#authSubmitBtn");
-    const feedback = $("#authFeedback");
 
     if (state.authMode === "signup") {
       const domain = (email.split("@")[1] || "").toLowerCase();
@@ -797,7 +859,8 @@
       }
     }
 
-    submit.disabled = true;
+    state.authBusy = true;
+    syncAuthControls();
     feedback.className = "auth-feedback";
     feedback.textContent = state.authMode === "signup" ? "正在创建账号…" : "正在登录…";
     try {
@@ -809,12 +872,12 @@
       }
 
       const result = state.authMode === "signup"
-        ? await state.authClient.auth.signUp({
+        ? await authClient.auth.signUp({
             email,
             password,
             options: signupOptions,
           })
-        : await state.authClient.auth.signInWithPassword({ email, password });
+        : await authClient.auth.signInWithPassword({ email, password });
       if (result.error) throw result.error;
       if (result.data.session) {
         await startApplication(result.data.session);
@@ -826,7 +889,10 @@
         feedback.textContent = "登录成功，正在载入你的项目…";
       }
     } catch (error) {
-      feedback.textContent = error.message || "登录失败，请检查邮箱和密码。";
+      const message = error.message || "";
+      feedback.textContent = /Cannot read properties|undefined|Failed to fetch|NetworkError|fetch failed/i.test(message)
+        ? "无法连接登录服务，请稍后重试或检查网络。"
+        : message || "登录失败，请检查邮箱和密码。";
       feedback.classList.add("error");
     } finally {
       if (window.turnstile && state.turnstileWidgetId !== null && state.authMode === "signup") {
@@ -835,7 +901,8 @@
         } catch (_) {}
         state.turnstileToken = "";
       }
-      submit.disabled = false;
+      state.authBusy = false;
+      syncAuthControls();
     }
   }
 
@@ -1184,12 +1251,7 @@
     const bar = $("#templateQuickActions");
     const needsAnswer = project?.state?.template_preference === "not_asked";
     bar.classList.toggle("hidden", !needsAnswer);
-    const privacy = $(".privacy-note");
-    if (privacy) {
-      privacy.lastChild.textContent = project?.state?.template_preference === "not_asked"
-        ? "先通过对话回答模板问题；上传资料只有经你确认后才进入当前项目检索。"
-        : "测试版默认本机处理。资料只有经你确认后才进入当前项目检索。";
-    }
+    renderPrivacyNotice(project);
   }
 
   function renderTemplateStatus(project) {
@@ -3218,10 +3280,20 @@
       tab.addEventListener("click", () => setOnboardingStep(parseInt(tab.dataset.step, 10)));
     });
     $("#authForm").addEventListener("submit", submitAuthForm);
+    $("#retryAuthBtn").addEventListener("click", () => {
+      // No credential resubmission or automatic signup retries.
+      if (state.authInitializing || state.authBusy) return;
+      if (!window.supabase?.createClient || !state.authConfig) {
+        window.location.reload();
+      } else {
+        void initializeCloudAuth(state.authConfig);
+      }
+    });
     $("#authModeToggle").addEventListener("click", () => {
+      if (state.authStatus !== "ready" || state.authBusy) return;
       state.authMode = state.authMode === "signin" ? "signup" : "signin";
       $("#authTitle").textContent = state.authMode === "signup" ? "创建你的项目空间" : "登录你的项目空间";
-      $("#authSubmitBtn").textContent = state.authMode === "signup" ? "创建账号" : "登录";
+      syncAuthControls();
       $("#authModeToggle").textContent = state.authMode === "signup"
         ? "已有账号？返回登录"
         : "还没有账号？创建账号";
@@ -3341,7 +3413,14 @@
   }
 
   document.addEventListener("DOMContentLoaded", () => {
-    init().catch((error) => toast(error.message, true));
+    init().catch((error) => {
+      if (state.authStatus !== "ready" && !state.appStarted) {
+        state.authStatus = "error";
+        showAuthGate("工作台初始化失败，请点击“重新连接登录服务”或刷新页面重试。");
+      } else {
+        toast(error.message, true);
+      }
+    });
   });
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden && state.authSession?.access_token) void loadUserBalance();

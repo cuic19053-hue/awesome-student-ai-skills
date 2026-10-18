@@ -58,6 +58,19 @@ def test_health(client):
     assert r.json()["skills_loaded"] == 35
 
 
+def test_login_sdk_is_accessible_without_signin_from_this_origin(client, monkeypatch):
+    import app as server_app
+    import hashlib
+
+    monkeypatch.setattr(server_app, "CLOUD_MODE", True)
+    vendor = ROOT / "server/static/vendor"
+    lock = json.loads((vendor / "supabase-js.lock.json").read_text())
+    response = client.get("/static/vendor/" + lock["bundle"])
+    assert response.status_code == 200
+    assert "javascript" in response.headers["content-type"]
+    assert hashlib.sha256(response.content).hexdigest() == lock["bundle_sha256"]
+
+
 def test_chat_composer_offers_material_upload_categories(client):
     page = client.get("/")
     assert page.status_code == 200
