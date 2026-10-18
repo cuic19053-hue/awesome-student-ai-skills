@@ -4,6 +4,7 @@ from __future__ import annotations
 import io
 import json
 import sys
+import urllib.error
 from pathlib import Path
 from email.message import Message
 
@@ -41,6 +42,137 @@ def test_agent_limits_each_reply_to_one_question():
     assert _limit_followup_questions("你有模板吗？有的话可以上传，没有的话我用通用模板。") == (
         "你有模板吗？有的话可以上传，没有的话我用通用模板。"
     )
+
+
+def test_free_preset_chat_uses_platform_transport_without_deducting_credits(
+    workspace, monkeypatch
+):
+    client, store, _retriever, _tools, _agent = workspace
+    import proposal.agent as agent_module
+
+    project_id = create_project(client)
+    monkeypatch.setattr(app_module, "_platform_bundle_ready", lambda: True)
+    monkeypatch.setenv("WOPALLY_MODEL_BASE_URL", "https://api.wopally.cn/v1")
+    monkeypatch.setenv("WOPALLY_WORKBENCH_API_KEY", "platform-test-only")
+    initial = store.get_workbench_credit_balance("local_user")
+    requests = []
+
+    def platform_open(request, timeout=0):
+        requests.append(request)
+        return io.BytesIO(json.dumps({
+            "choices": [{"message": {"role": "assistant", "content": "请告诉我项目目标。"}}],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 10},
+        }).encode())
+
+    def forbidden_default(*_args, **_kwargs):
+        raise AssertionError("Free platform chat must not fall back to the default transport")
+
+    monkeypatch.setattr(agent_module, "wopally_urlopen", platform_open)
+    monkeypatch.setattr(agent_module.urllib.request, "urlopen", forbidden_default)
+    response = client.post(
+        f"/api/projects/{project_id}/chat",
+        json={"message": "我准备申报一个校园节能项目", "llm_config": {"provider": "preset"}},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["free_chat"] is True
+    assert response.json()["free_chats_remaining"] == 2
+    assert requests[0].full_url == "https://api.wopally.cn/v1/chat/completions"
+    assert requests[0].get_header("Authorization") == "Bearer platform-test-only"
+    balance = store.get_workbench_credit_balance("local_user")
+    assert balance["balance_micro_cny"] == initial["balance_micro_cny"]
+    assert balance["total_spent_micro_cny"] == 0
+    assert store.pending_workbench_usage("local_user") == []
+
+
+def test_failed_free_preset_chat_restores_free_attempt_and_preserves_balance(workspace, monkeypatch):
+    client, store, _retriever, _tools, _agent = workspace
+    import proposal.agent as agent_module
+
+    project_id = create_project(client)
+    monkeypatch.setattr(app_module, "_platform_bundle_ready", lambda: True)
+    monkeypatch.setenv("WOPALLY_MODEL_BASE_URL", "https://api.wopally.cn/v1")
+    monkeypatch.setenv("WOPALLY_WORKBENCH_API_KEY", "platform-test-secret")
+
+    def rejected(request, timeout=0):
+        raise urllib.error.HTTPError(request.full_url, 403, "Forbidden", {}, io.BytesIO(
+            b"secret upstream detail must not be exposed"
+        ))
+
+    monkeypatch.setattr(agent_module, "wopally_urlopen", rejected)
+    response = client.post(
+        f"/api/projects/{project_id}/chat",
+        json={"message": "请帮我梳理项目目标", "llm_config": {"provider": "preset"}},
+    )
+    assert response.status_code == 503
+    assert "不是你的积分不足" in response.json()["detail"]
+    assert "platform-test-secret" not in response.text
+    assert "secret upstream detail" not in response.text
+    balance = store.get_workbench_credit_balance("local_user")
+    assert balance["free_chat_count"] == 3
+    assert balance["balance_micro_cny"] == 0
+    assert balance["total_spent_micro_cny"] == 0
+    assert store.pending_workbench_usage("local_user") == []
+
+
+def test_unavailable_platform_restores_exactly_one_free_attempt(workspace, monkeypatch):
+    client, store, _retriever, _tools, _agent = workspace
+    project_id = create_project(client)
+    assert store.consume_free_chat("local_user") == 2
+    monkeypatch.setattr(app_module, "_platform_bundle_ready", lambda: False)
+    response = client.post(
+        f"/api/projects/{project_id}/chat",
+        json={"message": "请帮我梳理项目目标", "llm_config": {"provider": "preset"}},
+    )
+    assert response.status_code == 503
+    assert store.get_workbench_credit_balance("local_user")["free_chat_count"] == 2
+
+
+def test_byok_does_not_use_platform_transport_even_on_same_host(workspace, monkeypatch):
+    _client, store, _retriever, tools, _agent = workspace
+    import proposal.agent as agent_module
+    requested = []
+
+    def default_open(request, timeout=0):
+        requested.append(request)
+        return io.BytesIO(b'{"choices":[{"message":{"content":"ok"}}]}')
+
+    def forbidden_platform(*_args, **_kwargs):
+        raise AssertionError("BYOK must not inherit server-only origin routing")
+
+    monkeypatch.setattr(agent_module.urllib.request, "urlopen", default_open)
+    monkeypatch.setattr(agent_module, "wopally_urlopen", forbidden_platform)
+    candidate = OllamaAgent(
+        store, tools, base_url="https://api.wopally.cn/v1",
+        provider="openai_compatible", api_key="user-test-only",
+    )
+    result = candidate._post("/api/chat", {"messages": [{"role": "user", "content": "test"}]})
+    assert result["message"]["content"] == "ok"
+    assert requested[0].get_header("Authorization") == "Bearer user-test-only"
+
+
+def test_paid_platform_forbidden_refunds_reserved_credits(workspace, monkeypatch):
+    _client, store, _retriever, tools, _agent = workspace
+    import proposal.agent as agent_module
+    from proposal.workbench_metering import WorkbenchMeter
+
+    store.grant_workbench_payment_credits("local_user", "test-paid-credit", 1_000_000)
+    meter = WorkbenchMeter(store, "local_user", 684)
+
+    def rejected(request, timeout=0):
+        assert store.get_workbench_credit_balance("local_user")["balance_micro_cny"] == 800_000
+        raise urllib.error.HTTPError(request.full_url, 403, "Forbidden", {}, io.BytesIO(b"private"))
+
+    monkeypatch.setattr(agent_module, "wopally_urlopen", rejected)
+    candidate = OllamaAgent(
+        store, tools, base_url="https://api.wopally.cn/v1",
+        provider="openai_compatible", api_key="platform-test-only", meter=meter,
+    )
+    with pytest.raises(agent_module.ModelUnavailable, match="不是你的积分不足"):
+        candidate._post("/api/chat", {"messages": [{"role": "user", "content": "test"}]})
+    balance = store.get_workbench_credit_balance("local_user")
+    assert balance["balance_micro_cny"] == 1_000_000
+    assert balance["total_spent_micro_cny"] == 0
+    assert store.pending_workbench_usage("local_user") == []
 
 
 def test_openai_compatible_adapter_maps_tool_calls_and_keeps_key_in_header(workspace, monkeypatch):

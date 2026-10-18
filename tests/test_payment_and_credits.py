@@ -504,4 +504,4 @@ def test_free_chats_policy_allows_three_chats_before_requiring_credits(monkeypat
     payload["message"] = "hello 4"
     res4 = client.post(f"/api/projects/{proj['id']}/chat", json=payload)
     assert res4.status_code == 402
-    assert "免费 3 次对话体验已用完" in res4.json()["detail"]
+    assert "积分不足" in res4.json()["detail"]

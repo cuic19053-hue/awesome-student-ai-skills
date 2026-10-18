@@ -80,6 +80,7 @@ class OllamaAgent:
         provider: str = "ollama",
         api_key: str = "",
         meter: Any = None,
+        platform_transport: bool = False,
     ):
         self.store = store
         self.tools = tools
@@ -88,6 +89,9 @@ class OllamaAgent:
         self.provider = provider
         self.api_key = api_key
         self.meter = meter
+        # Network routing is independent of billing: free platform chats still
+        # need the configured origin/TLS transport. BYOK stays on its own route.
+        self.platform_transport = platform_transport or meter is not None
 
     def is_available(self) -> bool:
         return bool(self.status()["running"])
@@ -242,7 +246,7 @@ class OllamaAgent:
         body = None
         for attempt in range(3):
             try:
-                opener = wopally_urlopen if self.meter is not None else urllib.request.urlopen
+                opener = wopally_urlopen if self.platform_transport else urllib.request.urlopen
                 with opener(request, timeout=timeout) as response:
                     body = json.loads(response.read().decode("utf-8"))
                 break
@@ -252,6 +256,11 @@ class OllamaAgent:
                     continue
                 if usage_request_id:
                     self.meter.refund(usage_request_id)
+                if self.platform_transport and exc.code in {401, 403}:
+                    raise ModelUnavailable(
+                        f"平台模型通道暂时拒绝请求（HTTP {exc.code}），不是你的积分不足。"
+                        "请稍后重试或联系管理员检查平台通道；无需修改个人 API Key。"
+                    ) from exc
                 raise ModelUnavailable(
                     f"模型服务返回 HTTP {exc.code}。请检查 API 地址、密钥、模型名和账户额度。"
                 ) from exc
