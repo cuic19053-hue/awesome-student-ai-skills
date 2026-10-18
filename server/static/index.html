@@ -15,7 +15,7 @@
       <div class="auth-brand"><span class="brand-mark" aria-hidden="true">✦</span><span>Stardust Agent</span></div>
       <div class="eyebrow"><span class="sparkle">✦</span> PRIVATE PROJECT WORKSPACE</div>
       <h1 id="authTitle">登录你的项目空间</h1>
-      <p>登录后才能访问你的项目与材料；不同账号的数据彼此隔离。</p>
+      <p>登录后即可访问并管理你的申报项目与材料。</p>
       <form id="authForm">
         <label class="field"><span>邮箱</span><input id="authEmail" type="email" autocomplete="email" required placeholder="name@example.com"></label>
         <label class="field"><span>密码</span><input id="authPassword" type="password" autocomplete="current-password" minlength="8" required placeholder="至少 8 位"></label>
@@ -25,7 +25,7 @@
       <button type="button" id="authModeToggle" class="auth-mode-toggle" disabled>还没有账号？创建账号</button>
       <div id="authFeedback" class="auth-feedback" role="status"></div>
       <button type="button" id="retryAuthBtn" class="button button-secondary hidden">重新连接登录服务</button>
-      <small class="auth-disclaimer">云端项目数据保存在 Supabase；模型 API Key 仅留在当前标签页会话中。</small>
+      <small class="auth-disclaimer">项目数据已加密存储；模型 API Key 仅保存在当前会话。</small>
     </div>
   </section>
 
@@ -59,7 +59,7 @@
 
       <div class="sidebar-footer">
         <div class="local-badge"><span class="pulse"></span> 本地优先 · 私有项目</div>
-        <p>默认本机保存项目资料；使用远程模型或主动搜索时，相关内容或关键词会发送至对应服务。</p>
+        <p>项目与材料安全保存在本地，可根据需要随时导出为 Word。</p>
       </div>
     </aside>
 
@@ -159,7 +159,7 @@
               <span class="point-icon">02</span>
               <div>
                 <strong>事实依据可核对</strong>
-                <p>上传材料经你确认后再作为依据；没有证据的信息标为“待补充”，不擅自编造。</p>
+                <p>以已上传的项目材料作为撰写依据；没有证据的信息标为“待补充”，不擅自编造。</p>
               </div>
             </div>
             <div class="point-card">
@@ -304,13 +304,13 @@
                 <div class="panel-icon icon-lilac">📂</div>
                 <div>
                   <h2>项目参考材料与知识库</h2>
-                  <p>上传你的实验记录、已有阶段报告或学校模板；经你确认识别文字后才作为 RAG 检索依据。</p>
+                  <p>上传你的实验记录、已有阶段报告或学校模板，作为申报书撰写的参考依据。</p>
                 </div>
               </div>
               <div class="upload-tabs" role="tablist">
                 <button class="upload-tab active" data-kind="source">项目资料</button>
                 <button class="upload-tab" data-kind="template">学校模板</button>
-                <button class="upload-tab" data-kind="photo">实验照片</button>
+                <button class="upload-tab" data-kind="photo">实验 / 实践照片</button>
               </div>
               <div class="upload-zone" id="dropZone">
                 <input type="file" id="fileInput" multiple hidden accept=".docx,.pdf,.txt,.md,.png,.jpg,.jpeg,.webp">
@@ -321,10 +321,6 @@
               </div>
               <div id="uploadResult" class="upload-result hidden" role="status" aria-live="polite"></div>
               <div id="documentsList" class="documents-list"></div>
-              <div class="privacy-note">
-                <span aria-hidden="true">✦</span>
-                <span id="materialPrivacyText">材料由当前部署的 Agent 服务处理；来源材料经你确认后才用于当前项目检索。</span>
-              </div>
             </section>
 
             <!-- 2. 可核验学术来源与官方通知 -->
@@ -386,6 +382,20 @@
                   <label class="field"><span>项目周期</span><input data-fact="duration" placeholder="例如：2026.10—2027.09"></label>
                   <label class="field"><span>经费预算</span><input data-fact="budget" placeholder="金额和估算依据；不确定可写待补充"></label>
                   <label class="field"><span>负责人</span><input data-fact="leader_name"></label>
+                  <div class="field leader-photo-field">
+                    <span>负责人照片（免冠证件照）</span>
+                    <div class="leader-photo-control">
+                      <div id="leaderPhotoPreview" class="leader-photo-preview" title="负责人照片预览">
+                        <span class="photo-placeholder-text">暂无照片</span>
+                      </div>
+                      <div class="leader-photo-actions">
+                        <input type="file" id="leaderPhotoInput" accept=".png,.jpg,.jpeg,.webp" hidden>
+                        <button type="button" class="button button-small button-secondary" id="chooseLeaderPhotoBtn">上传照片</button>
+                        <button type="button" class="button button-small button-quiet hidden" id="removeLeaderPhotoBtn">删除照片</button>
+                        <div class="leader-photo-hint">支持 PNG/JPG/WebP · 导出 Word 时自动嵌入封面或表格</div>
+                      </div>
+                    </div>
+                  </div>
                   <label class="field"><span>指导教师</span><input data-fact="advisor_name"></label>
                   <label class="field"><span>团队与分工</span><textarea data-fact="team" rows="2"></textarea></label>
                 </div>
@@ -641,7 +651,7 @@
       <div style="margin: 4px 0 8px;">
         <label style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; cursor: pointer; color: var(--text-muted);">
           <input type="checkbox" id="customImageReuseText">
-          <span>与文本模型共用 Base URL 与 API Key（如使用 OpenAI 或聚合中转站）</span>
+          <span>与文本模型共用 Base URL 与 API Key（如使用 OpenAI 兼容接口）</span>
         </label>
       </div>
       <div id="customImageSeparateFields">
@@ -905,7 +915,7 @@
     <p id="documentPreviewStatus" class="model-settings-intro" role="status"></p>
     <div class="doc-actions">
       <button type="button" id="downloadDocumentBtn" class="button button-small button-secondary">下载原文件</button>
-      <button type="button" id="reviewDocumentBtn" class="button button-small button-primary">去核对识别文字</button>
+      <button type="button" id="reviewDocumentBtn" class="button button-small button-primary">查看识别文字</button>
     </div>
     <div id="documentPreviewBody" class="document-preview-body" aria-busy="false"></div>
   </dialog>

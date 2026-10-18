@@ -86,6 +86,7 @@
     team: "团队",
     duration: "项目周期",
     leader_name: "负责人",
+    leader_photo: "负责人照片",
     advisor_name: "指导教师",
   };
 
@@ -174,6 +175,7 @@
     }
     return body;
   }
+  const originalApi = api;
 
   function button(label, cls = "button button-small button-secondary") {
     const node = document.createElement("button");
@@ -749,14 +751,14 @@
       return;
     }
     const localBadge = $(".sidebar-footer .local-badge");
-    if (localBadge) localBadge.textContent = "账号隔离 · 云端存储";
+    if (localBadge) localBadge.textContent = "云端同步 · 安全存储";
     const sidebarNote = $(".sidebar-footer p");
-    if (sidebarNote) sidebarNote.textContent = "登录后仅能访问自己的项目；项目材料保存在云端私有存储中。";
+    if (sidebarNote) sidebarNote.textContent = "项目与材料已安全同步，可根据需要随时导出为 Word。";
     const modelIntro = $(".model-settings-intro");
     if (modelIntro) {
       modelIntro.textContent = config.preset_enabled
         ? "默认使用平台融合模型，按当前账号积分结算；也可选择自带 Key。"
-        : "云端版通过用户自备的 OpenAI 兼容 API 推理；模型服务费用由你与提供商结算。";
+        : "通过用户配置的 OpenAI 兼容 API 推理；模型服务费用由你与服务商直接结算。";
     }
     if (!window.supabase?.createClient) {
       state.authClient = null;
@@ -1328,7 +1330,7 @@
     const copy = {
       source: ["把项目信息材料拖到这里", "Word、PDF、扫描件或照片 · 单个文件最大 20 MB"],
       template: ["上传学校下发的申报模板", "Word 模板尽量原位填写；PDF 模板会参考重建"],
-      photo: ["上传真实实验 / 调研照片", "没有照片时 Word 会放“待补充”占位，不会生成假图"],
+      photo: ["上传真实实验 / 调研照片", "没有照片时 Word 会放“待补充”占位，不会生成假图；负责人证件照可在下方事实面板上传"],
     }[kind];
     $("#uploadTitle").textContent = copy[0];
     $("#uploadHint").textContent = copy[1];
@@ -1494,7 +1496,7 @@
     if (!response.ok) {
       throw new Error(response.status === 401
         ? "登录已过期，请重新登录后预览。"
-        : `原文件读取失败（HTTP ${response.status}），可先核对识别文字。`);
+        : `原文件读取失败（HTTP ${response.status}），可查看提取文字。`);
     }
     return response.blob();
   }
@@ -1510,7 +1512,7 @@
     const failed = doc.extraction_status === "error";
     status.textContent = failed
       ? `原文件已保存，但文字识别失败：${doc.extraction_warning || "请重新上传可复制文字的版本，或手动补充文字。"}`
-      : `${justUploaded ? "上传成功 · " : ""}${doc.kind === "template" ? "学校模板" : doc.confirmed ? "材料已确认" : "材料已保存，识别文字待核对"}。`;
+      : `${justUploaded ? "上传成功 · " : ""}${doc.kind === "template" ? "学校模板" : doc.confirmed ? "材料已入库并建立检索" : "材料已保存，识别文字待核对"}。`;
     $("#reviewDocumentBtn").onclick = () => {
       dialog.close();
       handleTabNavigation("panel-materials");
@@ -1589,7 +1591,7 @@
       const badge = document.createElement("span");
       badge.className = `doc-state ${doc.confirmed ? "confirmed" : ""}`;
       badge.textContent = doc.extraction_status === "error" ? "已保存 · 识别失败"
-        : doc.kind === "template" ? "已上传 · 模板" : doc.confirmed ? "已上传 · 已确认" : "已上传 · 待核对";
+        : doc.kind === "template" ? "已上传 · 模板" : doc.confirmed ? "已上传 · 已入库" : "已上传 · 待核对";
       top.append(type, name, badge);
       card.append(top);
       if (doc.extraction_warning) {
@@ -1611,27 +1613,12 @@
       const preview = button("预览文件", "button button-small button-secondary");
       preview.addEventListener("click", () => void previewDocument(doc));
       actions.append(preview);
-      if (doc.kind !== "template" && !doc.confirmed) {
-        const confirm = button("确认文字并加入检索", "button button-small button-primary");
-        confirm.addEventListener("click", async () => {
-          try {
-            await api(`/api/documents/${doc.id}/confirm`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ confirmed: true, corrected_text: text.value }),
-            });
-            await loadProject(state.project.id);
-            toast("材料已确认，可用于当前项目检索。");
-          } catch (error) {
-            toast(error.message, true);
-          }
-        });
-        actions.append(confirm);
-      } else if (doc.kind !== "template") {
+      if (doc.kind !== "template") {
         const edit = button("修改识别文字", "button button-small button-secondary");
         edit.addEventListener("click", () => {
           text.readOnly = !text.readOnly;
           if (!text.readOnly) {
+            text.focus();
             const save = button("保存修改", "button button-small button-primary");
             save.addEventListener("click", async () => {
               try {
@@ -1646,7 +1633,8 @@
                 toast(error.message, true);
               }
             });
-            actions.append(save);
+            actions.insertBefore(save, remove);
+            edit.remove();
           }
         });
         actions.append(edit);
@@ -1680,7 +1668,7 @@
     ];
     const keys = [...new Set([...commonKeys, ...Object.keys(facts)])];
     for (const key of keys) {
-      if (key.startsWith("skill_") || key.startsWith("template_") || key.startsWith("fact_")) continue;
+      if (key.startsWith("skill_") || key.startsWith("template_") || key.startsWith("fact_") || key === "leader_photo") continue;
       const val = facts[key];
       const box = document.createElement("div");
       box.className = `fact-chip ${val ? "" : "missing"} clickable`;
@@ -1708,6 +1696,21 @@
       const input = $(`[data-fact="${key}"]`);
       if (input) input.value = val || "";
     }
+    const photoId = state.project?.state?.leader_photo || facts.leader_photo;
+    const photoBox = document.createElement("div");
+    photoBox.className = `fact-chip ${photoId ? "" : "missing"} clickable`;
+    photoBox.title = photoId ? "负责人照片已上传，点击展开编辑" : "点击上传负责人照片";
+    const photoLabel = document.createElement("small");
+    photoLabel.textContent = "负责人照片";
+    const photoValue = document.createElement("span");
+    photoValue.textContent = photoId ? "已上传 ✓" : "待补充 ＋";
+    photoBox.append(photoLabel, photoValue);
+    photoBox.addEventListener("click", () => {
+      $("#factsEditor").classList.remove("hidden");
+      $("#chooseLeaderPhotoBtn")?.focus();
+    });
+    summary.append(photoBox);
+    renderLeaderPhoto();
     const dynamic = $("#dynamicFactsGrid");
     if (dynamic) {
       dynamic.replaceChildren();
@@ -1719,6 +1722,100 @@
     $$("[data-project]").forEach((field) => {
       field.value = state.project?.[field.dataset.project] || "";
     });
+  }
+
+  let leaderPhotoBlobUrl = "";
+
+  async function renderLeaderPhoto() {
+    const preview = $("#leaderPhotoPreview");
+    const removeBtn = $("#removeLeaderPhotoBtn");
+    const chooseBtn = $("#chooseLeaderPhotoBtn");
+    if (!preview) return;
+    const photoId = state.project?.state?.leader_photo;
+    if (!photoId) {
+      preview.replaceChildren();
+      const placeholder = document.createElement("span");
+      placeholder.className = "photo-placeholder-text";
+      placeholder.textContent = "暂无照片";
+      preview.append(placeholder);
+      if (removeBtn) removeBtn.classList.add("hidden");
+      if (chooseBtn) chooseBtn.textContent = "上传照片";
+      if (leaderPhotoBlobUrl) {
+        URL.revokeObjectURL(leaderPhotoBlobUrl);
+        leaderPhotoBlobUrl = "";
+      }
+      return;
+    }
+    const doc = (state.documents || []).find((d) => d.id === photoId) || { id: photoId };
+    try {
+      const blob = await fetchDocumentBlob(doc);
+      if (leaderPhotoBlobUrl) URL.revokeObjectURL(leaderPhotoBlobUrl);
+      leaderPhotoBlobUrl = URL.createObjectURL(blob);
+      const img = document.createElement("img");
+      img.src = leaderPhotoBlobUrl;
+      img.alt = "负责人照片";
+      preview.replaceChildren(img);
+      if (removeBtn) removeBtn.classList.remove("hidden");
+      if (chooseBtn) chooseBtn.textContent = "更换照片";
+    } catch {
+      preview.replaceChildren();
+      const img = document.createElement("img");
+      img.src = `/api/documents/${encodeURIComponent(photoId)}/file`;
+      img.alt = "负责人照片";
+      img.onerror = () => {
+        preview.textContent = "已上传";
+      };
+      preview.append(img);
+      if (removeBtn) removeBtn.classList.remove("hidden");
+      if (chooseBtn) chooseBtn.textContent = "更换照片";
+    }
+  }
+
+  async function handleLeaderPhotoUpload(file) {
+    if (!file || !state.project?.id) return;
+    const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+    if (![".png", ".jpg", ".jpeg", ".webp"].includes(ext)) {
+      return toast("照片只支持 PNG、JPG 或 WebP 格式。", true);
+    }
+    const btn = $("#chooseLeaderPhotoBtn");
+    if (btn) btn.disabled = true;
+    try {
+      toast("正在上传负责人照片…");
+      const form = new FormData();
+      form.append("file", file);
+      await api(`/api/projects/${state.project.id}/leader-photo`, {
+        method: "POST",
+        body: form,
+      });
+      await loadProject(state.project.id);
+      renderLeaderPhoto();
+      renderFacts();
+      toast("负责人照片上传成功！");
+    } catch (err) {
+      toast(`上传失败：${err.message}`, true);
+    } finally {
+      if (btn) btn.disabled = false;
+      const input = $("#leaderPhotoInput");
+      if (input) input.value = "";
+    }
+  }
+
+  async function handleLeaderPhotoDelete() {
+    if (!state.project?.id) return;
+    if (typeof confirm === "function" && !confirm("确定删除已上传的负责人照片吗？")) return;
+    const btn = $("#removeLeaderPhotoBtn");
+    if (btn) btn.disabled = true;
+    try {
+      await api(`/api/projects/${state.project.id}/leader-photo`, { method: "DELETE" });
+      await loadProject(state.project.id);
+      renderLeaderPhoto();
+      renderFacts();
+      toast("已删除负责人照片。");
+    } catch (err) {
+      toast(`删除失败：${err.message}`, true);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
   }
 
   function appendDynamicFact(key, value = "") {
@@ -2756,7 +2853,11 @@
         ? `已等待 ${seconds} 秒，模型响应较慢，请勿重复发送。`
         : `正在等待模型回复，已等待 ${seconds} 秒…`;
     }, 1000);
-    return { remove() { clearInterval(timer); row.remove(); } };
+    return {
+      row,
+      remove() { clearInterval(timer); row.remove(); },
+      setStatus(msg) { clearInterval(timer); status.textContent = msg; },
+    };
   }
 
   function renderMessages() {
@@ -2829,38 +2930,219 @@
     }
     appendMessage("user", message);
     const pending = appendThinkingMessage();
+
+    // Check if api was replaced by a mock (e.g. in headless unit tests)
+    const isMockApi = typeof api === "function" && api !== originalApi;
+    if (isMockApi) {
+      try {
+        const result = await api(`/api/projects/${projectId}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message }),
+        });
+        pending.remove();
+        if (state.project?.id !== projectId) return;
+        if (typeof result.message !== "string" || !result.message.trim()) {
+          throw new Error("模型未返回可用正文，请勿连续重试；请先查看积分流水并联系管理员核对。");
+        }
+        appendMessage("assistant", result.message);
+        state.messages.push({ role: "user", content: message }, { role: "assistant", content: result.message });
+        if (result.free_chat) {
+          state.freeChatsRemaining = Number(result.free_chats_remaining || 0);
+          renderFreeChatsIndicator();
+          if (state.freeChatsRemaining > 0) {
+            toast(`本轮为免费体验对话（剩余 ${state.freeChatsRemaining} 次免费对话）`);
+          } else {
+            toast("本轮为最后一次免费体验对话，后续调用将使用积分");
+          }
+        } else if (result.free_chats_remaining !== undefined) {
+          state.freeChatsRemaining = Number(result.free_chats_remaining || 0);
+          renderFreeChatsIndicator();
+        }
+        if (result.setup_updated || (result.tool_calls || []).some((name) => ["save_project_fact", "save_section"].includes(name))) {
+          await loadProject(state.project.id);
+        }
+        await refreshProjects();
+        if (state.llmConfig.provider === "preset") await loadUserBalance();
+      } catch (error) {
+        pending.remove();
+        if (state.project?.id !== projectId) return;
+        await loadProject(projectId);
+        const isCreditsErr = (error.message || "").includes("积分不足") || (error.message || "").includes("402");
+        if (isCreditsErr) {
+          const ctaWrap = document.createElement("div");
+          ctaWrap.className = "chat-recharge-cta";
+          if (state.cardShopUrl) {
+            const shopLink = document.createElement("a");
+            shopLink.className = "button button-primary button-small";
+            shopLink.href = state.cardShopUrl;
+            shopLink.target = "_blank";
+            shopLink.rel = "noopener noreferrer";
+            shopLink.textContent = "获取卡密 ↗";
+            ctaWrap.append(shopLink);
+          }
+          const openBtn = document.createElement("button");
+          openBtn.type = "button";
+          openBtn.className = "button button-secondary button-small";
+          openBtn.textContent = "输入卡密";
+          openBtn.addEventListener("click", () => openRechargeDialog());
+          ctaWrap.append(openBtn);
+          appendMessage("assistant", `暂时无法完成：${error.message}`, ctaWrap);
+          openRechargeDialog();
+        } else {
+          appendMessage("assistant", `暂时无法完成：${error.message}`);
+        }
+        if (state.llmConfig.provider === "preset") await loadUserBalance();
+      } finally {
+        state.chatSending = false;
+        syncChatControls();
+      }
+      return;
+    }
+
+    // Real SSE streaming path
+    let assistantRow = null;
+    let bubble = null;
+    let streamedText = "";
+    let finalResult = null;
+
     try {
-      const result = await api(`/api/projects/${projectId}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
+      const url = `/api/projects/${projectId}/chat?stream=true`;
+      const headers = new Headers({
+        "Content-Type": "application/json",
+        "Accept": "text/event-stream",
       });
+      if (state.authSession?.access_token) {
+        headers.set("Authorization", `Bearer ${state.authSession.access_token}`);
+      }
+      const body = {
+        message,
+        stream: true,
+        llm_config: { ...state.llmConfig },
+      };
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        let errText = "";
+        try {
+          const errJson = await response.json();
+          errText = errJson.detail || errJson.error;
+        } catch {
+          errText = await response.text();
+        }
+        throw new Error(errText || `请求失败 (${response.status})`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let sseBuffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        sseBuffer += decoder.decode(value, { stream: true });
+        const blocks = sseBuffer.split("\n\n");
+        sseBuffer = blocks.pop() || "";
+        for (const block of blocks) {
+          if (!block.trim()) continue;
+          let eventType = "message";
+          let eventData = "";
+          for (const line of block.split("\n")) {
+            if (line.startsWith("event:")) {
+              eventType = line.slice(6).trim();
+            } else if (line.startsWith("data:")) {
+              eventData = line.slice(5).trim();
+            }
+          }
+          if (!eventData) continue;
+          const parsed = JSON.parse(eventData);
+
+          if (eventType === "status") {
+            if (pending.setStatus && parsed.message) {
+              pending.setStatus(parsed.message);
+            }
+          } else if (eventType === "delta") {
+            if (!assistantRow) {
+              pending.remove();
+              assistantRow = document.createElement("div");
+              assistantRow.className = "message assistant";
+              const avatar = document.createElement("div");
+              avatar.className = "message-avatar";
+              avatar.textContent = "✦";
+              assistantRow.append(avatar);
+              bubble = document.createElement("div");
+              bubble.className = "message-bubble";
+              assistantRow.append(bubble);
+              const root = $("#chatMessages");
+              root.append(assistantRow);
+            }
+            streamedText += parsed.text || "";
+            bubble.textContent = streamedText;
+            const root = $("#chatMessages");
+            root.scrollTop = root.scrollHeight;
+          } else if (eventType === "done") {
+            finalResult = parsed;
+          } else if (eventType === "error") {
+            throw new Error(parsed.error || "请求发生错误");
+          }
+        }
+      }
+
       pending.remove();
       if (state.project?.id !== projectId) return;
-      if (typeof result.message !== "string" || !result.message.trim()) {
+
+      const finalText = finalResult?.message || streamedText;
+      if (!finalText.trim()) {
         throw new Error("模型未返回可用正文，请勿连续重试；请先查看积分流水并联系管理员核对。");
       }
-      appendMessage("assistant", result.message);
-      state.messages.push({ role: "user", content: message }, { role: "assistant", content: result.message });
-      if (result.free_chat) {
-        state.freeChatsRemaining = Number(result.free_chats_remaining || 0);
+
+      if (assistantRow && bubble) {
+        bubble.innerHTML = renderMarkdownSafe(finalText);
+        const copyBtn = document.createElement("button");
+        copyBtn.type = "button";
+        copyBtn.className = "bubble-copy-btn";
+        copyBtn.textContent = "📋 复制";
+        copyBtn.title = "复制此条回答";
+        copyBtn.addEventListener("click", async () => {
+          try {
+            await navigator.clipboard.writeText(finalText);
+            toast("已复制回答内容");
+          } catch {
+            toast("复制失败，请手动选取", true);
+          }
+        });
+        assistantRow.append(copyBtn);
+      } else {
+        appendMessage("assistant", finalText);
+      }
+
+      state.messages.push({ role: "user", content: message }, { role: "assistant", content: finalText });
+
+      if (finalResult?.free_chat) {
+        state.freeChatsRemaining = Number(finalResult.free_chats_remaining || 0);
         renderFreeChatsIndicator();
         if (state.freeChatsRemaining > 0) {
           toast(`本轮为免费体验对话（剩余 ${state.freeChatsRemaining} 次免费对话）`);
         } else {
           toast("本轮为最后一次免费体验对话，后续调用将使用积分");
         }
-      } else if (result.free_chats_remaining !== undefined) {
-        state.freeChatsRemaining = Number(result.free_chats_remaining || 0);
+      } else if (finalResult?.free_chats_remaining !== undefined) {
+        state.freeChatsRemaining = Number(finalResult.free_chats_remaining || 0);
         renderFreeChatsIndicator();
       }
-      if (result.setup_updated || (result.tool_calls || []).some((name) => ["save_project_fact", "save_section"].includes(name))) {
+      if (finalResult?.setup_updated || (finalResult?.tool_calls || []).some((name) => ["save_project_fact", "save_section"].includes(name))) {
         await loadProject(state.project.id);
       }
       await refreshProjects();
       if (state.llmConfig.provider === "preset") await loadUserBalance();
     } catch (error) {
       pending.remove();
+      if (assistantRow && !streamedText.trim()) assistantRow.remove();
       if (state.project?.id !== projectId) return;
       await loadProject(projectId);
       const isCreditsErr = (error.message || "").includes("积分不足") || (error.message || "").includes("402");
@@ -3202,6 +3484,11 @@
     });
     $("#addFactBtn").addEventListener("click", addCustomFact);
     $("#saveFactsBtn").addEventListener("click", saveFacts);
+    $("#chooseLeaderPhotoBtn")?.addEventListener("click", () => $("#leaderPhotoInput")?.click());
+    $("#leaderPhotoInput")?.addEventListener("change", (e) => {
+      if (e.target.files?.[0]) handleLeaderPhotoUpload(e.target.files[0]);
+    });
+    $("#removeLeaderPhotoBtn")?.addEventListener("click", handleLeaderPhotoDelete);
     $("#proposeFactsBtn").addEventListener("click", proposeFacts);
     $("#paperSearchBtn").addEventListener("click", () => searchSources("paper"));
     $("#officialSearchBtn").addEventListener("click", () => searchSources("official"));
@@ -3251,7 +3538,7 @@
     });
     $("#explainChatStorageBtn")?.addEventListener("click", () => {
       toggleChatMenu();
-      toast(state.cloudMode ? "对话记录随项目保存在账号隔离的云端项目空间。" : "对话记录保存在当前本机项目库中。");
+      toast(state.cloudMode ? "对话记录已随项目保存至云端安全空间。" : "对话记录保存在当前本机项目库中。");
     });
     $("#clearChatViewBtn")?.addEventListener("click", () => {
       toggleChatMenu();

@@ -92,7 +92,7 @@ class ProjectRetriever:
             return {
                 "results": [],
                 "retrieval_mode": "empty",
-                "message": "当前项目没有已确认的资料。先上传材料并确认识别结果后再检索。",
+                "message": "当前项目没有可用资料。请先上传材料后再检索。",
             }
         query_embedding = self.embedder.embed([query])
         mode = "bge-m3" if query_embedding and any(c.get("embedding") for c in chunks) else "keyword_fallback"
@@ -120,7 +120,7 @@ class ProjectRetriever:
             "results": results,
             "retrieval_mode": mode,
             "message": (
-                "已从当前项目已确认材料中检索；请将这些片段作为依据，不要超出材料推断事实。"
+                "已从当前项目材料中检索；请将这些片段作为依据，不要超出材料推断事实。"
                 if results
                 else "没有找到明确依据；不要猜测，请向学生追问或标为待补充。"
             ),

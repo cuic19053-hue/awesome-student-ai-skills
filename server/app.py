@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Callable, Literal, TypeVar
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 import mimetypes
 from pydantic import BaseModel, Field
@@ -88,6 +88,7 @@ class LLMConfigInput(BaseModel):
 class ChatInput(BaseModel):
     message: str = Field(min_length=1, max_length=12000)
     llm_config: LLMConfigInput | None = None
+    stream: bool = False
 
 
 class LLMRequest(BaseModel):
@@ -100,6 +101,7 @@ class StorageDocumentInput(BaseModel):
     storage_path: str = Field(min_length=8, max_length=600)
     kind: Literal["source", "template", "photo"] = "source"
     content_type: str = Field(default="", max_length=150)
+    is_leader: bool = False
 
 
 class DiagramProposalInput(BaseModel):
@@ -1124,7 +1126,23 @@ def list_projects() -> dict[str, Any]:
 @app.get("/api/projects/{project_id}")
 def get_project(project_id: str) -> dict[str, Any]:
     project = _safe_project(project_id)
-    project["documents"] = [_public_document(d) for d in store.list_documents(project_id)]
+    raw_docs = store.list_documents(project_id)
+    for d in raw_docs:
+        if not d.get("confirmed") and d.get("extracted_text", "").strip() and d.get("kind") != "template":
+            try:
+                store.update_document_extraction(
+                    d["id"],
+                    d["extracted_text"],
+                    d.get("extraction_status", "ready"),
+                    d.get("extraction_warning", ""),
+                    d.get("low_confidence_count", 0),
+                    confirmed=True,
+                )
+                retriever.index_document(d["id"], d["extracted_text"])
+                d["confirmed"] = True
+            except Exception:
+                pass
+    project["documents"] = [_public_document(d) for d in raw_docs]
     project["messages"] = store.messages(project_id, limit=80)
     return project
 
@@ -1179,7 +1197,8 @@ async def upload_documents(
         )
         try:
             extraction = _extract_uploaded_document(name, content, kind)
-            confirmed = kind == "template"
+            # 自动确认并入库建立检索索引，无需用户手动确认
+            confirmed = True if kind == "template" else bool(extraction.text.strip())
             store.update_document_extraction(
                 document_id,
                 extraction.text,
@@ -1205,7 +1224,7 @@ async def upload_documents(
                 {
                     "document": _public_document(updated),
                     "chunk_count": chunks,
-                    "needs_confirmation": kind != "template",
+                    "needs_confirmation": False,
                 }
             )
         except Exception as exc:
@@ -1225,7 +1244,85 @@ async def upload_documents(
                     "error": _document_extraction_error(exc),
                 }
             )
-    return {"documents": results, "note": "来源材料须先核对提取文本；确认后才进入本项目的 RAG 检索。"}
+    return {"documents": results, "note": "材料已上传并自动建立检索。"}
+
+
+@app.post("/api/projects/{project_id}/leader-photo")
+async def upload_leader_photo(
+    project_id: str,
+    file: UploadFile = File(...),
+) -> dict[str, Any]:
+    project = _safe_project(project_id)
+    name = Path(file.filename or "photo.png").name
+    ext = Path(name).suffix.lower()
+    if ext not in {".png", ".jpg", ".jpeg", ".webp"}:
+        raise HTTPException(status_code=415, detail="照片只支持 PNG/JPG/WebP")
+    content = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail=f"{name} 超过 20 MB")
+    project_folder = store.files_dir / project_id
+    project_folder.mkdir(parents=True, exist_ok=True)
+    document_id = os.urandom(16).hex()
+    stored_path = project_folder / f"{document_id}{ext}"
+    stored_path.write_bytes(content)
+
+    old_photo_id = project.get("state", {}).get("leader_photo")
+    if old_photo_id:
+        try:
+            store.delete_document(old_photo_id)
+            for old_f in project_folder.glob(f"{old_photo_id}.*"):
+                old_f.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+    document = store.add_document(
+        project_id,
+        name,
+        str(stored_path),
+        "photo",
+        mimetypes.guess_type(name)[0] or "image/png",
+        document_id=document_id,
+    )
+    store.update_document_extraction(
+        document_id,
+        "",
+        "ready",
+        "",
+        0,
+        confirmed=True,
+    )
+    state = dict(project["state"])
+    state["leader_photo"] = document_id
+    confirmed = dict(state.get("confirmed_facts", {}))
+    confirmed["leader_photo"] = document_id
+    state["confirmed_facts"] = confirmed
+    state.setdefault("fact_sources", {})
+    state["fact_sources"]["leader_photo"] = "用户在网页中上传负责人照片"
+    store.update_project(project_id, state=state)
+    return {
+        "success": True,
+        "document_id": document_id,
+        "document": _public_document(store.get_document(document_id) or document),
+        "url": f"/api/documents/{document_id}/file",
+    }
+
+
+@app.delete("/api/projects/{project_id}/leader-photo")
+def delete_leader_photo(project_id: str) -> dict[str, Any]:
+    project = _safe_project(project_id)
+    photo_id = project.get("state", {}).get("leader_photo")
+    if photo_id:
+        store.delete_document(photo_id)
+        project_folder = store.files_dir / project_id
+        for old_f in project_folder.glob(f"{photo_id}.*"):
+            old_f.unlink(missing_ok=True)
+        state = dict(project["state"])
+        state.pop("leader_photo", None)
+        confirmed = dict(state.get("confirmed_facts", {}))
+        confirmed.pop("leader_photo", None)
+        state["confirmed_facts"] = confirmed
+        store.update_project(project_id, state=state)
+    return {"success": True}
 
 
 @app.post("/api/projects/{project_id}/documents/from-storage")
@@ -1244,7 +1341,8 @@ def register_cloud_upload(project_id: str, payload: StorageDocumentInput) -> dic
         )
         file_bytes = Path(document["stored_path"]).read_bytes()
         extraction = _extract_uploaded_document(document["original_name"], file_bytes, document["kind"])
-        confirmed = document["kind"] == "template"
+        # 自动确认并入库建立检索索引，无需用户手动确认
+        confirmed = True if document["kind"] == "template" else bool(extraction.text.strip())
         store.update_document_extraction(
             document["id"],
             extraction.text,
@@ -1266,16 +1364,25 @@ def register_cloud_upload(project_id: str, payload: StorageDocumentInput) -> dic
                 current_state["template_preference"] = "has_template"
                 current_state["template_answer"] = f"已上传模板：{document['original_name']}"
                 store.update_project(project_id, state=current_state)
+        if payload.is_leader:
+            current_project = store.get_project(project_id)
+            if current_project:
+                current_state = dict(current_project["state"])
+                current_state["leader_photo"] = document["id"]
+                confirmed_facts = dict(current_state.get("confirmed_facts", {}))
+                confirmed_facts["leader_photo"] = document["id"]
+                current_state["confirmed_facts"] = confirmed_facts
+                store.update_project(project_id, state=current_state)
         updated = store.get_document(document["id"])
         return {
             "documents": [
                 {
                     "document": _public_document(updated or document),
                     "chunk_count": chunks,
-                    "needs_confirmation": document["kind"] != "template",
+                    "needs_confirmation": False,
                 }
             ],
-            "note": "来源材料须先核对提取文本；确认后才进入本项目的 RAG 检索。",
+            "note": "材料已上传并自动建立检索。",
         }
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
@@ -1360,6 +1467,13 @@ def delete_document(document_id: str) -> dict[str, bool]:
     project = store.get_project(document["project_id"])
     if project and project.get("template_document_id") == document_id:
         store.set_template_document(document["project_id"], None)
+    if project and project.get("state", {}).get("leader_photo") == document_id:
+        state_data = dict(project["state"])
+        state_data.pop("leader_photo", None)
+        confirmed = dict(state_data.get("confirmed_facts", {}))
+        confirmed.pop("leader_photo", None)
+        state_data["confirmed_facts"] = confirmed
+        store.update_project(document["project_id"], state=state_data)
     if project and document["kind"] == "official":
         match = re.search(r"\[来源链接\]\s*(https://\S+)", document["extracted_text"])
         if match:
@@ -1450,6 +1564,56 @@ def chat(project_id: str, payload: ChatInput, request: Request) -> dict[str, Any
             remaining_free = store.consume_free_chat(user_id)
             if remaining_free >= 0:
                 is_free = True
+
+    is_stream = bool(payload.stream or (request.headers.get("accept") == "text/event-stream") or (request.query_params.get("stream") == "true"))
+    if is_stream:
+        if is_free:
+            if not _platform_bundle_ready():
+                raise HTTPException(status_code=503, detail="工作台服务账户与实际用量结算尚未接通")
+            stream_candidate = OllamaAgent(
+                store, tools,
+                base_url=os.environ["WOPALLY_MODEL_BASE_URL"].rstrip("/"),
+                model="deepseek-v4-flash",
+                provider="openai_compatible",
+                api_key=os.environ["WOPALLY_WORKBENCH_API_KEY"],
+                meter=None,
+                platform_transport=True,
+            )
+        else:
+            stream_candidate = (
+                _agent_for_config(payload.llm_config, request, project_id)
+                if payload.llm_config is not None and payload.llm_config.provider == "preset"
+                else _agent_for_config(payload.llm_config)
+            )
+
+        def sse_event_generator():
+            try:
+                for event in stream_candidate.chat_stream(project_id, text):
+                    event["setup_updated"] = bool(fields)
+                    event["free_chat"] = is_free
+                    event["free_chats_remaining"] = remaining_free if is_free else int(store.get_workbench_credit_balance(user_id).get("free_chat_count", 0))
+                    yield f"event: {event['type']}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
+            except InsufficientCreditsError:
+                if is_free:
+                    store.refund_free_chat(user_id)
+                err = {"type": "error", "error": "积分不足，请充值后继续，或使用自带 API Key。"}
+                yield f"event: error\ndata: {json.dumps(err, ensure_ascii=False)}\n\n"
+            except ModelUnavailable as exc:
+                if is_free:
+                    store.refund_free_chat(user_id)
+                err = {"type": "error", "error": str(exc)}
+                yield f"event: error\ndata: {json.dumps(err, ensure_ascii=False)}\n\n"
+            except Exception as exc:
+                if is_free:
+                    store.refund_free_chat(user_id)
+                err = {"type": "error", "error": str(exc)}
+                yield f"event: error\ndata: {json.dumps(err, ensure_ascii=False)}\n\n"
+
+        return StreamingResponse(
+            sse_event_generator(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
+        )
 
     try:
         if is_free:

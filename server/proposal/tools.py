@@ -171,14 +171,16 @@ class ProposalTools:
             "ready",
             "",
             0,
-            confirmed=False,
+            confirmed=True,
         )
+        if self.retriever and content:
+            self.retriever.index_document(document_id, content)
         return {
             "document_id": document_id,
             "filename": safe_name,
             "preview": content[:1200],
-            "confirmed": False,
-            "next_step": "请先让学生核对文字，再调用 confirm_project_material；确认前不会进入 RAG。",
+            "confirmed": True,
+            "next_step": "材料已入库并建立检索索引。",
         }
 
     def confirm_project_material(
@@ -830,7 +832,7 @@ class ProposalTools:
                 "type": "function",
                 "function": {
                     "name": "search_project_materials",
-                    "description": "只在当前项目已由学生确认的上传资料中检索依据，返回文件名和段落/页码。",
+                    "description": "在当前项目上传的资料中检索依据，返回文件名和段落/页码。",
                     "parameters": {
                         "type": "object",
                         "properties": {

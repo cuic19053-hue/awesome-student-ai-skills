@@ -329,7 +329,7 @@ def test_default_project_title_is_not_saved_as_a_user_fact(workspace):
     assert "project_name" not in project["state"]
 
 
-def test_unconfirmed_uploaded_material_is_not_retrievable(workspace):
+def test_uploaded_material_is_automatically_retrievable(workspace):
     client, store, retriever, tools, _agent = workspace
     project_id = create_project(client)
     payload = "团队已经完成 12 株样本观察；导师建议进一步比较叶片病斑。".encode()
@@ -339,14 +339,7 @@ def test_unconfirmed_uploaded_material_is_not_retrievable(workspace):
     )
     assert response.status_code == 200
     document = response.json()["documents"][0]["document"]
-    assert not document["confirmed"]
-    assert retriever.search(project_id, "12 株样本")["results"] == []
-
-    confirm = client.patch(
-        f"/api/documents/{document['id']}/confirm",
-        json={"confirmed": True, "corrected_text": "已完成 12 株样本观察；导师建议比较病斑。"},
-    )
-    assert confirm.status_code == 200
+    assert document["confirmed"] is True
     result = tools.search_project_materials(project_id, "12 株样本", 3)
     assert result["results"]
     assert result["results"][0]["source_name"] == "project-notes.txt"
@@ -357,7 +350,7 @@ def test_unconfirmed_uploaded_material_is_not_retrievable(workspace):
     assert retriever.search(project_id, "12 株样本")["results"] == []
 
 
-def test_mcp_text_material_requires_confirmation_before_rag(workspace):
+def test_mcp_text_material_auto_confirmed_for_rag(workspace):
     _client, store, retriever, tools, _agent = workspace
     project = store.create_project()
     added = tools.add_text_material(
@@ -365,13 +358,8 @@ def test_mcp_text_material_requires_confirmation_before_rag(workspace):
         "../../field-notes.txt",
         "观察了 12 株番茄苗，并记录病斑面积。",
     )
-    assert added["confirmed"] is False
+    assert added["confirmed"] is True
     assert added["filename"] == "field-notes.txt"
-    assert retriever.search(project["id"], "12 株番茄苗")["results"] == []
-
-    confirmed = tools.confirm_project_material(project["id"], added["document_id"])
-    assert confirmed["success"] is True
-    assert confirmed["indexed_chunks"] > 0
     assert retriever.search(project["id"], "12 株番茄苗")["results"]
 
 

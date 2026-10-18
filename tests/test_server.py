@@ -92,26 +92,74 @@ def test_material_preview_and_persistent_upload_result_are_available(client):
     assert 'id="documentPreviewDialog"' in page.text
     assert 'id="documentPreviewBody"' in page.text
     assert 'id="downloadDocumentBtn"' in page.text
-    assert "去核对识别文字" in page.text
+    assert "查看识别文字" in page.text
 
 
-def test_uploaded_material_original_is_available_for_preview_without_confirmation(client):
+def test_uploaded_material_original_is_available_for_preview_with_auto_indexing(client):
     project = client.post(
         "/api/projects", json={"title": "上传预览回归", "skill_id": "innovation-research"}
     ).json()
-    content = "这是待核对的材料，不应因预览而进入检索。".encode("utf-8")
+    content = "这是已上传并自动入库的材料。".encode("utf-8")
     result = client.post(
         f"/api/projects/{project['id']}/documents?kind=source",
         files={"files": ("材料.txt", content, "text/plain")},
     )
     assert result.status_code == 200
     document = result.json()["documents"][0]["document"]
-    assert document["confirmed"] is False
+    assert document["confirmed"] is True
     original = client.get(f"/api/documents/{document['id']}/file")
     assert original.status_code == 200
     assert original.content == content
     assert original.headers["content-type"].startswith("text/plain")
-    assert client.get(f"/api/projects/{project['id']}").json()["documents"][0]["confirmed"] is False
+    assert client.get(f"/api/projects/{project['id']}").json()["documents"][0]["confirmed"] is True
+
+
+def test_leader_photo_upload_delete_and_export(client):
+    import io
+    from docx import Document
+
+    page = client.get("/").text
+    assert 'id="leaderPhotoPreview"' in page
+    assert 'id="chooseLeaderPhotoBtn"' in page
+    assert 'id="leaderPhotoInput"' in page
+    assert 'id="removeLeaderPhotoBtn"' in page
+
+    project = client.post(
+        "/api/projects", json={"title": "负责人照片课题", "skill_id": "innovation-research"}
+    ).json()
+    p_id = project["id"]
+
+    fake_png = (
+        b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4"
+        b"\x00\x00\x00\rIDATx\x9cc`\x00\x00\x00\x02\x00\x01H\xaf\xa4q\x00\x00\x00\x00IEND\xaeB`\x82"
+    )
+    upload_res = client.post(
+        f"/api/projects/{p_id}/leader-photo",
+        files={"file": ("leader.png", fake_png, "image/png")},
+    )
+    assert upload_res.status_code == 200
+    body = upload_res.json()
+    assert body["success"] is True
+    photo_doc_id = body["document_id"]
+
+    state = client.get(f"/api/projects/{p_id}").json()["state"]
+    assert state.get("leader_photo") == photo_doc_id
+    assert state.get("confirmed_facts", {}).get("leader_photo") == photo_doc_id
+
+    export_res = client.post(f"/api/projects/{p_id}/export")
+    assert export_res.status_code == 200
+    dl_url = export_res.json()["download_url"]
+    dl = client.get(dl_url)
+    assert dl.status_code == 200
+    doc = Document(io.BytesIO(dl.content))
+    table_labels = [row.cells[0].text for table in doc.tables for row in table.rows]
+    assert "负责人照片" in table_labels
+
+    del_res = client.delete(f"/api/projects/{p_id}/leader-photo")
+    assert del_res.status_code == 200
+    state_after = client.get(f"/api/projects/{p_id}").json()["state"]
+    assert "leader_photo" not in state_after
+    assert "leader_photo" not in state_after.get("confirmed_facts", {})
 
 
 def test_pricing_copy_omits_official_discount_but_keeps_reservation_notice(client, monkeypatch):

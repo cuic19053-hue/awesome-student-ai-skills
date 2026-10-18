@@ -203,6 +203,31 @@ def _fill_labeled_tables(document: Document, project: dict[str, Any]) -> set[str
                 target.text = value
                 if matching[0] == "section" and value != "待补充":
                     filled_sections.add(matching[1])
+    leader_photo_id = project.get("state", {}).get("leader_photo")
+    leader_photo_doc = next(
+        (d for d in project.get("_documents", []) if d.get("id") == leader_photo_id),
+        None,
+    )
+    leader_photo_path = (
+        leader_photo_doc["stored_path"]
+        if leader_photo_doc and Path(leader_photo_doc.get("stored_path", "")).is_file()
+        else None
+    )
+    if leader_photo_path:
+        photo_keywords = ("贴照片", "免冠照片", "一寸照片", "二寸照片", "证件照", "近期照片", "本人照片", "负责人照片")
+        for table in document.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    cleaned = _clean_label(cell.text)
+                    if cleaned in {"照片", "贴照片处", "免冠照片", "一寸照片", "二寸照片", "本人照片", "证件照", "负责人照片"} or any(k in cleaned for k in photo_keywords):
+                        cell.text = ""
+                        p = cell.paragraphs[0] if cell.paragraphs else cell.add_paragraph()
+                        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        try:
+                            run = p.add_run()
+                            run.add_picture(leader_photo_path, width=Cm(2.6))
+                        except Exception:
+                            cell.text = "已填入负责人照片"
     return filled_sections
 
 
@@ -329,7 +354,11 @@ def _append_draft(
         table.cell(1, 0).text = "项目进度图"
         table.cell(1, 1).text = "待补充：确认项目周期和阶段安排后生成。"
 
-    image_docs = [d for d in project["_documents"] if d["kind"] == "photo" and Path(d["stored_path"]).is_file()]
+    leader_photo_id = project.get("state", {}).get("leader_photo")
+    image_docs = [
+        d for d in project["_documents"]
+        if d["kind"] == "photo" and d.get("id") != leader_photo_id and Path(d["stored_path"]).is_file()
+    ]
     if image_docs:
         document.add_heading("项目实践照片", level=1)
         for item in image_docs:
@@ -473,12 +502,34 @@ def _add_generic_cover(document: Document, project: dict[str, Any]) -> None:
             ("申请类别", skill_name),
             ("申报级别 / 年级", project.get("level") or state.get("grade") or "待补充"),
         ]
+    leader_photo_id = state.get("leader_photo")
+    leader_photo_doc = next(
+        (d for d in project.get("_documents", []) if d.get("id") == leader_photo_id),
+        None,
+    )
+    has_photo = bool(
+        leader_photo_doc
+        and leader_photo_doc.get("stored_path")
+        and Path(leader_photo_doc["stored_path"]).is_file()
+    )
+    if has_photo:
+        rows.append(("负责人照片", "PHOTO_ATTACHMENT"))
+
     table = document.add_table(rows=len(rows), cols=2)
     table.style = "Table Grid"
     table.alignment = 1
     for index, (label, value) in enumerate(rows):
         table.cell(index, 0).text = label
-        table.cell(index, 1).text = str(value)
+        if value == "PHOTO_ATTACHMENT" and has_photo:
+            p = table.cell(index, 1).paragraphs[0]
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            try:
+                run = p.add_run()
+                run.add_picture(leader_photo_doc["stored_path"], width=Cm(2.8))
+            except Exception:
+                table.cell(index, 1).text = "已上传负责人照片"
+        else:
+            table.cell(index, 1).text = str(value)
     note = document.add_paragraph("草稿 · 学校模板缺省，提交前请按校方通知核对")
     note.alignment = WD_ALIGN_PARAGRAPH.CENTER
     note.paragraph_format.space_before = Pt(26)
