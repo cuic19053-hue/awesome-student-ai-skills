@@ -72,6 +72,35 @@ def test_chat_composer_offers_material_upload_categories(client):
     assert "实验 / 调研照片" in page.text
 
 
+def test_material_preview_and_persistent_upload_result_are_available(client):
+    page = client.get("/")
+    assert 'id="uploadResult"' in page.text
+    assert 'aria-live="polite"' in page.text
+    assert 'id="documentPreviewDialog"' in page.text
+    assert 'id="documentPreviewBody"' in page.text
+    assert 'id="downloadDocumentBtn"' in page.text
+    assert "去核对识别文字" in page.text
+
+
+def test_uploaded_material_original_is_available_for_preview_without_confirmation(client):
+    project = client.post(
+        "/api/projects", json={"title": "上传预览回归", "skill_id": "innovation-research"}
+    ).json()
+    content = "这是待核对的材料，不应因预览而进入检索。".encode("utf-8")
+    result = client.post(
+        f"/api/projects/{project['id']}/documents?kind=source",
+        files={"files": ("材料.txt", content, "text/plain")},
+    )
+    assert result.status_code == 200
+    document = result.json()["documents"][0]["document"]
+    assert document["confirmed"] is False
+    original = client.get(f"/api/documents/{document['id']}/file")
+    assert original.status_code == 200
+    assert original.content == content
+    assert original.headers["content-type"].startswith("text/plain")
+    assert client.get(f"/api/projects/{project['id']}").json()["documents"][0]["confirmed"] is False
+
+
 def test_pricing_copy_omits_official_discount_but_keeps_reservation_notice(client, monkeypatch):
     import app as server_app
 

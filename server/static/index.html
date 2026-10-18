@@ -318,6 +318,7 @@
                 <div class="upload-hint" id="uploadHint">Word、PDF、扫描件或照片 · 单个文件最大 20 MB</div>
                 <button type="button" class="button button-secondary" id="chooseFileBtn">选择本机文件</button>
               </div>
+              <div id="uploadResult" class="upload-result hidden" role="status" aria-live="polite"></div>
               <div id="documentsList" class="documents-list"></div>
               <div class="privacy-note">
                 <span>✦</span> 本机沙箱保障：上传材料提取后需经你核验确认，才会进入本项目向量库与提示词上下文。
@@ -892,6 +893,19 @@
         <button type="button" id="finishOnboardingBtn" class="button button-primary hidden">开始使用工作台 🚀</button>
       </div>
     </div>
+  </dialog>
+
+  <dialog id="documentPreviewDialog" class="document-preview-dialog" aria-labelledby="documentPreviewTitle">
+    <div class="model-settings-head">
+      <h2 id="documentPreviewTitle">材料预览</h2>
+      <button type="button" id="closeDocumentPreviewBtn" class="icon-button" aria-label="关闭材料预览">×</button>
+    </div>
+    <p id="documentPreviewStatus" class="model-settings-intro" role="status"></p>
+    <div class="doc-actions">
+      <button type="button" id="downloadDocumentBtn" class="button button-small button-secondary">下载原文件</button>
+      <button type="button" id="reviewDocumentBtn" class="button button-small button-primary">去核对识别文字</button>
+    </div>
+    <div id="documentPreviewBody" class="document-preview-body" aria-busy="false"></div>
   </dialog>
 
   <!-- 图片大图预览 Lightbox -->

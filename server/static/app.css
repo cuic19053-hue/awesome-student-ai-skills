@@ -1613,9 +1613,84 @@ button:disabled {
 
 .doc-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin-top: 8px;
   align-items: center;
+}
+
+.upload-result {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--success-border);
+  border-radius: var(--radius-md);
+  background: var(--success-bg);
+  color: var(--success-dark);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.upload-result.error {
+  border-color: var(--warning-border);
+  background: var(--warning-bg);
+  color: var(--warning-dark);
+}
+
+.upload-result-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.document-preview-dialog {
+  width: min(94vw, 960px);
+  max-height: 92vh;
+  padding: 20px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  background: var(--bg-surface);
+  color: var(--text-main);
+}
+
+.document-preview-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.document-preview-dialog h2 {
+  overflow-wrap: anywhere;
+}
+
+.document-preview-body {
+  margin-top: 14px;
+  min-height: 160px;
+}
+
+.document-preview-body iframe {
+  width: 100%;
+  height: 62vh;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+}
+
+.document-preview-body img {
+  display: block;
+  max-width: 100%;
+  max-height: 62vh;
+  margin: auto;
+  object-fit: contain;
+}
+
+.document-preview-text {
+  max-height: 62vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 14px;
+  background: var(--bg-subtle);
+  line-height: 1.7;
+  font: inherit;
 }
 
 .privacy-note {

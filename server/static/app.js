@@ -31,6 +31,7 @@
     documents: [],
     messages: [],
     uploadKind: "source",
+    uploading: false,
     outline: [],
     diagrams: [],
     editingDiagramId: "",
@@ -963,6 +964,7 @@
   async function loadProject(projectId) {
     try {
       const project = await api(`/api/projects/${projectId}`);
+      if (state.project?.id !== projectId) $("#uploadResult").classList.add("hidden");
       state.project = project;
       try { localStorage.setItem(activeProjectKey, projectId); } catch {}
       state.documents = project.documents || [];
@@ -1271,20 +1273,33 @@
 
   async function uploadFiles(fileList, kind = state.uploadKind, fromChat = false) {
     if (!state.project || !fileList.length) return;
+    if (state.uploading) return toast("材料正在上传，请稍候。", true);
     if (fileList.length > 12) return toast("一次最多上传 12 个文件。", true);
+    const projectId = state.project.id;
     const form = new FormData();
     for (const file of fileList) form.append("files", file);
     const names = fileList.map((file) => file.name);
     const query = new URLSearchParams({ kind });
+    state.uploading = true;
+    $("#chooseFileBtn").disabled = true;
+    $("#chatAttachBtn").disabled = true;
+    const status = $("#uploadResult");
+    status.replaceChildren();
+    status.textContent = "正在上传并识别材料，请稍候…";
+    status.classList.remove("hidden", "error");
     try {
       toast(state.cloudMode ? "正在安全上传并识别材料…" : "正在本机识别文件…");
       const result = state.cloudMode
-        ? await uploadFilesToCloud(fileList, kind)
-        : await api(`/api/projects/${state.project.id}/documents?${query}`, { method: "POST", body: form });
+        ? await uploadFilesToCloud(fileList, kind, projectId)
+        : await api(`/api/projects/${projectId}/documents?${query}`, { method: "POST", body: form });
       const failed = (result.documents || []).filter((d) => d.error);
       const uploaded = (result.documents || []).filter((d) => !d.error);
-      await loadProject(state.project.id);
-      toast(failed.length ? "部分文件未能识别，请查看提示。" : "文件已读取。请核对文字，再确认用于检索。", failed.length > 0);
+      if (state.project?.id !== projectId) return;
+      await loadProject(projectId);
+      renderUploadResult(result.documents || []);
+      toast(failed.length ? "有文件处理失败，请查看上传结果。" : `上传成功：${uploaded.length} 个文件，可预览并核对文字。`, failed.length > 0);
+      const firstDocument = (result.documents || []).find((item) => item.document?.id);
+      if (firstDocument) void previewDocument(firstDocument.document, true);
       if (fromChat && uploaded.length) {
         const labels = { source: "项目信息材料", template: "学校申报模板", photo: "实验 / 调研照片" };
         const successfulNames = uploaded.map((item) => item.document?.original_name).filter(Boolean);
@@ -1294,17 +1309,25 @@
         );
       }
       if (fromChat && failed.length) {
-        appendMessage("assistant", `我收到文件了，但有些文件没有成功识别：${failed.map((item) => item.document?.original_name || item.original_name || item.name || "文件").join("、")}。请查看项目材料区的错误提示后重试。`);
+        appendMessage("assistant", `以下文件未能完成处理：\n${failed.map((item) =>
+          `${item.document?.original_name || "文件"}：${item.error}`
+        ).join("\n")}\n请查看项目材料区的上传结果后重试。`);
       }
     } catch (error) {
+      if (state.project?.id !== projectId) return;
+      renderUploadResult(names.map((name) => ({ document: { original_name: name }, error: error.message })));
       toast(error.message, true);
       if (fromChat) appendMessage("assistant", `上传没有完成：${error.message}`);
+    } finally {
+      state.uploading = false;
+      $("#chooseFileBtn").disabled = false;
+      $("#chatAttachBtn").disabled = false;
+      $("#fileInput").value = "";
+      $("#chatFileInput").value = "";
     }
-    $("#fileInput").value = "";
-    $("#chatFileInput").value = "";
   }
 
-  async function uploadFilesToCloud(fileList, kind) {
+  async function uploadFilesToCloud(fileList, kind, projectId = state.project.id) {
     if (!state.authClient || !state.authSession?.user?.id) {
       throw new Error("登录状态已失效，请重新登录后上传。");
     }
@@ -1322,7 +1345,7 @@
     for (const file of fileList) {
       const extension = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
       const documentId = crypto.randomUUID().replaceAll("-", "");
-      const storagePath = `${state.authSession.user.id}/${state.project.id}/${documentId}${extension}`;
+      const storagePath = `${state.authSession.user.id}/${projectId}/${documentId}${extension}`;
       const contentType = file.type || mimeByExtension[extension] || "application/octet-stream";
       const { error: uploadError } = await state.authClient.storage
         .from("stardust-project-files")
@@ -1332,7 +1355,7 @@
         continue;
       }
       try {
-        const registered = await api(`/api/projects/${state.project.id}/documents/from-storage`, {
+        const registered = await api(`/api/projects/${projectId}/documents/from-storage`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1358,6 +1381,131 @@
     return ".docx,.pdf,.txt,.md,.png,.jpg,.jpeg,.webp";
   }
 
+  function renderUploadResult(items) {
+    const box = $("#uploadResult");
+    box.replaceChildren();
+    const failed = items.filter((item) => item.error);
+    const title = document.createElement("strong");
+    title.textContent = items.length
+      ? `上传结果：${items.length - failed.length} 个成功，${failed.length} 个处理失败`
+      : "未收到上传结果，请重试。";
+    box.append(title);
+    box.classList.remove("hidden");
+    box.classList.toggle("error", failed.length > 0 || !items.length);
+    for (const item of items) {
+      const row = document.createElement("div");
+      row.className = "upload-result-item";
+      const label = document.createElement("span");
+      const saved = Boolean(item.document?.id);
+      label.textContent = `${item.document?.original_name || "文件"} — ${
+        item.error ? `${saved ? "已保存，识别失败" : "上传失败"}：${item.error}` : "上传成功"
+      }`;
+      row.append(label);
+      if (saved) {
+        const preview = button("预览", "button button-small button-secondary");
+        preview.addEventListener("click", () => void previewDocument(item.document));
+        row.append(preview);
+      }
+      box.append(row);
+    }
+  }
+
+  let documentPreviewVersion = 0;
+  let documentPreviewUrl = "";
+
+  function clearDocumentPreview() {
+    documentPreviewVersion += 1;
+    $("#documentPreviewBody").replaceChildren();
+    if (documentPreviewUrl) URL.revokeObjectURL(documentPreviewUrl);
+    documentPreviewUrl = "";
+  }
+
+  async function fetchDocumentBlob(doc) {
+    const headers = new Headers();
+    if (state.authSession?.access_token) {
+      headers.set("Authorization", `Bearer ${state.authSession.access_token}`);
+    }
+    // Private files must be fetched with the session JWT, not used as bare img/iframe URLs.
+    const response = await fetch(`/api/documents/${encodeURIComponent(doc.id)}/file`, { headers });
+    if (!response.ok) {
+      throw new Error(response.status === 401
+        ? "登录已过期，请重新登录后预览。"
+        : `原文件读取失败（HTTP ${response.status}），可先核对识别文字。`);
+    }
+    return response.blob();
+  }
+
+  async function previewDocument(doc, justUploaded = false) {
+    const dialog = $("#documentPreviewDialog");
+    clearDocumentPreview();
+    const version = documentPreviewVersion;
+    const body = $("#documentPreviewBody");
+    const status = $("#documentPreviewStatus");
+    const extension = doc.original_name.split(".").pop().toLowerCase();
+    $("#documentPreviewTitle").textContent = doc.original_name;
+    const failed = doc.extraction_status === "error";
+    status.textContent = failed
+      ? `原文件已保存，但文字识别失败：${doc.extraction_warning || "请重新上传可复制文字的版本，或手动补充文字。"}`
+      : `${justUploaded ? "上传成功 · " : ""}${doc.kind === "template" ? "学校模板" : doc.confirmed ? "材料已确认" : "材料已保存，识别文字待核对"}。`;
+    $("#reviewDocumentBtn").onclick = () => {
+      dialog.close();
+      handleTabNavigation("panel-materials");
+      const card = $(`[data-document-id="${doc.id}"]`);
+      card?.scrollIntoView({ behavior: "smooth", block: "center" });
+      $("textarea", card || $("#documentsList"))?.focus();
+    };
+    $("#downloadDocumentBtn").onclick = async () => {
+      try {
+        const blob = await fetchDocumentBlob(doc);
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = doc.original_name;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (error) {
+        toast(error.message, true);
+      }
+    };
+    if (!dialog.open) dialog.showModal();
+    const text = document.createElement("pre");
+    text.className = "document-preview-text";
+    text.textContent = doc.extracted_text || "暂无识别文字；可下载原文件查看，或在材料卡片中手动补充。";
+    if (!["pdf", "png", "jpg", "jpeg", "webp"].includes(extension)) {
+      const note = document.createElement("p");
+      note.textContent = extension === "docx"
+        ? "Word 文字预览（不保留原版式）。查看完整排版请下载原文件。"
+        : "识别文字预览";
+      body.append(note, text);
+      body.setAttribute("aria-busy", "false");
+      return;
+    }
+    body.textContent = "正在加载原文件预览…";
+    body.setAttribute("aria-busy", "true");
+    try {
+      const blob = await fetchDocumentBlob(doc);
+      if (version !== documentPreviewVersion || !dialog.open) return;
+      // Use the supported extension's MIME so PDF/image previews work even if the upload MIME was generic.
+      const mime = extension === "pdf" ? "application/pdf"
+        : `image/${extension === "jpg" ? "jpeg" : extension}`;
+      documentPreviewUrl = URL.createObjectURL(new Blob([blob], { type: mime }));
+      const media = document.createElement(extension === "pdf" ? "iframe" : "img");
+      media.src = documentPreviewUrl;
+      if (extension === "pdf") media.title = `PDF 原文件预览：${doc.original_name}`;
+      else media.alt = doc.original_name;
+      const fallback = document.createElement("p");
+      fallback.textContent = "若浏览器无法显示原文件，请使用上方“下载原文件”。下方为识别文字。";
+      body.replaceChildren(media, fallback, text);
+    } catch (error) {
+      if (version !== documentPreviewVersion || !dialog.open) return;
+      const warning = document.createElement("p");
+      warning.textContent = error.message;
+      body.replaceChildren(warning, text);
+    } finally {
+      if (version === documentPreviewVersion) body.setAttribute("aria-busy", "false");
+    }
+  }
+
   function renderDocuments() {
     const list = $("#documentsList");
     list.replaceChildren();
@@ -1365,6 +1513,7 @@
     for (const doc of state.documents) {
       const card = document.createElement("div");
       card.className = "document-card";
+      card.dataset.documentId = doc.id;
       const top = document.createElement("div");
       top.className = "doc-top";
       const type = document.createElement("div");
@@ -1375,16 +1524,10 @@
       name.textContent = doc.original_name;
       const badge = document.createElement("span");
       badge.className = `doc-state ${doc.confirmed ? "confirmed" : ""}`;
-      badge.textContent = doc.kind === "template" ? "模板" : doc.confirmed ? "已确认" : "待核对";
+      badge.textContent = doc.extraction_status === "error" ? "已保存 · 识别失败"
+        : doc.kind === "template" ? "已上传 · 模板" : doc.confirmed ? "已上传 · 已确认" : "已上传 · 待核对";
       top.append(type, name, badge);
       card.append(top);
-      if (doc.kind === "photo") {
-        const image = document.createElement("img");
-        image.src = `/api/documents/${doc.id}/file`;
-        image.alt = doc.original_name;
-        image.style.cssText = "max-width:100%;max-height:220px;object-fit:contain;margin-top:10px;border-radius:8px;background:#f8fafc;border:1px solid #e2e8f0";
-        card.append(image);
-      }
       if (doc.extraction_warning) {
         const warning = document.createElement("div");
         warning.className = "doc-warning";
@@ -1394,12 +1537,16 @@
       const text = document.createElement("textarea");
       text.className = "doc-text";
       text.rows = Math.min(7, Math.max(3, Math.ceil((doc.extracted_text || "").length / 95)));
-      text.value = doc.extracted_text || (doc.extraction_status === "error" ? "识别失败，请重新上传或手动补充内容。" : "");
+      text.value = doc.extracted_text || "";
+      text.placeholder = doc.extraction_status === "error" ? "识别失败，请重新上传或手动补充内容。" : "暂无识别文字";
       text.readOnly = doc.kind === "template" || doc.confirmed;
       text.setAttribute("aria-label", `识别文字：${doc.original_name}`);
       card.append(text);
       const actions = document.createElement("div");
       actions.className = "doc-actions";
+      const preview = button("预览文件", "button button-small button-secondary");
+      preview.addEventListener("click", () => void previewDocument(doc));
+      actions.append(preview);
       if (doc.kind !== "template" && !doc.confirmed) {
         const confirm = button("确认文字并加入检索", "button button-small button-primary");
         confirm.addEventListener("click", async () => {
@@ -3023,6 +3170,8 @@
       }
     });
     $("#closeLightboxBtn")?.addEventListener("click", () => $("#imageLightboxDialog")?.close());
+    $("#closeDocumentPreviewBtn").addEventListener("click", () => $("#documentPreviewDialog").close());
+    $("#documentPreviewDialog").addEventListener("close", clearDocumentPreview);
     $("#toggleChatBtn")?.addEventListener("click", toggleChatColumn);
 
     $$(".workspace-tab-btn").forEach(btn => {
