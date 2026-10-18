@@ -63,6 +63,7 @@
     activeTab: "all",
     batchGenerating: false,
     batchAbort: false,
+    chatSending: false,
   };
 
   function countWords(str) {
@@ -440,6 +441,7 @@
       const label = document.createElement("span");
       label.textContent = tx.kind === "card_redeem" ? "卡密充值"
         : tx.kind === "usage_reserve" ? `模型调用 · ${tx.model || "平台模型"}`
+          : tx.kind === "admin_adjustment" ? "异常补偿 / 人工调整"
           : tx.kind === "usage_refund" || tx.kind === "usage_settle" ? "用量结算"
             : "积分变动";
       const amount = document.createElement("strong");
@@ -2724,6 +2726,11 @@
     input.style.height = `${Math.min(180, Math.max(44, input.scrollHeight))}px`;
   }
 
+  function syncChatControls() {
+    $("#sendBtn").disabled = state.chatSending;
+    $$("#chatTools button").forEach((button) => { button.disabled = state.chatSending; });
+  }
+
   function appendThinkingMessage() {
     const root = $("#chatMessages");
     const row = document.createElement("div");
@@ -2733,11 +2740,23 @@
     avatar.textContent = "✦";
     const bubble = document.createElement("div");
     bubble.className = "thinking-bubble";
-    bubble.innerHTML = `<span>Agent 正在结合赛道规范深度思考与检索依据</span><span class="thinking-dots"><span></span><span></span><span></span></span>`;
+    const status = document.createElement("span");
+    status.textContent = "正在等待模型回复，请勿重复发送…";
+    const dots = document.createElement("span");
+    dots.className = "thinking-dots";
+    dots.append(document.createElement("span"), document.createElement("span"), document.createElement("span"));
+    bubble.append(status, dots);
     row.append(avatar, bubble);
     root.append(row);
     root.scrollTop = root.scrollHeight;
-    return row;
+    const started = Date.now();
+    const timer = setInterval(() => {
+      const seconds = Math.floor((Date.now() - started) / 1000);
+      status.textContent = seconds >= 30
+        ? `已等待 ${seconds} 秒，模型响应较慢，请勿重复发送。`
+        : `正在等待模型回复，已等待 ${seconds} 秒…`;
+    }, 1000);
+    return { remove() { clearInterval(timer); row.remove(); } };
   }
 
   function renderMessages() {
@@ -2800,6 +2819,10 @@
     const input = $("#chatInput");
     const message = messageOverride === null ? input.value.trim() : messageOverride.trim();
     if (!message || !state.project) return;
+    if (state.chatSending) return toast("上一条请求还未完成，请勿重复发送。", true);
+    const projectId = state.project.id;
+    state.chatSending = true;
+    syncChatControls();
     if (messageOverride === null) {
       input.value = "";
       input.style.height = "auto";
@@ -2807,14 +2830,18 @@
     appendMessage("user", message);
     const pending = appendThinkingMessage();
     try {
-      const result = await api(`/api/projects/${state.project.id}/chat`, {
+      const result = await api(`/api/projects/${projectId}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message }),
       });
       pending.remove();
-      appendMessage("assistant", result.message || "本轮没有生成文字。");
-      state.messages.push({ role: "user", content: message }, { role: "assistant", content: result.message || "" });
+      if (state.project?.id !== projectId) return;
+      if (typeof result.message !== "string" || !result.message.trim()) {
+        throw new Error("模型未返回可用正文，请勿连续重试；请先查看积分流水并联系管理员核对。");
+      }
+      appendMessage("assistant", result.message);
+      state.messages.push({ role: "user", content: message }, { role: "assistant", content: result.message });
       if (result.free_chat) {
         state.freeChatsRemaining = Number(result.free_chats_remaining || 0);
         renderFreeChatsIndicator();
@@ -2831,9 +2858,10 @@
         await loadProject(state.project.id);
       }
       await refreshProjects();
+      if (state.llmConfig.provider === "preset") await loadUserBalance();
     } catch (error) {
       pending.remove();
-      const projectId = state.project.id;
+      if (state.project?.id !== projectId) return;
       await loadProject(projectId);
       const isCreditsErr = (error.message || "").includes("积分不足") || (error.message || "").includes("402");
       if (isCreditsErr) {
@@ -2860,6 +2888,9 @@
         appendMessage("assistant", `暂时无法完成：${error.message}`);
       }
       if (state.llmConfig.provider === "preset") await loadUserBalance();
+    } finally {
+      state.chatSending = false;
+      syncChatControls();
     }
   }
 

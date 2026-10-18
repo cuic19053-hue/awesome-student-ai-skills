@@ -210,6 +210,12 @@ class OllamaAgent:
             "messages": messages,
             "stream": False,
         }
+        if self.platform_transport and actual_model == "deepseek-v4-flash":
+            # DeepSeek enables high-effort thinking by default. Its reasoning
+            # shares the output budget and can exhaust all 2048 tokens before
+            # producing any visible answer. Interactive platform calls must
+            # explicitly request non-thinking mode; never expose raw reasoning.
+            request_body["thinking"] = {"type": "disabled"}
         if payload.get("tools"):
             request_body["tools"] = payload["tools"]
             request_body["tool_choice"] = "auto"
@@ -291,6 +297,16 @@ class OllamaAgent:
                     },
                 }
             )
+        content = message.get("content") or ""
+        if not isinstance(content, str) or (not content.strip() and not tool_calls):
+            # Validate a deliverable BEFORE settling any reservation. A 200
+            # with reasoning-only / blank content is not a successful answer.
+            if usage_request_id:
+                self.meter.refund(usage_request_id)
+                raise ModelUnavailable(
+                    "模型未返回可用正文，已退回本次空回复请求的预留积分。请稍后重试。"
+                )
+            raise ModelUnavailable("模型未返回可用正文，本次请求未完成。请稍后重试。")
         usage_info = body.get("usage") or {}
         p_tok = usage_info.get("prompt_tokens", 0)
         c_tok = usage_info.get("completion_tokens", 0)
@@ -303,7 +319,7 @@ class OllamaAgent:
         return {
             "message": {
                 "role": "assistant",
-                "content": message.get("content") or "",
+                "content": content,
                 "tool_calls": tool_calls,
             },
             "usage": {
@@ -445,7 +461,9 @@ class OllamaAgent:
             message = response.get("message", {})
             calls = message.get("tool_calls") or []
             if not calls:
-                text = str(message.get("content", "")).strip()
+                text = str(message.get("content") or "").strip()
+                if not text:
+                    raise ModelUnavailable("模型未返回可用正文，本次请求未完成。")
                 if not saved_fact_this_turn:
                     text = re.sub(
                         r"(?:现在我将|我将|我会|正在|已经|已)(?:为你)?保存(?:这个|该)?事实",
