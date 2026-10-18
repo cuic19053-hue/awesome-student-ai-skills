@@ -115,6 +115,7 @@
     } catch (e) {
       data.config = null;
     }
+    if (view && view.active === "account") renderPanel();
     loadBalance();
     loadStats();
   }
@@ -167,7 +168,10 @@
    * ------------------------------------------------------------------- */
   function accountPanel() {
     const ui = S.getUI();
-    const cloud = !!(data.config && data.config.cloud_mode);
+    const cloud = !!(
+      (data.config && data.config.cloud_mode) ||
+      (window.App && window.App.state && window.App.state.config && window.App.state.config.cloud_mode)
+    );
     const balance = data.balance;
     const themeMode = S.theme.mode();
     const themeModes = [
@@ -222,18 +226,17 @@
       '<div class="settings-section">' +
       '<h3 class="settings-section-title">账号与登录</h3>' +
       '<div class="settings-card">' +
-      '<div class="settings-row">' +
-      '<div><div class="settings-row-label">' +
-      (cloud ? "云端账号" : "本机账号") +
-      "</div><div class=\"settings-row-desc\">" +
       (cloud
-        ? "已启用 Supabase 登录与积分账本，可跨设备同步项目。"
-        : "当前为本地版：无需登录，项目与材料只存在这台电脑上。") +
-      "</div></div>" +
-      (cloud
-        ? '<span class="badge badge-ok">' + icon("check") + "已连接</span>"
-        : '<span class="badge">本地模式</span>') +
-      "</div>" +
+        ? '<div class="settings-row"><div><div class="settings-row-label">' +
+          esc((S.auth && S.auth.user() && S.auth.user().email) || "已登录") +
+          '</div><div class="settings-row-desc">邮箱 + 密码登录（Supabase）</div></div>' +
+          '<span class="badge badge-ok">' + icon("check") + "已登录</span></div>" +
+          '<div class="settings-row"><div><div class="settings-row-label">登录状态</div>' +
+          '<div class="settings-row-desc">登录状态保存在这台设备的浏览器；退出后需要重新登录。</div></div>' +
+          '<button type="button" class="btn btn-sm btn-ghost" data-act="logout">退出登录</button></div>'
+        : '<div class="settings-row"><div><div class="settings-row-label">本机账号</div>' +
+          '<div class="settings-row-desc">当前为本地版：无需登录，项目与材料只存在这台电脑上。</div></div>' +
+          '<span class="badge">本地模式</span></div>') +
       "</div>" +
       "</div>" +
       '<div class="settings-section">' +
@@ -730,6 +733,13 @@
         }
         S.settings.open("account");
       });
+      return;
+    }
+
+    if (act === "logout") {
+      S.closeModal();
+      S.toast("正在退出登录…");
+      S.auth.logout();
       return;
     }
 

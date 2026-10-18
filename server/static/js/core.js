@@ -206,6 +206,14 @@
       headers["Content-Type"] = "application/json";
       body = JSON.stringify(body);
     }
+    if (window.S && S.auth && S.auth.cloud && S.auth.needsRefresh()) {
+      try {
+        await S.auth.refresh();
+      } catch (e) {}
+    }
+    if (window.S && S.auth && S.auth.attached()) {
+      headers.Authorization = "Bearer " + S.auth.token();
+    }
     const timeout = opts.timeout || 180000;
     const controller = new AbortController();
     const timer = setTimeout(function () {
@@ -236,6 +244,10 @@
       } catch (e) {
         data = null;
       }
+    }
+    if (res.status === 401 && window.S && S.auth && S.auth.cloud) {
+      S.auth.handleUnauthorized();
+      throw new ApiError("登录已过期，请重新登录", 401, "登录已过期，请重新登录");
     }
     if (!res.ok) {
       let detail = "";
@@ -706,13 +718,49 @@
     return fallback();
   }
 
-  function downloadUrl(url, fallbackName) {
+  async function fetchBlob(url) {
+    if (window.S && S.auth && S.auth.cloud && S.auth.needsRefresh()) {
+      try {
+        await S.auth.refresh();
+      } catch (e) {}
+    }
+    const headers = {};
+    if (window.S && S.auth && S.auth.attached()) {
+      headers.Authorization = "Bearer " + S.auth.token();
+    }
+    const res = await fetch(url, { headers: headers, credentials: "same-origin" });
+    if (res.status === 401 && window.S && S.auth && S.auth.cloud) {
+      S.auth.handleUnauthorized();
+      throw new Error("登录已过期，请重新登录");
+    }
+    if (!res.ok) throw new Error("文件加载失败（HTTP " + res.status + "）");
+    return res.blob();
+  }
+
+  function anchorDownload(url, name) {
     const a = document.createElement("a");
     a.href = url;
-    if (fallbackName) a.download = fallbackName;
+    if (name) a.download = name;
     document.body.appendChild(a);
     a.click();
     a.remove();
+  }
+
+  async function downloadUrl(url, fallbackName) {
+    if (window.S && S.auth && S.auth.attached()) {
+      try {
+        const blob = await fetchBlob(url);
+        const objectUrl = URL.createObjectURL(blob);
+        anchorDownload(objectUrl, fallbackName);
+        setTimeout(function () {
+          URL.revokeObjectURL(objectUrl);
+        }, 10000);
+      } catch (err) {
+        if (S.toast) S.toast(err.message || "下载失败", "error");
+      }
+      return;
+    }
+    anchorDownload(url, fallbackName);
   }
 
   /* ---------------------------------------------------------------------
@@ -824,6 +872,7 @@
   S.on = on;
   S.copyText = copyText;
   S.downloadUrl = downloadUrl;
+  S.fetchBlob = fetchBlob;
   S.theme = theme;
   S.applyTheme = applyTheme;
   S.viewTransition = viewTransition;

@@ -4055,3 +4055,124 @@ select:focus-visible,
   margin-top: 2px;
   color: var(--warn);
 }
+
+/* 登录页（云端模式） */
+.auth-lock {
+  overflow: hidden;
+}
+.auth-page {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--page);
+  animation: fadeIn 0.24s ease both;
+}
+.auth-card {
+  width: min(420px, 100%);
+  padding: 40px 36px 26px;
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+  animation: riseIn 0.38s cubic-bezier(0.22, 0.9, 0.3, 1) both;
+}
+.auth-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-bottom: 22px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+.auth-brand .i {
+  width: 22px;
+  height: 22px;
+  color: var(--accent);
+}
+.auth-title {
+  margin: 0 0 6px;
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  text-align: center;
+}
+.auth-sub {
+  margin: 0 0 22px;
+  color: var(--text-3);
+  font-size: 13px;
+  text-align: center;
+}
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.auth-label {
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+.auth-input {
+  width: 100%;
+  height: 46px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+.auth-input:focus {
+  background: var(--surface);
+  box-shadow: 0 0 0 2px var(--accent-line);
+}
+.auth-error {
+  min-height: 18px;
+  color: var(--danger);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.auth-error.ok {
+  color: var(--ok);
+}
+.auth-submit {
+  width: 100%;
+  height: 46px;
+  margin-top: 2px;
+  border-radius: 12px;
+}
+.auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+}
+.auth-note {
+  margin: 22px 0 0;
+  color: var(--text-4);
+  font-size: 11.5px;
+  line-height: 1.6;
+  text-align: center;
+}
+@media (max-width: 520px) {
+  .auth-card {
+    padding: 32px 22px 22px;
+    border-radius: 20px;
+  }
+  .auth-title {
+    font-size: 21px;
+  }
+}

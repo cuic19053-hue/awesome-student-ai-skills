@@ -116,9 +116,20 @@ cd <repo>
 
 **已知边界（交付时需知）**
 - 本地版未启用登录：默认只监听 `127.0.0.1`，不要直接暴露公网。
-- `cloud_mode=true`（配置了 Supabase）时，前端尚未实现登录态与 `Authorization` 头，接口会返回 401；当前按本地版交付。
+- 云端模式已支持 Supabase 邮箱密码登录：登录 / 注册 / 忘记密码 / 退出、token 自动刷新、401 回到登录页；文件下载与预览也走带鉴权的 Blob 请求。token 保存在本机 `localStorage`，退出登录会清除。
 - 默认模型来源为“平台预设”，本地 `/api/config.preset_enabled` 为 false 时首条消息会 503；对话页会提示去设置选择 Ollama 或自备 API。
 - 会话线程、项目指令仅保存在本机浏览器；后端 `/chat` 仍是单消息流。
 - 文档预览的 Word/TXT 内容来自后端提取文本，复杂排版以导出的 Word 为准。
 - `server/static/` 下仍有未被引用的旧实验文件（`app-new.*`、`index-new.html`、`index-kimi.html`、`kimi-*`、`styles.css`，以及被 git 跟踪的旧 `app.js`），交付前可清理。
 - 后端全量测试中 7 个用例依赖未安装的可选依赖（`numpy`/`matplotlib`/`rapidocr`），与本次前端改动无关。
+
+
+## 云端登录（2026-10 修复）
+
+生产环境为 `cloud_mode=true`，后端中间件要求所有业务接口携带 `Authorization: Bearer <Supabase access_token>`。此前 UI 重做时漏掉了登录页，导致线上首屏 401。现已补齐：
+
+- 新增 `server/static/js/auth.js`：直接调用 Supabase Auth REST（密码登录、注册、刷新 token、退出、找回密码）；
+- 启动时先读 `/api/config`：云端模式且无有效会话时先渲染登录页，不请求业务接口；
+- `S.api` 自动附带 Bearer token，token 即将过期或接口 401 时自动刷新/回到登录页；
+- 文件预览、PDF/图片、Word 导出下载改为带鉴权的 Blob 请求（`window.open` 不会带 token）；
+- 设置中心账户页显示登录邮箱与退出登录；本地模式完全跳过登录。
