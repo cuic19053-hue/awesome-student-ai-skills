@@ -38,6 +38,7 @@
     llmConfig: readSavedLlmConfig(),
     chatCollapsed: false,
     cloudMode: false,
+    ollamaLocal: null,
     userCredits: null,
     freeChatsRemaining: 0,
     cardRedemptionEnabled: false,
@@ -183,17 +184,46 @@
       : "没有模板时，Agent 会按所选赛道拟定通用结构，并提醒你提交前按学校要求核对。";
   }
 
+  function renderPrivacyNotice(project = state.project) {
+    const privacy = $(".privacy-note");
+    const text = $("#materialPrivacyText");
+    if (!privacy || !text) return;
+    const parts = [
+      state.cloudMode
+        ? "云端版：材料上传至 Supabase 私有云存储，由云端服务处理，并按账号权限隔离。"
+        : "本地部署：材料保存在运行 Agent 的设备上。",
+      "来源材料经你确认后才用于当前项目检索。",
+    ];
+    const provider = state.llmConfig.provider;
+    if (provider === "preset") {
+      parts.push("使用平台模型时，本轮对话及必要材料内容会经平台中转服务转发给模型服务商。");
+    } else if (provider === "openai_compatible") {
+      parts.push("使用自定义 API 时，本轮对话及必要材料内容会发送至你配置的模型服务商。");
+    } else if (state.ollamaLocal === false) {
+      parts.push("当前 Ollama 位于远程主机，对话及必要材料内容会发送至该主机。");
+    } else if (state.ollamaLocal === true) {
+      parts.push("当前使用本地 Ollama；主动搜索时仍会向相应服务发送查询关键词。");
+    } else {
+      parts.push("Ollama 的处理位置取决于配置的主机；主动搜索会向相应服务发送查询关键词。");
+    }
+    if (project?.state?.template_preference === "not_asked") {
+      parts.push("请先通过对话确认是否有学校模板。");
+    }
+    privacy.classList.toggle("remote-warning",
+      state.cloudMode || provider !== "ollama" || state.ollamaLocal !== true);
+    text.textContent = parts.join(" ");
+  }
+
   function showModelStatus(localStatus) {
+    if (typeof localStatus?.ollama_local === "boolean") {
+      state.ollamaLocal = localStatus.ollama_local;
+    }
+    renderPrivacyNotice();
     const status = $("#modelStatus");
     if (state.llmConfig.provider === "preset") {
       status.textContent = "平台融合模型 · DeepSeek Flash + GPT Image";
       status.classList.remove("offline");
       status.classList.add("remote-warning");
-      const privacy = $(".privacy-note");
-      if (privacy) {
-        privacy.classList.add("remote-warning");
-        privacy.lastChild.textContent = "平台模型调用会将本次必要的材料内容发送至中转站；积分按实际用量结算。";
-      }
       return;
     }
     if (state.llmConfig.provider === "openai_compatible") {
@@ -201,11 +231,6 @@
       status.textContent = `自定义 API · ${state.llmConfig.model || "未设置模型"}${imgTag}`;
       status.classList.remove("offline");
       status.classList.add("remote-warning");
-      const privacy = $(".privacy-note");
-      if (privacy) {
-        privacy.classList.add("remote-warning");
-        privacy.lastChild.textContent = "当前使用自定义远程模型；对话内容会发送到此 Agent 服务，再转发给你填写的模型服务商。";
-      }
       return;
     }
     if (!localStatus) {
@@ -227,13 +252,6 @@
         : `缺少模型 · 请先 ollama pull ${model}`;
     status.classList.toggle("offline", !localStatus.ollama_available || (selectedIsHealthModel && !ready));
     status.classList.remove("remote-warning");
-    const privacy = $(".privacy-note");
-    if (privacy) {
-      privacy.classList.toggle("remote-warning", !localStatus.ollama_local);
-      if (!localStatus.ollama_local) {
-        privacy.lastChild.textContent = "当前 Ollama 位于远程主机；聊天与检索内容会发送到该主机。请勿上传不应外传的资料。";
-      }
-    }
   }
 
   function selectedLlmConfig() {
@@ -703,6 +721,7 @@
 
   async function initializeCloudAuth(config) {
     state.cloudMode = Boolean(config.cloud_mode);
+    renderPrivacyNotice();
     if (!state.cloudMode) {
       await startApplication();
       return;
@@ -711,11 +730,6 @@
     if (localBadge) localBadge.textContent = "账号隔离 · 云端存储";
     const sidebarNote = $(".sidebar-footer p");
     if (sidebarNote) sidebarNote.textContent = "登录后仅能访问自己的项目；项目材料保存在云端私有存储中。";
-    const privacy = $(".privacy-note");
-    if (privacy) {
-      privacy.classList.add("remote-warning");
-      privacy.lastChild.textContent = "云端版：项目材料存入 Supabase 私有存储，并受账号权限隔离；模型 API Key 不写入项目数据库。";
-    }
     const modelIntro = $(".model-settings-intro");
     if (modelIntro) {
       modelIntro.textContent = config.preset_enabled
@@ -1184,12 +1198,7 @@
     const bar = $("#templateQuickActions");
     const needsAnswer = project?.state?.template_preference === "not_asked";
     bar.classList.toggle("hidden", !needsAnswer);
-    const privacy = $(".privacy-note");
-    if (privacy) {
-      privacy.lastChild.textContent = project?.state?.template_preference === "not_asked"
-        ? "先通过对话回答模板问题；上传资料只有经你确认后才进入当前项目检索。"
-        : "测试版默认本机处理。资料只有经你确认后才进入当前项目检索。";
-    }
+    renderPrivacyNotice(project);
   }
 
   function renderTemplateStatus(project) {

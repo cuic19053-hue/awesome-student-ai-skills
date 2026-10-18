@@ -72,6 +72,7 @@ function harness() {
     globalThis.ui = {
       state, renderUploadResult, renderDocuments, previewDocument,
       clearDocumentPreview, fetchDocumentBlob, uploadFiles,
+      renderPrivacyNotice, showModelStatus, updateTemplateQuickActions,
       setApi(fn) { api = fn; },
       setLoadProject(fn) { loadProject = fn; },
     };
@@ -232,4 +233,51 @@ test("request failure persists its cause and restores upload controls", async ()
   assert.equal(h.ui.state.uploading, false);
   assert.equal(h.element("#chatAttachBtn").disabled, false);
   assert.equal(h.element("#documentPreviewDialog").open, false);
+});
+
+test("cloud privacy consistently describes private cloud storage across project states", () => {
+  const h = harness();
+  h.ui.state.cloudMode = true;
+  for (const preference of ["not_asked", "no_template", "has_template"]) {
+    h.ui.updateTemplateQuickActions({ state: { template_preference: preference } });
+    const notice = h.element("#materialPrivacyText").textContent;
+    assert.match(notice, /Supabase 私有云存储/);
+    assert.match(notice, /由云端服务处理/);
+    assert.match(notice, /确认后才用于当前项目检索/);
+    assert.match(notice, /经平台中转服务转发给模型服务商/);
+    assert.doesNotMatch(notice, /默认本机处理|本机沙箱保障/);
+  }
+});
+
+test("model switching does not erase cloud storage disclosure", () => {
+  const h = harness();
+  h.ui.state.cloudMode = true;
+  h.ui.state.llmConfig = { provider: "openai_compatible", model: "test" };
+  h.ui.showModelStatus(null);
+  assert.match(h.element("#materialPrivacyText").textContent, /Supabase 私有云存储.*你配置的模型服务商/);
+  h.ui.state.llmConfig = { provider: "preset" };
+  h.ui.showModelStatus(null);
+  assert.match(h.element("#materialPrivacyText").textContent, /Supabase 私有云存储.*平台中转服务/);
+});
+
+test("local storage is not a guarantee that remote models never receive data", () => {
+  const h = harness();
+  h.ui.state.llmConfig = { provider: "openai_compatible" };
+  h.ui.renderPrivacyNotice();
+  const notice = h.element("#materialPrivacyText").textContent;
+  assert.match(notice, /保存在运行 Agent 的设备上/);
+  assert.match(notice, /发送至你配置的模型服务商/);
+  assert.equal(h.element(".privacy-note").classList.contains("remote-warning"), true);
+});
+
+test("remote Ollama warning survives subsequent project loading", () => {
+  const h = harness();
+  h.ui.state.llmConfig = { provider: "ollama", model: "test" };
+  h.ui.showModelStatus({ ollama_local: false, ollama_available: true, ollama_model_installed: true });
+  h.ui.updateTemplateQuickActions({ state: { template_preference: "no_template" } });
+  assert.match(h.element("#materialPrivacyText").textContent, /Ollama 位于远程主机/);
+  assert.equal(h.element(".privacy-note").classList.contains("remote-warning"), true);
+  h.ui.showModelStatus({ ollama_local: true, ollama_available: true, ollama_model_installed: true });
+  assert.match(h.element("#materialPrivacyText").textContent, /本地 Ollama.*搜索.*查询关键词/);
+  assert.equal(h.element(".privacy-note").classList.contains("remote-warning"), false);
 });
