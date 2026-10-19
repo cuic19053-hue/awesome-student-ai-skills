@@ -261,6 +261,7 @@ def test_cloud_request_binds_verified_user_to_supabase_store_context(client, mon
     monkeypatch.setattr(server_app, "SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test")
     monkeypatch.setattr(server_app, "store", IdentityStore())
     monkeypatch.setattr(httpx, "AsyncClient", MockAsyncClient)
+    monkeypatch.setattr(server_app.app.state, "auth_http", MockAsyncClient())
     response = client.get("/api/projects", headers={"Authorization": "Bearer verified-test-token"})
     assert response.status_code == 200
     assert response.json()["projects"][0]["id"] == "9e5ad745-804c-4ef2-8b7f-35ba4ac954fe"
@@ -588,3 +589,88 @@ def test_auth_proxy_endpoints(client, monkeypatch):
     r = client.post("/api/auth/signup", json={"email": "student@qq.com", "password": "password123"})
     assert r.status_code == 422
     assert "已被注册" in r.json()["detail"]
+
+
+def test_sensitive_endpoints_are_never_cached_or_echo_invalid_secrets(client, monkeypatch):
+    import app as server_app
+    monkeypatch.setattr(server_app, 'CLOUD_MODE', True)
+    for method in ('get', 'post', 'delete'):
+        response = getattr(client, method)('/api/user/llm-config')
+        assert response.status_code == 401
+        assert 'no-store' in response.headers['cache-control']
+    monkeypatch.setattr(server_app, 'CLOUD_MODE', False)
+    response = client.post('/api/auth/login', json={'email': 'x', 'password': 'hidden-password'})
+    assert response.status_code == 422
+    assert 'hidden-password' not in response.text
+    response = client.get('/')
+    assert 'no-cache' in response.headers['cache-control']
+    assert '/static/app.js?v=' in response.text
+    assert '/static/app.css?v=' in response.text
+    assert client.get('/api/ping').json() == {'status': 'ok'}
+
+
+def test_auth_sdk_proxy_is_fixed_upstream_preserves_jwt_and_errors(client, monkeypatch):
+    import app as server_app
+    import httpx
+    monkeypatch.setattr(server_app, 'CLOUD_MODE', True)
+    monkeypatch.setattr(server_app, 'SUPABASE_URL', 'https://fixed.supabase.co')
+    captured = []
+    async def send(self, method, url, **kwargs):
+        captured.append((method, url, kwargs))
+        return httpx.Response(400, json={'msg': 'Invalid refresh token'}, headers={'retry-after': '30'})
+    monkeypatch.setattr(httpx.AsyncClient, 'request', send)
+    response = client.post('/api/auth/proxy/token?grant_type=refresh_token',
+        json={'refresh_token': 'private-refresh'}, headers={'Authorization': 'Bearer user-jwt', 'X-Forwarded-For': 'forged'})
+    assert response.status_code == 400
+    assert response.json() == {'msg': 'Invalid refresh token'}
+    assert 'no-store' in response.headers['cache-control']
+    assert response.headers['retry-after'] == '30'
+    assert captured[0][1] == 'https://fixed.supabase.co/auth/v1/token'
+    assert captured[0][2]['headers']['Authorization'] == 'Bearer user-jwt'
+    assert 'x-forwarded-for' not in captured[0][2]['headers']
+    assert client.post('/api/auth/proxy/admin/users').status_code == 404
+    assert client.post('/api/auth/proxy/token', content=b'a' * 16385).status_code == 413
+
+
+def test_model_config_cloud_crud_and_no_secret_in_save_response(client, monkeypatch):
+    import app as server_app
+    import httpx
+    data = {}
+    async def get_user(self, *args, **kwargs):
+        return httpx.Response(200, json={'id': 'owner-A'})
+    monkeypatch.setattr(httpx.AsyncClient, 'get', get_user)
+    monkeypatch.setattr(server_app, 'CLOUD_MODE', True)
+    class ConfigStore:
+        def get_model_config(self):
+            from proposal.supabase_store import request_identity
+            return data.get(request_identity.get()['user_id'])
+        def save_model_config(self, config):
+            from proposal.supabase_store import request_identity
+            data[request_identity.get()['user_id']] = config
+        def delete_model_config(self):
+            from proposal.supabase_store import request_identity
+            data.pop(request_identity.get()['user_id'], None)
+    monkeypatch.setattr(server_app, 'store', ConfigStore())
+    headers = {'Authorization': 'Bearer valid-user-jwt'}
+    config = {'provider': 'openai_compatible', 'model': 'deepseek-chat',
+              'base_url': 'https://api.deepseek.com/v1', 'api_key': 'private-key-test'}
+    assert client.get('/api/user/llm-config', headers=headers).json()['config'] is None
+    response = client.post('/api/user/llm-config', json=config, headers=headers)
+    assert response.json() == {'saved': True}
+    assert 'private-key-test' not in response.text
+    assert client.get('/api/user/llm-config', headers=headers).json()['config']['api_key'] == config['api_key']
+    assert client.delete('/api/user/llm-config', headers=headers).json() == {'deleted': True}
+    assert client.get('/api/user/llm-config', headers=headers).json()['config'] is None
+    config['base_url'] = 'http://127.0.0.1:8080'
+    assert client.post('/api/user/llm-config', json=config, headers=headers).status_code == 422
+
+
+def test_only_matching_content_hashed_assets_receive_immutable_cache(client):
+    import app as server_app
+    version = server_app.ASSET_VERSIONS['app.js']
+    good = client.get('/static/app.js?v=' + version)
+    assert good.status_code == 200
+    assert 'immutable' in good.headers['cache-control']
+    bad = client.get('/static/app.js?v=old-release')
+    assert 'immutable' not in bad.headers['cache-control']
+    assert 'must-revalidate' in bad.headers['cache-control']

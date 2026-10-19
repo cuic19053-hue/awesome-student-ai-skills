@@ -12,6 +12,7 @@ import urllib.parse
 import urllib.request
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from contextlib import asynccontextmanager
 from typing import Any, Callable, Literal, TypeVar
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
@@ -19,10 +20,15 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 import mimetypes
 from pydantic import BaseModel, Field
+from fastapi.exceptions import RequestValidationError
 
 ROOT = Path(__file__).resolve().parents[1]
 SERVER_DIR = Path(__file__).resolve().parent
 STATIC_DIR = SERVER_DIR / "static"
+ASSET_VERSIONS = {
+    name: hashlib.sha256((STATIC_DIR / name).read_bytes()).hexdigest()[:16]
+    for name in ("app.js", "app.css")
+}
 MICRO_CNY_PER_CREDIT = 100_000  # 1 CNY = 10 workbench credits
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -208,7 +214,33 @@ def _current_job_runner() -> GenerationJobRunner:
     return job_runner
 dispatcher = Dispatcher() if Dispatcher else None
 
+@asynccontextmanager
+async def lifespan(application):
+    import httpx
+    async with httpx.AsyncClient(
+        timeout=15, follow_redirects=False,
+        headers={"Cookie": ""},
+        limits=httpx.Limits(max_connections=40, max_keepalive_connections=10, keepalive_expiry=30),
+    ) as client:
+        application.state.auth_http = client
+        yield
+        application.state.auth_http = None
+
+
+@asynccontextmanager
+async def auth_http():
+    client = getattr(app.state, "auth_http", None)
+    if client is not None:
+        yield client
+    else:
+        # 兼容禁用 ASGI lifespan 的运行器和单元测试。
+        import httpx
+        async with httpx.AsyncClient(timeout=15, follow_redirects=False, headers={"Cookie": ""}) as client:
+            yield client
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title="大学生申报材料 Agent",
     description="本地优先的申报材料工作台：Skill 自动路由、资料识别、项目内检索、章节写作与 Word 草稿。",
     version="0.1.0",
@@ -219,9 +251,29 @@ app = FastAPI(
 logger = logging.getLogger("proposal_agent.credits")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
+@app.exception_handler(RequestValidationError)
+async def validation_error(request: Request, exc: RequestValidationError):
+    # Pydantic 默认把 input 回显；凭据接口不能回显 Key、密码或 token。
+    return JSONResponse({"detail": "请求字段格式不正确，请检查输入。"}, status_code=422,
+                        headers={"Cache-Control": "no-store"})
+
 
 @app.middleware("http")
 async def require_supabase_session(request: Request, call_next):
+    response = await _require_supabase_session(request, call_next)
+    if request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "private, no-store"
+        response.headers["Pragma"] = "no-cache"
+    elif request.url.path.startswith("/static/"):
+        name = request.url.path.removeprefix("/static/")
+        if name in ASSET_VERSIONS and request.query_params.get("v") == ASSET_VERSIONS[name]:
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        else:
+            response.headers["Cache-Control"] = "public, max-age=0, must-revalidate"
+    return response
+
+
+async def _require_supabase_session(request: Request, call_next):
     if not CLOUD_MODE:
         return await call_next(request)
     path = request.url.path
@@ -231,8 +283,10 @@ async def require_supabase_session(request: Request, call_next):
             "/health", "/api/health", "/api/config", "/api/skills", "/api/route",
             "/api/models/preset", "/api/pay/notify", "/api/admin/provider-health",
             "/api/auth/login", "/api/auth/signup",
+            "/api/ping",
         }
         or path.startswith("/static/")
+        or path.startswith("/api/auth/proxy/")
     ):
         return await call_next(request)
 
@@ -243,13 +297,14 @@ async def require_supabase_session(request: Request, call_next):
     try:
         import httpx
 
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with auth_http() as client:
             response = await client.get(
                 f"{SUPABASE_URL}/auth/v1/user",
                 headers={
                     "apikey": SUPABASE_PUBLISHABLE_KEY,
                     "Authorization": f"Bearer {access_token.strip()}",
                 },
+                timeout=10,
             )
         if response.status_code != 200:
             return JSONResponse({"detail": "登录已过期，请重新登录。"}, status_code=401)
@@ -381,7 +436,11 @@ def home() -> str:
     index = STATIC_DIR / "index.html"
     if not index.exists():
         return "<h1>大创 Agent</h1><p>前端正在初始化，请稍后重试。</p>"
-    return index.read_text(encoding="utf-8")
+    html = index.read_text(encoding="utf-8")
+    for filename in ("app.js", "app.css"):
+        digest = ASSET_VERSIONS[filename]
+        html = html.replace(f'/static/{filename}"', f'/static/{filename}?v={digest}"')
+    return HTMLResponse(html, headers={"Cache-Control": "no-cache, must-revalidate"})
 
 
 @app.get("/api/config")
@@ -429,17 +488,14 @@ async def auth_login(payload: AuthLoginInput, request: Request) -> dict[str, Any
     if not CLOUD_MODE:
         raise HTTPException(status_code=400, detail="本地自托管模式无需登录。")
     email = payload.email.strip().lower()
-    client_ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "")
     req_headers = {
         "apikey": SUPABASE_PUBLISHABLE_KEY,
         "Content-Type": "application/json",
     }
-    if client_ip:
-        req_headers["x-forwarded-for"] = client_ip
 
     import httpx
 
-    async with httpx.AsyncClient(timeout=15) as client:
+    async with auth_http() as client:
         try:
             resp = await client.post(
                 f"{SUPABASE_URL}/auth/v1/token?grant_type=password",
@@ -464,7 +520,6 @@ async def auth_signup(payload: AuthSignupInput, request: Request) -> dict[str, A
     if not CLOUD_MODE:
         raise HTTPException(status_code=400, detail="本地自托管模式无需注册。")
     email = payload.email.strip().lower()
-    client_ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "")
     body: dict[str, Any] = {"email": email, "password": payload.password}
     if payload.captcha_token:
         body["gotrue_meta_security"] = {"captcha_token": payload.captcha_token}
@@ -473,12 +528,10 @@ async def auth_signup(payload: AuthSignupInput, request: Request) -> dict[str, A
         "apikey": SUPABASE_PUBLISHABLE_KEY,
         "Content-Type": "application/json",
     }
-    if client_ip:
-        req_headers["x-forwarded-for"] = client_ip
 
     import httpx
 
-    async with httpx.AsyncClient(timeout=15) as client:
+    async with auth_http() as client:
         try:
             resp = await client.post(
                 f"{SUPABASE_URL}/auth/v1/signup",
@@ -496,6 +549,92 @@ async def auth_signup(payload: AuthSignupInput, request: Request) -> dict[str, A
             raw_msg = ""
         raise HTTPException(status_code=resp.status_code, detail=_friendly_auth_error(raw_msg))
     return resp.json()
+
+
+@app.api_route("/api/auth/proxy/{path:path}", methods=["GET", "POST", "PUT"])
+async def auth_proxy(path: str, request: Request):
+    """SDK 会话刷新、验证和退出也走同源，而不只是首次密码登录。"""
+    import httpx
+    allowed = {
+        "token": {"POST"}, "signup": {"POST"}, "user": {"GET", "PUT"},
+        "logout": {"POST"}, "verify": {"POST"}, "recover": {"POST"},
+        "resend": {"POST"}, "settings": {"GET"},
+        ".well-known/jwks.json": {"GET"},
+    }
+    if not CLOUD_MODE or request.method not in allowed.get(path, set()):
+        raise HTTPException(404, "认证接口不存在。")
+    body = await request.body()
+    if len(body) > 16384:
+        raise HTTPException(413, "请求过大。")
+    headers = {"apikey": SUPABASE_PUBLISHABLE_KEY, "Content-Type": "application/json"}
+    authorization = request.headers.get("authorization", "")
+    if authorization:
+        headers["Authorization"] = authorization
+    try:
+        async with auth_http() as client:
+            upstream = await client.request(
+                request.method, f"{SUPABASE_URL}/auth/v1/{path}",
+                params=list(request.query_params.multi_items()),
+                content=body, headers=headers,
+            )
+        return Response(
+            upstream.content, status_code=upstream.status_code,
+            media_type="application/json",
+            headers={"Cache-Control": "no-store", **(
+                {"Retry-After": upstream.headers["retry-after"]}
+                if "retry-after" in upstream.headers else {}
+            )},
+        )
+    except httpx.HTTPError:
+        return JSONResponse({"msg": "认证服务暂不可用，请稍后重试。"}, status_code=503)
+
+
+def _cloud_config_store():
+    if not CLOUD_MODE:
+        raise HTTPException(400, "本地模式不启用云端凭据同步。")
+    return store
+
+
+@app.get("/api/user/llm-config")
+def get_user_model_config():
+    try:
+        config = _cloud_config_store().get_model_config()
+        return {"config": config}
+    except RuntimeError:
+        raise HTTPException(503, "云端配置读取失败，请稍后重试。") from None
+
+
+@app.post("/api/user/llm-config")
+def save_user_model_config(payload: LLMConfigInput):
+    if payload.provider not in {"openai_compatible", "preset"}:
+        raise HTTPException(422, "云端仅支持平台模型或自定义 API。")
+    if payload.provider == "openai_compatible":
+        # 沿用推理端点的 HTTPS 与私网校验，但不发起模型调用或扣费。
+        _agent_for_config(payload)
+    config = payload.model_dump()
+    if payload.provider == "preset":
+        config = {"provider": "preset", "model": "workbench-bundle",
+                  "base_url": "", "api_key": "", "image_api_key": ""}
+    try:
+        _cloud_config_store().save_model_config(config)
+    except RuntimeError:
+        raise HTTPException(503, "云端配置保存失败，请稍后重试。") from None
+    return {"saved": True}
+
+
+@app.delete("/api/user/llm-config")
+def delete_user_model_config():
+    try:
+        _cloud_config_store().delete_model_config()
+    except RuntimeError:
+        raise HTTPException(503, "云端配置删除失败，请稍后重试。") from None
+    return {"deleted": True}
+
+
+@app.get("/api/ping")
+def ping():
+    # 只验证服务存活，不探测 Ollama、数据库或模型，不触发扣费。
+    return {"status": "ok"}
 
 
 @app.get("/api/skills")

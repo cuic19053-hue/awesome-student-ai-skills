@@ -25,7 +25,7 @@
       <button type="button" id="authModeToggle" class="auth-mode-toggle" disabled>还没有账号？创建账号</button>
       <div id="authFeedback" class="auth-feedback" role="status"></div>
       <button type="button" id="retryAuthBtn" class="button button-secondary hidden">重新连接登录服务</button>
-      <small class="auth-disclaimer">项目数据已加密存储；模型 API Key 仅保存在当前会话。</small>
+      <small class="auth-disclaimer">项目按账号隔离；保存的自定义模型 Key 在云端加密存储并可跨设备同步。</small>
     </div>
   </section>
 
@@ -669,10 +669,12 @@
         <input id="customImageModel" placeholder="例如 black-forest-labs/FLUX.1-schnell, dall-e-3" autocomplete="off">
       </label>
       <small>💡 推荐搭配：文本填写 DeepSeek (deepseek-chat)；生图填写硅基流动 (FLUX.1-schnell，有免费赠送额度) 或 OpenAI (dall-e-3)。若留空生图模型，工作台仍可用文本撰写功能，配图可切回平台融合模型。</small>
-      <small>🔒 密钥安全：所有 Key 仅临时保存在当前浏览器标签页 sessionStorage 中，绝不存入后端数据库。工作台 0 扣积分！</small>
+      <small>🔒 云端模式：点击保存后，Key 将加密保存至你的账号；其他设备登录后自动读取。退出登录清除本机副本，不删除云端配置。请勿在共用设备保存凭据。本地模式仅保存在当前标签页。</small>
     </div>
     <div id="modelConfigFeedback" class="model-config-feedback" role="status"></div>
     <div class="model-settings-actions">
+      <button type="button" id="syncCloudModelConfigBtn" class="button button-secondary">同步云端配置</button>
+      <button type="button" id="deleteCloudModelConfigBtn" class="button button-secondary">删除云端配置</button>
       <button type="button" id="testModelConfigBtn" class="button button-secondary">测试连通性</button>
       <span class="model-settings-spacer"></span>
       <button type="button" id="saveModelConfigBtn" class="button button-primary">保存并启用</button>
@@ -840,7 +842,7 @@
             <p>点击右上角 <strong>「⚙ 模型配置」</strong>，可随时自由切换 2 种算力方式：</p>
             <ul>
               <li><strong>💎 平台融合模型包（默认）</strong>：免配 API Key 开箱即用。<strong>新用户注册即赠 3 次免费对话体验</strong>！文本撰写自动走 DeepSeek Flash，路线图/配图走 GPT Image，按实际用量扣积分（点击「充值积分」可到店铺买卡密兑换）。</li>
-              <li><strong>🔑 自定义 API (自带 Key / BYOK)</strong>：填入你的 DeepSeek、通义千问、硅基流动或 OpenAI Key，<strong>工作台 0 扣积分，无限畅写</strong>！Key 仅保存在当前标签页，绝不存入服务器数据库。</li>
+              <li><strong>🔑 自定义 API (自带 Key / BYOK)</strong>：云端版保存后将 Key 加密绑定当前账号，换设备登录自动同步；可随时删除。自定义模型不扣工作台积分，服务商仍可能收费。</li>
             </ul>
             <div class="onboarding-highlight">
               🚀 <strong>小贴士</strong>：自己有官方 API Key 的同学强烈推荐使用「自定义 API」，完全免费不扣积分！

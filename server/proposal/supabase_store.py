@@ -12,6 +12,7 @@ from typing import Any
 
 from .storage import CreditRateLimitError, InsufficientCreditsError, PendingUsageError, new_id
 from .billing_policy import normalize_trial_wallet
+from .supabase_http import supabase_urlopen
 
 
 request_identity: ContextVar[dict[str, str] | None] = ContextVar(
@@ -65,6 +66,41 @@ class SupabaseStore:
             raise PermissionError("需要先登录，才能访问项目数据。")
         return identity
 
+    def get_model_config(self):
+        owner = self._identity()["user_id"]
+        rows = self._rest("user_model_configs", params={
+            "owner_id": f"eq.{owner}", "select": "ciphertext,updated_at",
+        })
+        if not rows:
+            return None
+        from .model_config_security import decrypt_config
+        return decrypt_config(owner, rows[0]["ciphertext"])
+
+    def save_model_config(self, config):
+        owner = self._identity()["user_id"]
+        from .model_config_security import encrypt_config
+        payload = {
+            "owner_id": owner, "ciphertext": encrypt_config(owner, config),
+            "updated_at": utc_now(),
+        }
+        # 单条 upsert 原子替换，不先删后插，避免失败时丢失旧凭据。
+        url = f"{self.project_url}/rest/v1/user_model_configs?on_conflict=owner_id"
+        request = urllib.request.Request(
+            url, data=json.dumps(payload).encode(), method="POST",
+            headers=self._headers({
+                "Content-Type": "application/json",
+                "Prefer": "resolution=merge-duplicates,return=minimal",
+            }),
+        )
+        try:
+            with supabase_urlopen(request, timeout=20):
+                pass
+        except (urllib.error.URLError, OSError):
+            raise RuntimeError("云端模型配置保存失败，请稍后重试。") from None
+
+    def delete_model_config(self):
+        self._rest("user_model_configs", "DELETE", {"owner_id": f"eq.{self._identity()['user_id']}"})
+
     def _headers(self, extra: dict[str, str] | None = None) -> dict[str, str]:
         identity = self._identity()
         headers = {
@@ -98,7 +134,7 @@ class SupabaseStore:
             headers["Prefer"] = "return=representation"
         request = urllib.request.Request(url, data=body, headers=headers, method=method)
         try:
-            with urllib.request.urlopen(request, timeout=20) as response:
+            with supabase_urlopen(request, timeout=20) as response:
                 data = response.read()
             return json.loads(data.decode("utf-8")) if data else []
         except urllib.error.HTTPError as exc:
@@ -140,7 +176,7 @@ class SupabaseStore:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=20) as response:
+            with supabase_urlopen(request, timeout=20) as response:
                 data = response.read()
             return json.loads(data.decode("utf-8")) if data else None
         except urllib.error.HTTPError as exc:
@@ -196,7 +232,7 @@ class SupabaseStore:
             headers["x-upsert"] = "true" if upsert else "false"
         request = urllib.request.Request(url, data=content, headers=headers, method=method)
         try:
-            with urllib.request.urlopen(request, timeout=45) as response:
+            with supabase_urlopen(request, timeout=45) as response:
                 return response.read()
         except urllib.error.HTTPError as exc:
             raise RuntimeError(f"云端材料存储请求失败（HTTP {exc.code}）。") from exc
@@ -214,7 +250,7 @@ class SupabaseStore:
             method="DELETE",
         )
         try:
-            with urllib.request.urlopen(request, timeout=45):
+            with supabase_urlopen(request, timeout=45):
                 pass
         except urllib.error.HTTPError as exc:
             raise RuntimeError(f"删除云端材料失败（HTTP {exc.code}）。") from exc
@@ -705,7 +741,7 @@ class SupabaseStore:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=20) as response:
+            with supabase_urlopen(request, timeout=20) as response:
                 return self._rpc_result(json.loads(response.read().decode("utf-8")))
         except urllib.error.HTTPError as exc:
             try:
@@ -788,7 +824,7 @@ class SupabaseStore:
             method="GET",
         )
         try:
-            with urllib.request.urlopen(request, timeout=15) as response:
+            with supabase_urlopen(request, timeout=15) as response:
                 rows = json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
             raise RuntimeError(f"兑换请求查询失败（HTTP {exc.code}）。") from exc

@@ -47,7 +47,7 @@ def test_rest_requests_forward_the_current_user_jwt_and_insert_owner(monkeypatch
 
     import proposal.supabase_store as module
 
-    monkeypatch.setattr(module.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(module, "supabase_urlopen", fake_urlopen)
     store = SupabaseStore("https://example.supabase.co", "sb_publishable_test", tmp_path)
     context = request_identity.set({"user_id": user_id, "access_token": "user-jwt"})
     try:
@@ -79,7 +79,7 @@ def test_generated_file_uses_ascii_storage_key_for_chinese_filename(monkeypatch,
 
     import proposal.supabase_store as module
 
-    monkeypatch.setattr(module.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(module, "supabase_urlopen", fake_urlopen)
     store = SupabaseStore("https://example.supabase.co", "sb_publishable_test", tmp_path)
     source = tmp_path / "draft.docx"
     source.write_bytes(b"word document")

@@ -51,11 +51,13 @@ function harness() {
     createElement: (tag) => new Element(tag),
     addEventListener() {},
   };
+  const storage = new Map();
+  const session = new Map();
   const context = vm.createContext({
     document,
     window: { location: { origin: "https://workbench.example.test" } },
-    localStorage: { removeItem() {} },
-    sessionStorage: { getItem: () => null },
+    localStorage: { getItem: (k) => storage.get(k) || null, setItem: (k,v) => storage.set(k,v), removeItem: (k) => storage.delete(k) },
+    sessionStorage: { getItem: (k) => session.get(k) || null, setItem: (k,v) => session.set(k,v), removeItem: (k) => session.delete(k) },
     Headers,
     Blob,
     URL: {
@@ -81,6 +83,7 @@ function harness() {
       clearDocumentPreview, fetchDocumentBlob, uploadFiles,
       renderPrivacyNotice, showModelStatus, updateTemplateQuickActions,
       syncAuthControls, initializeCloudAuth, submitAuthForm,
+      readPublicCache, writePublicCache, sameOriginAuthFetch, storeLlmConfig, loadCloudModelConfig, saveSelectedLlmConfig,
       sendChat, syncChatControls,
       setApi(fn) { api = fn; },
       setLoadProject(fn) { loadProject = fn; },
@@ -366,6 +369,8 @@ test("vendored Supabase SDK is pinned, checksummed, and served from this origin 
   assert.match(html, /id="retryAuthBtn"/);
   // Evaluate the real bundle without constructing a client, sending credentials,
   // making any network call, or creating an account.
+  const storage = new Map();
+  const session = new Map();
   const context = vm.createContext({ console, URL, TextEncoder, TextDecoder });
   vm.runInContext(bundle.toString("utf8"), context);
   assert.equal(typeof context.supabase.createClient, "function");
@@ -422,4 +427,83 @@ test("a late reply does not enter another project's conversation", async () => {
   assert.equal(h.ui.state.messages.length, 0);
   assert.equal(h.timers.size, 0);
   assert.equal(h.ui.state.chatSending, false);
+});
+
+test("public cache recovers from corrupt, expired or unavailable storage", () => {
+  const h = harness();
+  const list = [{ id: "innovation-research", name: "创新训练" }];
+  h.ui.writePublicCache("skills", list);
+  assert.equal(h.ui.readPublicCache("skills")[0].id, "innovation-research");
+  h.context.localStorage.setItem("stardust-public-v1-skills", "{bad-json");
+  assert.equal(h.ui.readPublicCache("skills"), null);
+  h.context.localStorage.setItem("stardust-public-v1-skills", JSON.stringify({version:1,savedAt:0,data:list}));
+  assert.equal(h.ui.readPublicCache("skills"), null);
+  h.context.localStorage.getItem = () => { throw Error("denied"); };
+  assert.equal(h.ui.readPublicCache("skills"), null);
+});
+
+test("all SDK auth operations use same-origin proxy without redirecting storage", async () => {
+  const h = harness();
+  h.context.URL = URL;
+  const fetcher = h.ui.sameOriginAuthFetch("https://project.supabase.co");
+  await fetcher("https://project.supabase.co/auth/v1/token?grant_type=refresh_token", {method:"POST"});
+  await fetcher("https://project.supabase.co/auth/v1/user", {method:"GET"});
+  await fetcher("https://project.supabase.co/auth/v1/logout", {method:"POST"});
+  assert.equal(h.requests[0].url, "/api/auth/proxy/token?grant_type=refresh_token");
+  assert.equal(h.requests[1].url, "/api/auth/proxy/user");
+  assert.equal(h.requests[2].url, "/api/auth/proxy/logout");
+  await fetcher("https://project.supabase.co/storage/v1/object/test");
+  assert.match(h.requests[3].url, /^https:\/\/project.supabase.co\/storage/);
+});
+
+test("cloud keys are memory-only; cloud deletion and account switch cannot restore stale key", async () => {
+  const h = harness();
+  h.ui.state.cloudMode = true;
+  h.ui.state.authSession = {user:{id:"A"}};
+  const key = "cloud-private-key";
+  h.ui.storeLlmConfig({provider:"openai_compatible",api_key:key});
+  assert.equal(h.context.sessionStorage.getItem("innovation-proposal-agent-llm-config"), null);
+  assert.equal(h.context.localStorage.getItem("innovation-proposal-agent-llm-config"), null);
+  let finish;
+  h.ui.setApi(() => new Promise(resolve => {finish=resolve;}));
+  const loading = h.ui.loadCloudModelConfig();
+  h.ui.state.authSession = {user:{id:"B"}};
+  h.ui.state.llmConfig = {provider:"preset",api_key:""};
+  finish({config:{provider:"openai_compatible",api_key:key}});
+  await loading;
+  assert.equal(h.ui.state.llmConfig.api_key, "");
+  h.ui.setApi(async () => ({config:null}));
+  await h.ui.loadCloudModelConfig();
+  assert.equal(h.ui.state.llmConfig.provider, "preset");
+});
+
+test("login initialization no longer awaits the public catalog or pricing", () => {
+  const source = readFileSync(resolve(__dirname, "../../server/static/app.js"), "utf8");
+  const init = source.slice(source.indexOf("  async function init()"));
+  assert.match(init, /void loadSkills\(\)/);
+  assert.match(init, /void loadPresetModelsAndPlans\(\)/);
+  assert.doesNotMatch(init, /await Promise\.all/);
+});
+
+test("failed cloud save preserves previous model and never claims success", async () => {
+  const h = harness();
+  h.ui.state.cloudMode = true;
+  h.ui.state.authSession = {user:{id:"A"}};
+  h.ui.state.llmConfig = {provider:"preset",model:"workbench-bundle",api_key:""};
+  h.element('input[name="llmProvider"]:checked').value = "openai_compatible";
+  for (const [id,value] of Object.entries({customModelBase:"https://api.example.test/v1",customModelName:"model",
+    customModelKey:"new-private-key",customImageModel:"",customImageBase:"",customImageKey:""})) {
+    h.element("#" + id).value = value;
+  }
+  h.ui.setApi(async () => { throw Error("upstream down"); });
+  await h.ui.saveSelectedLlmConfig();
+  assert.equal(h.ui.state.llmConfig.provider, "preset");
+  assert.match(h.element("#modelConfigFeedback").textContent, /保存失败/);
+  assert.equal(h.element("#saveModelConfigBtn").disabled, false);
+  const calls = [];
+  h.ui.setApi(async (url,opts) => {calls.push({url,opts});return {saved:true};});
+  await h.ui.saveSelectedLlmConfig();
+  assert.equal(calls[0].url, "/api/user/llm-config");
+  assert.equal(h.ui.state.llmConfig.api_key, "new-private-key");
+  assert.equal(h.context.sessionStorage.getItem("innovation-proposal-agent-llm-config"), null);
 });

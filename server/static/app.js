@@ -6,6 +6,36 @@
 
   const activeProjectKey = "stardust-agent-active-project-id";
 
+  // 只缓存公开目录；认证配置、余额和用户材料不能走这条路径。
+  function readPublicCache(name) {
+    try {
+      const entry = JSON.parse(localStorage.getItem(`stardust-public-v1-${name}`));
+      if (entry?.version === 1 && Date.now() - entry.savedAt < 7 * 86400000
+          && Array.isArray(entry.data) && entry.data.length <= 200
+          && entry.data.every(item => item && typeof item.id === "string"
+            && typeof item.name === "string")) return entry.data;
+    } catch {}
+    return null;
+  }
+
+  function writePublicCache(name, data) {
+    try {
+      localStorage.setItem(`stardust-public-v1-${name}`,
+        JSON.stringify({ version: 1, savedAt: Date.now(), data }));
+    } catch {} // 禁用存储或空间不足时，仍然使用网络结果。
+  }
+
+  function sameOriginAuthFetch(supabaseUrl) {
+    return (input, options) => {
+      const upstream = new URL(supabaseUrl);
+      const url = new URL(typeof input === "string" ? input : input.url);
+      if (url.origin === upstream.origin && url.pathname.startsWith("/auth/v1/")) {
+        return fetch(`/api/auth/proxy/${url.pathname.slice(9)}${url.search}`, options);
+      }
+      return fetch(input, options);
+    };
+  }
+
   function readSavedLlmConfig() {
     const fallback = {
       provider: "preset",
@@ -157,6 +187,10 @@
     const path = new URL(url, window.location.href).pathname;
     const usesLlm = method === "POST" && /\/api\/projects\/[^/]+\/(?:chat|outline\/generate|sections\/[^/]+\/generate|diagrams\/propose|facts\/propose|images\/generate)$/.test(path);
     if (usesLlm) {
+      if (state.cloudMode && state.modelConfigSyncStatus === "loading")
+        throw new Error("正在同步你的云端模型配置，请稍候再试。");
+      if (state.cloudMode && state.modelConfigSyncStatus === "error")
+        throw new Error("云端模型配置尚未同步，请在模型设置中重试同步或明确保存新配置。");
       let body = {};
       if (typeof requestOptions.body === "string" && requestOptions.body) {
         try { body = JSON.parse(requestOptions.body); } catch {}
@@ -301,7 +335,8 @@
   function storeLlmConfig(config) {
     state.llmConfig = config;
     try {
-      sessionStorage.setItem(llmConfigKey, JSON.stringify(config));
+      if (state.cloudMode) sessionStorage.removeItem(llmConfigKey);
+      else sessionStorage.setItem(llmConfigKey, JSON.stringify(config));
     } catch {
       toast("浏览器无法保存本次模型配置；本次页面仍可继续使用。", true);
     }
@@ -331,7 +366,29 @@
     }
   }
 
-  function saveSelectedLlmConfig() {
+  let modelConfigRevision = 0;
+
+  async function loadCloudModelConfig() {
+    const account = state.authSession?.user?.id;
+    if (!state.cloudMode || !account) return;
+    const revision = ++modelConfigRevision;
+    state.modelConfigSyncStatus = "loading";
+    try {
+      const result = await api("/api/user/llm-config");
+      if (revision !== modelConfigRevision || account !== state.authSession?.user?.id) return;
+      storeLlmConfig(result.config || {
+        provider: "preset", model: "workbench-bundle", base_url: "", api_key: "",
+      });
+      state.modelConfigSyncStatus = "ready";
+    } catch {
+      if (revision === modelConfigRevision && account === state.authSession?.user?.id) {
+        state.modelConfigSyncStatus = "error";
+        toast("云端模型配置读取失败，可在模型设置中点击“同步云端配置”重试。", true);
+      }
+    }
+  }
+
+  async function saveSelectedLlmConfig() {
     const config = selectedLlmConfig();
     if (config.provider === "preset" && !state.presetModels.some((model) => model.id === "workbench-bundle" && model.available)) {
       $("#modelConfigFeedback").textContent = "平台融合模型尚未接通，请先使用自带 Key 或本地模型。";
@@ -343,11 +400,49 @@
       $("#modelConfigFeedback").className = "model-config-feedback error";
       return;
     }
-    storeLlmConfig(config);
+    const account = state.authSession?.user?.id;
+    const revision = ++modelConfigRevision;
+    const saveButton = $("#saveModelConfigBtn");
+    saveButton.disabled = true;
+    try {
+      if (state.cloudMode) {
+        if (!account) throw new Error("请先登录。");
+        await api("/api/user/llm-config", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(config),
+        });
+      }
+      if (revision !== modelConfigRevision || account !== state.authSession?.user?.id) return;
+      storeLlmConfig(config);
+      state.modelConfigSyncStatus = "ready";
+    } catch {
+      $("#modelConfigFeedback").textContent = "保存失败，原配置未更改，请重试。";
+      $("#modelConfigFeedback").className = "model-config-feedback error";
+      return;
+    } finally {
+      saveButton.disabled = false;
+    }
     $("#modelSettingsDialog").close();
     const provName = config.provider === "preset" ? "平台融合模型包" : config.provider === "ollama" ? "本地模型" : "自定义 API";
     const imgInfo = config.image_model ? ` · 生图: ${config.image_model}` : "";
     toast(`已切换为${provName}：${config.model}${imgInfo}`);
+  }
+
+  async function deleteCloudModelConfig() {
+    const account = state.authSession?.user?.id;
+    if (!state.cloudMode || !account) return;
+    if (!confirm("删除此账号云端保存的模型配置？其他设备下次同步后也会清除。")) return;
+    const revision = ++modelConfigRevision;
+    try {
+      await api("/api/user/llm-config", { method: "DELETE" });
+      if (revision !== modelConfigRevision || account !== state.authSession?.user?.id) return;
+      storeLlmConfig({ provider: "preset", model: "workbench-bundle", api_key: "", base_url: "" });
+      state.modelConfigSyncStatus = "ready";
+      syncModelSettingsForm();
+      toast("云端配置已删除；其他设备下次同步时生效。");
+    } catch {
+      $("#modelConfigFeedback").textContent = "删除失败，云端原配置未更改，请重试。";
+    }
   }
 
   async function loadUserBalance() {
@@ -543,9 +638,12 @@
   }
 
   async function loadPresetModelsAndPlans() {
+    const cached = readPublicCache("presets");
+    if (cached) { state.presetModels = cached; renderPresetModelCards(); }
     try {
       const data = await api("/api/models/preset");
       state.presetModels = data.models || [];
+      writePublicCache("presets", state.presetModels);
       renderPresetModelCards();
     } catch (e) {
       console.warn("加载模型及套餐失败", e);
@@ -700,6 +798,8 @@
     $("#authGate").classList.add("hidden");
     $("#appShell").classList.remove("hidden");
     $("#signOutBtn").classList.toggle("hidden", !state.cloudMode);
+    await loadCloudModelConfig();
+    if (session?.user?.id !== state.authSession?.user?.id) return;
     await loadUserBalance();
     await Promise.all([checkHealth(), refreshProjects()]);
     const projects = await api("/api/projects");
@@ -723,6 +823,9 @@
       await startApplication();
       return;
     }
+    // 未验证用户前不使用标签页遗留的凭据，避免换账号继承。
+    state.llmConfig = { provider: "preset", model: "workbench-bundle", base_url: "", api_key: "" };
+    try { sessionStorage.removeItem(llmConfigKey); } catch {}
     const localBadge = $(".sidebar-footer .local-badge");
     if (localBadge) localBadge.textContent = "云端同步 · 安全存储";
     const sidebarNote = $(".sidebar-footer p");
@@ -760,7 +863,10 @@
       const client = window.supabase.createClient(
         config.supabase_url,
         config.supabase_publishable_key,
-        { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
+        {
+          auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+          global: { fetch: sameOriginAuthFetch(config.supabase_url) },
+        }
       );
       const result = await client.auth.getSession();
       if (result.error) throw result.error;
@@ -776,9 +882,16 @@
       syncAuthControls();
     }
     const subscription = state.authClient.auth.onAuthStateChange((event, session) => {
+      if (state.authSession?.user?.id && session?.user?.id
+          && state.authSession.user.id !== session.user.id) {
+        modelConfigRevision++;
+        state.appStarted = false;
+        state.llmConfig = { provider: "preset", model: "workbench-bundle", api_key: "", base_url: "" };
+      }
       state.authSession = session;
       if (session && !state.appStarted) {
-        void startApplication(session);
+        // 不在 Auth 回调锁内调用 SDK，避免 setSession/getSession 死锁。
+        setTimeout(() => { void startApplication(session); }, 0);
       } else if (!session && event === "SIGNED_OUT") {
         state.appStarted = false;
         state.userCredits = null;
@@ -788,8 +901,12 @@
         state.project = null;
         state.messages = [];
         state.documents = [];
-        sessionStorage.removeItem(llmConfigKey);
+        modelConfigRevision++;
+        try { sessionStorage.removeItem(llmConfigKey); } catch {}
         state.llmConfig = { provider: "openai_compatible", model: "", base_url: "", api_key: "" };
+        $("#customModelKey").value = "";
+        $("#customImageKey").value = "";
+        $("#modelSettingsDialog").close();
         showAuthGate("已退出登录。");
       }
     });
@@ -848,55 +965,12 @@
         signupOptions.captchaToken = state.turnstileToken;
       }
 
-      let result;
-      if (authClient.supabaseUrl) {
-        const endpoint = state.authMode === "signup" ? "/api/auth/signup" : "/api/auth/login";
-        const proxyRes = await fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email,
-            password,
-            captcha_token: state.turnstileToken || undefined,
-          }),
-        });
-        const data = typeof proxyRes.json === "function" ? await proxyRes.json() : {};
-        if (!proxyRes.ok) {
-          throw new Error(data.detail || data.msg || "登录失败，请检查邮箱和密码。");
-        }
-        result = {
-          data: {
-            session: data.session || (data.access_token ? {
-              access_token: data.access_token,
-              refresh_token: data.refresh_token,
-              expires_in: data.expires_in,
-              expires_at: data.expires_at,
-              user: data.user,
-            } : null),
-            user: data.user,
-          },
-          error: null,
-        };
-      } else {
-        result = state.authMode === "signup"
-          ? await authClient.auth.signUp({
-              email,
-              password,
-              options: signupOptions,
-            })
-          : await authClient.auth.signInWithPassword({ email, password });
-      }
-
+      // SDK 的全部 Auth 请求已由 global.fetch 定向到同源代理，保留官方会话管理。
+      const result = state.authMode === "signup"
+        ? await authClient.auth.signUp({ email, password, options: signupOptions })
+        : await authClient.auth.signInWithPassword({ email, password });
       if (result.error) throw result.error;
       if (result.data.session) {
-        if (authClient?.auth?.setSession) {
-          try {
-            await authClient.auth.setSession({
-              access_token: result.data.session.access_token,
-              refresh_token: result.data.session.refresh_token || "",
-            });
-          } catch (_) {}
-        }
         await startApplication(result.data.session);
         await loadUserBalance();
       } else if (state.authMode === "signup") {
@@ -909,6 +983,8 @@
       const message = error.message || "";
       feedback.textContent = /Cannot read properties|undefined|Failed to fetch|NetworkError|fetch failed/i.test(message)
         ? "无法连接登录服务，请稍后重试或检查网络。"
+        : /invalid login credentials/i.test(message) ? "邮箱或密码错误，请重新核对。"
+        : /email not confirmed/i.test(message) ? "请先完成邮箱验证后登录。"
         : message || "登录失败，请检查邮箱和密码。";
       feedback.classList.add("error");
     } finally {
@@ -1186,9 +1262,18 @@
   }
 
   async function loadSkills() {
+    const cached = readPublicCache("skills");
+    if (cached) renderSkills(cached);
     const result = await api("/api/skills");
-    state.skills = result.skills || [];
+    const skills = result.skills || [];
+    writePublicCache("skills", skills);
+    renderSkills(skills);
+  }
+
+  function renderSkills(skills) {
+    state.skills = skills;
     const select = $("#projectSkill");
+    const selected = select.value;
     const first = select.options[0];
     select.replaceChildren(first);
     const groups = new Map();
@@ -1209,6 +1294,7 @@
       option.textContent = skill.name;
       groups.get(category).append(option);
     }
+    if (skills.some((skill) => skill.id === selected)) select.value = selected;
   }
 
   function showRouteCandidates(candidates, message) {
@@ -3591,6 +3677,11 @@
     $$('input[name="llmProvider"]').forEach((input) => input.addEventListener("change", updateModelFields));
     $("#testModelConfigBtn").addEventListener("click", testSelectedLlmConfig);
     $("#saveModelConfigBtn").addEventListener("click", saveSelectedLlmConfig);
+    $("#deleteCloudModelConfigBtn")?.addEventListener("click", deleteCloudModelConfig);
+    $("#syncCloudModelConfigBtn")?.addEventListener("click", async () => {
+      await loadCloudModelConfig();
+      syncModelSettingsForm();
+    });
     $("#customImageReuseText")?.addEventListener("change", (e) => {
       $("#customImageSeparateFields")?.classList.toggle("hidden", e.target.checked);
     });
@@ -3706,11 +3797,13 @@
     bindEvents();
     updateTemplateExplain();
     $("#chatFileInput").accept = chatUploadAccept($("#chatUploadKind").value);
-    const [, , config] = await Promise.all([
-      loadSkills(),
-      loadPresetModelsAndPlans(),
-      api("/api/config"),
-    ]);
+    showAuthGate("正在初始化登录服务…");
+    // 目录和套餐不再是登录的前置依赖，缓存命中与否都不会阻塞认证。
+    void loadSkills().catch(() => console.warn("赛道目录暂不可用，可稍后重试"));
+    void loadPresetModelsAndPlans();
+    const config = await api("/api/config");
+    $("#deleteCloudModelConfigBtn")?.classList.toggle("hidden", !config.cloud_mode);
+    $("#syncCloudModelConfigBtn")?.classList.toggle("hidden", !config.cloud_mode);
     state.turnstileSiteKey = config.turnstile_site_key || "";
     updateTurnstileState();
     $("#pilotFingerprintBox")?.classList.toggle(

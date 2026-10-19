@@ -131,7 +131,7 @@ def test_supabase_narrow_capability_uses_verified_user_jwt(monkeypatch, tmp_path
         seen["body"] = json.loads(request.data)
         return FakeResponse(b'{"status":"reserved","balance_micro_cny":0}')
 
-    monkeypatch.setattr("proposal.supabase_store.urllib.request.urlopen", fake_open)
+    monkeypatch.setattr("proposal.supabase_store.supabase_urlopen", fake_open)
     context = request_identity.set({"access_token": "signed-user-jwt", "user_id": "alice"})
     try:
         store.reserve_workbench_usage("alice", "request-12345", "deepseek-v4-flash", 1_000_000, 692)
@@ -154,7 +154,7 @@ def test_supabase_existing_balance_code_completion_uses_narrow_capability(monkey
         seen["body"] = json.loads(request.data)
         return FakeResponse(b'{"status":"credited","balance_micro_cny":1000000}')
 
-    monkeypatch.setattr("proposal.supabase_store.urllib.request.urlopen", fake_open)
+    monkeypatch.setattr("proposal.supabase_store.supabase_urlopen", fake_open)
     context = request_identity.set({"access_token": "signed-user-jwt", "user_id": "alice"})
     try:
         store.complete_workbench_card_redemption("intent-123", 1_000_000, 9001)
