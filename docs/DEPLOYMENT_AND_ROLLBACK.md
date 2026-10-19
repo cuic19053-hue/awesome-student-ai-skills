@@ -134,3 +134,10 @@
 - 代码回滚使用 Vercel 上一个已验证部署；保留加密主密钥及专用表，不 DROP 数据。若回滚到不支持同步的版本，云端配置仅暂时不可用。
 
 参考：[Vercel Cron 限制](https://vercel.com/docs/cron-jobs/usage-and-pricing)、[Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security)。
+
+### 本次生产验收记录（2026-10-20）
+- Python 全量：255 passed / 4 skipped；另显式运行隔离 PostgreSQL 验证：4 passed；JS：27 passed。
+- 两个临时账号验证：Key 保存/读取、第二会话恢复、删除后第二会话读取为空、匿名拒绝、B 账号看不到 A 账号密文、数据库不含测试 Key 明文；临时账号已删除。
+- 真实 Chrome 屏蔽 `*.supabase.co` 和公开赛道/套餐接口，仍能登录、自动恢复云端 Key，刷新页面后再次恢复；会话刷新代理通过。
+- 生产 `/api/ping` 响应头为 `sin1::sin1`，API 为 `private, no-store`，主页为 `no-cache, must-revalidate` 且 JS/CSS 带内容摘要。
+- Cloudflare 及外部心跳仍待管理员接入，不计入已完成项。Supabase 安全检查未新增该表的告警，但原有账本 SECURITY DEFINER 可执行性与泄漏密码保护未启用告警仍需独立评估。
