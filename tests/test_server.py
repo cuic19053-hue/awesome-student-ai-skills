@@ -533,3 +533,58 @@ def test_custom_image_generation_with_byok(client, monkeypatch):
     diagram = res.json()["diagram"]
     assert diagram["kind"] == "generated_image"
     assert "无人机" in diagram["title"]
+
+
+def test_auth_proxy_endpoints(client, monkeypatch):
+    import app as server_app
+
+    # 1. 本地模式下拒绝登录注册
+    monkeypatch.setattr(server_app, "CLOUD_MODE", False)
+    r = client.post("/api/auth/login", json={"email": "test@qq.com", "password": "password123"})
+    assert r.status_code == 400
+    assert "无需登录" in r.json()["detail"]
+
+    # 2. 云端模式下未登录也能访问（中间件放行）并转发至 Supabase
+    monkeypatch.setattr(server_app, "CLOUD_MODE", True)
+    monkeypatch.setattr(server_app, "SUPABASE_URL", "https://mock.supabase.co")
+    monkeypatch.setattr(server_app, "SUPABASE_PUBLISHABLE_KEY", "sb_pub_test_123")
+
+    class MockResponse:
+        def __init__(self, status_code, data):
+            self.status_code = status_code
+            self._data = data
+
+        def json(self):
+            return self._data
+
+    # 登录成功
+    async def mock_post_success(self, url, headers=None, json=None):
+        return MockResponse(200, {
+            "access_token": "mock-jwt-token",
+            "refresh_token": "mock-refresh-token",
+            "user": {"id": "user-123", "email": json["email"]},
+        })
+
+    import httpx
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post_success)
+    r = client.post("/api/auth/login", json={"email": "student@qq.com", "password": "password123"})
+    assert r.status_code == 200
+    assert r.json()["access_token"] == "mock-jwt-token"
+
+    # 密码错误友好提示
+    async def mock_post_invalid_creds(self, url, headers=None, json=None):
+        return MockResponse(400, {"msg": "Invalid login credentials"})
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post_invalid_creds)
+    r = client.post("/api/auth/login", json={"email": "student@qq.com", "password": "wrong"})
+    assert r.status_code == 400
+    assert "邮箱或密码错误" in r.json()["detail"]
+
+    # 注册邮箱已存在友好提示
+    async def mock_post_already_registered(self, url, headers=None, json=None):
+        return MockResponse(422, {"msg": "User already registered"})
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post_already_registered)
+    r = client.post("/api/auth/signup", json={"email": "student@qq.com", "password": "password123"})
+    assert r.status_code == 422
+    assert "已被注册" in r.json()["detail"]

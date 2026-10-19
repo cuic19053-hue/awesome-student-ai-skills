@@ -848,15 +848,55 @@
         signupOptions.captchaToken = state.turnstileToken;
       }
 
-      const result = state.authMode === "signup"
-        ? await authClient.auth.signUp({
+      let result;
+      if (authClient.supabaseUrl) {
+        const endpoint = state.authMode === "signup" ? "/api/auth/signup" : "/api/auth/login";
+        const proxyRes = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
             email,
             password,
-            options: signupOptions,
-          })
-        : await authClient.auth.signInWithPassword({ email, password });
+            captcha_token: state.turnstileToken || undefined,
+          }),
+        });
+        const data = typeof proxyRes.json === "function" ? await proxyRes.json() : {};
+        if (!proxyRes.ok) {
+          throw new Error(data.detail || data.msg || "登录失败，请检查邮箱和密码。");
+        }
+        result = {
+          data: {
+            session: data.session || (data.access_token ? {
+              access_token: data.access_token,
+              refresh_token: data.refresh_token,
+              expires_in: data.expires_in,
+              expires_at: data.expires_at,
+              user: data.user,
+            } : null),
+            user: data.user,
+          },
+          error: null,
+        };
+      } else {
+        result = state.authMode === "signup"
+          ? await authClient.auth.signUp({
+              email,
+              password,
+              options: signupOptions,
+            })
+          : await authClient.auth.signInWithPassword({ email, password });
+      }
+
       if (result.error) throw result.error;
       if (result.data.session) {
+        if (authClient?.auth?.setSession) {
+          try {
+            await authClient.auth.setSession({
+              access_token: result.data.session.access_token,
+              refresh_token: result.data.session.refresh_token || "",
+            });
+          } catch (_) {}
+        }
         await startApplication(result.data.session);
         await loadUserBalance();
       } else if (state.authMode === "signup") {
@@ -3666,9 +3706,11 @@
     bindEvents();
     updateTemplateExplain();
     $("#chatFileInput").accept = chatUploadAccept($("#chatUploadKind").value);
-    await loadSkills();
-    await loadPresetModelsAndPlans();
-    const config = await api("/api/config");
+    const [, , config] = await Promise.all([
+      loadSkills(),
+      loadPresetModelsAndPlans(),
+      api("/api/config"),
+    ]);
     state.turnstileSiteKey = config.turnstile_site_key || "";
     updateTurnstileState();
     $("#pilotFingerprintBox")?.classList.toggle(

@@ -104,6 +104,17 @@ class StorageDocumentInput(BaseModel):
     is_leader: bool = False
 
 
+class AuthLoginInput(BaseModel):
+    email: str = Field(min_length=3, max_length=120)
+    password: str = Field(min_length=1, max_length=200)
+
+
+class AuthSignupInput(BaseModel):
+    email: str = Field(min_length=3, max_length=120)
+    password: str = Field(min_length=6, max_length=200)
+    captcha_token: str | None = None
+
+
 class DiagramProposalInput(BaseModel):
     title: str = Field(default="技术路线图", max_length=100)
     llm_config: LLMConfigInput | None = None
@@ -219,6 +230,7 @@ async def require_supabase_session(request: Request, call_next):
         or path in {
             "/health", "/api/health", "/api/config", "/api/skills", "/api/route",
             "/api/models/preset", "/api/pay/notify", "/api/admin/provider-health",
+            "/api/auth/login", "/api/auth/signup",
         }
         or path.startswith("/static/")
     ):
@@ -395,6 +407,95 @@ def app_config() -> dict[str, Any]:
         "card_shop_url": shop_url,
         "preset_enabled": _platform_bundle_ready(),
     }
+
+
+def _friendly_auth_error(msg: str) -> str:
+    m = msg.lower()
+    if "invalid login credentials" in m:
+        return "邮箱或密码错误，请重新核对。"
+    if "user already registered" in m:
+        return "该邮箱已被注册，请直接登录。"
+    if "password should be at least" in m:
+        return "密码长度至少需要 6 个字符。"
+    if "email not confirmed" in m:
+        return "该账号邮箱尚未激活，请查收验证邮件。"
+    if "rate limit" in m:
+        return "操作过于频繁，请稍后再试。"
+    return msg or "认证服务请求失败，请稍后重试。"
+
+
+@app.post("/api/auth/login")
+async def auth_login(payload: AuthLoginInput, request: Request) -> dict[str, Any]:
+    if not CLOUD_MODE:
+        raise HTTPException(status_code=400, detail="本地自托管模式无需登录。")
+    email = payload.email.strip().lower()
+    client_ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "")
+    req_headers = {
+        "apikey": SUPABASE_PUBLISHABLE_KEY,
+        "Content-Type": "application/json",
+    }
+    if client_ip:
+        req_headers["x-forwarded-for"] = client_ip
+
+    import httpx
+
+    async with httpx.AsyncClient(timeout=15) as client:
+        try:
+            resp = await client.post(
+                f"{SUPABASE_URL}/auth/v1/token?grant_type=password",
+                headers=req_headers,
+                json={"email": email, "password": payload.password},
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="无法连接云端认证服务，请稍后重试。") from exc
+
+    if resp.status_code != 200:
+        try:
+            err_data = resp.json()
+            raw_msg = err_data.get("msg") or err_data.get("error_description") or err_data.get("message") or ""
+        except Exception:
+            raw_msg = ""
+        raise HTTPException(status_code=resp.status_code, detail=_friendly_auth_error(raw_msg))
+    return resp.json()
+
+
+@app.post("/api/auth/signup")
+async def auth_signup(payload: AuthSignupInput, request: Request) -> dict[str, Any]:
+    if not CLOUD_MODE:
+        raise HTTPException(status_code=400, detail="本地自托管模式无需注册。")
+    email = payload.email.strip().lower()
+    client_ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "")
+    body: dict[str, Any] = {"email": email, "password": payload.password}
+    if payload.captcha_token:
+        body["gotrue_meta_security"] = {"captcha_token": payload.captcha_token}
+
+    req_headers = {
+        "apikey": SUPABASE_PUBLISHABLE_KEY,
+        "Content-Type": "application/json",
+    }
+    if client_ip:
+        req_headers["x-forwarded-for"] = client_ip
+
+    import httpx
+
+    async with httpx.AsyncClient(timeout=15) as client:
+        try:
+            resp = await client.post(
+                f"{SUPABASE_URL}/auth/v1/signup",
+                headers=req_headers,
+                json=body,
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="无法连接云端认证服务，请稍后重试。") from exc
+
+    if resp.status_code != 200:
+        try:
+            err_data = resp.json()
+            raw_msg = err_data.get("msg") or err_data.get("error_description") or err_data.get("message") or ""
+        except Exception:
+            raw_msg = ""
+        raise HTTPException(status_code=resp.status_code, detail=_friendly_auth_error(raw_msg))
+    return resp.json()
 
 
 @app.get("/api/skills")
