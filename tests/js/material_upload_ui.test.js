@@ -507,3 +507,16 @@ test("failed cloud save preserves previous model and never claims success", asyn
   assert.equal(h.ui.state.llmConfig.api_key, "new-private-key");
   assert.equal(h.context.sessionStorage.getItem("innovation-proposal-agent-llm-config"), null);
 });
+
+test("SSE chat cannot bill the default model while cloud BYOK restore is pending or failed", async () => {
+  const h = harness();
+  h.ui.state.cloudMode = true;
+  h.ui.state.project = {id:"project-A"};
+  h.element("#chatInput").value = "不要提前扣费";
+  for (const status of ["loading", "error"]) {
+    h.ui.state.modelConfigSyncStatus = status;
+    await h.ui.sendChat({preventDefault(){}});
+    assert.equal(h.requests.length, 0);
+    assert.equal(h.element("#chatInput").value, "不要提前扣费");
+  }
+});

@@ -3020,6 +3020,8 @@
     const message = messageOverride === null ? input.value.trim() : messageOverride.trim();
     if (!message || !state.project) return;
     if (state.chatSending) return toast("上一条请求还未完成，请勿重复发送。", true);
+    if (state.cloudMode && ["loading", "error"].includes(state.modelConfigSyncStatus))
+      return toast("云端模型配置尚未同步完成，请稍候或在模型设置中重试同步。", true);
     const projectId = state.project.id;
     state.chatSending = true;
     syncChatControls();
