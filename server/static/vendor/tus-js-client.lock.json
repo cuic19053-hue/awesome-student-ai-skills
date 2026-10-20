@@ -1,0 +1,9 @@
+{
+  "package": "tus-js-client",
+  "version": "4.3.1",
+  "license": "MIT",
+  "tarball": "https://registry.npmjs.org/tus-js-client/-/tus-js-client-4.3.1.tgz",
+  "integrity": "sha512-ZLeYmjrkaU1fUsKbIi8JML52uAocjEZtBx4DKjRrqzrZa0O4MYwT6db+oqePlspV+FxXJAyFBc/L5gwUi2OFsg==",
+  "bundle": "tus-js-client-4.3.1.js",
+  "bundle_sha256": "8cbb1b63fccc3bba0ae73ad1deb160ce046c3750851d0c3e94921ae3ef070eb8"
+}

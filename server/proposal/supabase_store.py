@@ -377,6 +377,7 @@ class SupabaseStore:
         storage_path: str,
         kind: str,
         content_type: str,
+        download: bool = True,
     ) -> dict[str, Any]:
         identity = self._identity()
         required_prefix = f"{identity['user_id']}/{project_id}/"
@@ -389,6 +390,15 @@ class SupabaseStore:
         project = self.get_project(project_id)
         if not project:
             raise PermissionError("项目不存在或不属于当前账号。")
+        existing = self.get_document(document_id, download=False)
+        if existing:
+            if (existing["project_id"] != project_id or existing["storage_path"] != storage_path
+                    or existing["kind"] != kind):
+                raise PermissionError("材料编号已被其他上传使用。")
+            return self._document_row(existing, download=download)
+        # Check that upload finished before creating a material record; no file body
+        # needs to pass through the registration request.
+        self._storage("HEAD", storage_path)
         rows = self._rest(
             "documents",
             "POST",
@@ -402,7 +412,7 @@ class SupabaseStore:
                 "created_at": utc_now(),
             },
         )
-        return self._document_row(rows[0], download=True)
+        return self._document_row(rows[0], download=download)
 
     def get_document(self, document_id: str, download: bool = True) -> dict[str, Any] | None:
         rows = self._rest(

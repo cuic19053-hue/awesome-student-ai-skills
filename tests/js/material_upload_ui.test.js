@@ -81,6 +81,7 @@ function harness() {
     globalThis.ui = {
       state, renderUploadResult, renderDocuments, previewDocument,
       clearDocumentPreview, fetchDocumentBlob, uploadFiles,
+      uploadFilesToCloud, cloudUploadIntent, uploadResumable, setUploadKind, oversizedUploadError,
       renderPrivacyNotice, showModelStatus, updateTemplateQuickActions,
       syncAuthControls, initializeCloudAuth, submitAuthForm,
       readPublicCache, writePublicCache, sameOriginAuthFetch, storeLlmConfig, loadCloudModelConfig, saveSelectedLlmConfig,
@@ -126,6 +127,132 @@ test("empty results never claim upload success", () => {
   h.ui.renderUploadResult([]);
   assert.match(h.element("#uploadResult").children[0].textContent, /未收到上传结果/);
   assert.equal(h.element("#uploadResult").classList.contains("error"), true);
+});
+
+test("all material categories display the upload ceiling, and an oversized selection sends no requests", async () => {
+  const h = harness();
+  for (const kind of ["source", "template", "photo"]) {
+    h.ui.setUploadKind(kind);
+    assert.match(h.element("#uploadHint").textContent, /单个文件最大 50 MB/);
+  }
+  h.ui.state.project = { id: "a".repeat(32) };
+  let calls = 0;
+  h.ui.setApi(async () => { calls++; });
+  await h.ui.uploadFiles([{ name: "too-large.pdf", size: 50_000_001 }]);
+  assert.equal(calls, 0);
+  assert.equal(h.requests.length, 0);
+  assert.match(h.element("#uploadResult").children[1].children[0].textContent, /单个文件最大 50 MB/);
+  assert.equal(h.ui.oversizedUploadError([{ name: "exact.pdf", size: 50_000_000 }]), "");
+});
+
+function cloudHarness() {
+  const h = harness();
+  h.context.URL = URL;
+  h.context.crypto = require("node:crypto").webcrypto;
+  h.ui.state.cloudMode = true;
+  h.ui.state.project = { id: "a".repeat(32) };
+  h.ui.state.authConfig = { storage_upload_endpoint: "/uploads/resumable", max_upload_bytes: 50_000_000 };
+  const session = { user: { id: "owner" }, access_token: "user-jwt" };
+  h.ui.state.authSession = session;
+  h.ui.state.authClient = { auth: { getSession: async () => ({ data: { session } }) } };
+  h.uploads = [];
+  h.context.window.tus = { Upload: class {
+    constructor(file, options) { this.file = file; this.options = options; h.uploads.push(this); }
+    async findPreviousUploads() { return []; }
+    async start() {
+      this.request = { getURL: () => "/uploads/resumable", setHeader: (k, v) => { this[k] = v; } };
+      try {
+        await this.options.onBeforeRequest(this.request);
+        this.options.onProgress(this.file.size, this.file.size);
+        this.options.onSuccess();
+      } catch (error) { this.options.onError(error); }
+    }
+  } };
+  h.context.fetch = async () => ({
+    ok: true, headers: new Headers({ "Content-Type": "application/json" }),
+  });
+  return h;
+}
+
+test("a >4.5 MB file uses 6 MiB TUS chunks, then small registration and processing requests", async () => {
+  const h = cloudHarness();
+  const file = new File([new Uint8Array(7 * 1024 * 1024)], "report.pdf", { lastModified: 1 });
+  const calls = [];
+  h.ui.setApi(async (url, options) => {
+    calls.push({ url, options });
+    if (url.endsWith("/from-storage")) return { documents: [{ document: { id: "b".repeat(32), original_name: file.name } }] };
+    return { documents: [{ document: { id: "b".repeat(32), original_name: file.name, confirmed: true } }] };
+  });
+  const result = await h.ui.uploadFilesToCloud([file], "source");
+  assert.equal(result.documents.length, 1);
+  assert.equal(h.uploads[0].options.chunkSize, 6 * 1024 * 1024);
+  assert.equal(h.uploads[0].options.uploadDataDuringCreation, false);
+  assert.equal(h.uploads[0].Authorization, "Bearer user-jwt");
+  assert.equal(JSON.parse(calls[0].options.body).process_now, false);
+  assert.ok(calls[0].options.body.length < 1000);
+  assert.match(calls[1].url, /\/documents\/b+\/process$/);
+});
+
+test("parse timeouts retain the acknowledged document and never delete uploaded bytes", async () => {
+  const h = cloudHarness();
+  h.ui.setApi(async (url) => {
+    if (url.endsWith("/from-storage")) return { documents: [{ document: { id: "b".repeat(32), original_name: "report.pdf" } }] };
+    throw new Error("HTTP 504");
+  });
+  const result = await h.ui.uploadFilesToCloud([new File(["pdf"], "report.pdf")], "source");
+  assert.equal(result.documents[0].document.id, "b".repeat(32));
+  assert.match(result.documents[0].error, /原文件已保存/);
+});
+
+test("registration failure reuses the completed object rather than uploading/deleting it again", async () => {
+  const h = cloudHarness();
+  const file = new File(["test"], "report.pdf", { lastModified: 3 });
+  h.ui.setApi(async () => { throw new Error("HTTP 504"); });
+  await h.ui.uploadFilesToCloud([file], "source");
+  await h.ui.uploadFilesToCloud([file], "source");
+  assert.equal(h.uploads.length, 1);
+});
+
+test("resume fingerprint is scoped to user/project/kind and samples file contents", async () => {
+  const h = cloudHarness();
+  const file = new File(["first"], "report.pdf", { lastModified: 3 });
+  const first = await h.ui.cloudUploadIntent(file, "source", "a".repeat(32));
+  assert.equal((await h.ui.cloudUploadIntent(file, "source", "a".repeat(32))).documentId, first.documentId);
+  assert.notEqual((await h.ui.cloudUploadIntent(file, "template", "a".repeat(32))).documentId, first.documentId);
+  assert.notEqual((await h.ui.cloudUploadIntent(new File(["other"], "report.pdf", { lastModified: 3 }), "source", "a".repeat(32))).documentId, first.documentId);
+});
+
+test("50 MB ceiling and disabled Worker prevent doomed Vercel uploads before sending bytes", async () => {
+  const h = cloudHarness();
+  const tooLarge = { name: "huge.pdf", size: 50_000_001 };
+  let result = await h.ui.uploadFilesToCloud([tooLarge], "source");
+  assert.match(result.documents[0].error, /50 MB/);
+  h.ui.state.authConfig.storage_upload_endpoint = "";
+  result = await h.ui.uploadFilesToCloud([{ name: "large.pdf", size: 5_000_000 }], "source");
+  assert.match(result.documents[0].error, /大文件通道尚未启用/);
+  assert.equal(h.uploads.length, 0);
+});
+
+test("a poisoned continuation URL cannot receive the user's JWT", async () => {
+  const h = cloudHarness();
+  const file = new File(["test"], "report.pdf");
+  const intent = await h.ui.cloudUploadIntent(file, "source", "a".repeat(32));
+  await h.ui.uploadResumable(file, intent, "application/pdf", "/uploads/resumable");
+  let sent = false;
+  await assert.rejects(h.uploads[0].options.onBeforeRequest({
+    getURL: () => "https://evil.test/uploads/resumable/stolen",
+    setHeader: () => { sent = true; },
+  }), /续传地址无效/);
+  assert.equal(sent, false);
+});
+
+test("vendored TUS client has a pinned checksum and loads before app.js", () => {
+  const vendor = resolve(__dirname, "../../server/static/vendor");
+  const lock = JSON.parse(readFileSync(resolve(vendor, "tus-js-client.lock.json"), "utf8"));
+  const sha = require("node:crypto").createHash("sha256").update(readFileSync(resolve(vendor, lock.bundle))).digest("hex");
+  assert.equal(sha, lock.bundle_sha256);
+  const html = readFileSync(resolve(__dirname, "../../server/static/index.html"), "utf8");
+  assert.ok(html.indexOf(lock.bundle) < html.indexOf('src="/static/app.js"'));
 });
 
 test("PDF preview fetches with JWT and embeds a PDF blob, not a private endpoint", async () => {

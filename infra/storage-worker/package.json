@@ -1,0 +1,14 @@
+{
+  "name": "stardust-storage-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test worker.test.mjs",
+    "deploy": "wrangler deploy",
+    "check": "wrangler deploy --dry-run"
+  },
+  "devDependencies": {
+    "tus-js-client": "4.3.1",
+    "wrangler": "4.151.2"
+  }
+}

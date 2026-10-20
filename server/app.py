@@ -108,6 +108,7 @@ class StorageDocumentInput(BaseModel):
     kind: Literal["source", "template", "photo"] = "source"
     content_type: str = Field(default="", max_length=150)
     is_leader: bool = False
+    process_now: bool = True
 
 
 class AuthLoginInput(BaseModel):
@@ -418,6 +419,7 @@ def _public_document(document: dict[str, Any]) -> dict[str, Any]:
             "low_confidence_count",
             "confirmed",
             "created_at",
+            "storage_path",
         )
     }
     result["confirmed"] = bool(result.get("confirmed"))
@@ -465,6 +467,10 @@ def app_config() -> dict[str, Any]:
         "voucher_redemption_enabled": _voucher_redemption_enabled(),
         "card_shop_url": shop_url,
         "preset_enabled": _platform_bundle_ready(),
+        # Enable only after the Cloudflare route, secrets and bucket limit are verified.
+        "storage_upload_endpoint": "/uploads/resumable"
+        if CLOUD_MODE and os.environ.get("STORAGE_UPLOAD_PROXY_ENABLED", "").lower() == "true" else "",
+        "max_upload_bytes": MAX_UPLOAD_BYTES,
     }
 
 
@@ -1470,7 +1476,7 @@ async def upload_documents(
             raise HTTPException(status_code=415, detail=f"不支持文件类型：{ext or '无扩展名'}")
         content = await upload.read(MAX_UPLOAD_BYTES + 1)
         if len(content) > MAX_UPLOAD_BYTES:
-            raise HTTPException(status_code=413, detail=f"{name} 超过 20 MB")
+            raise HTTPException(status_code=413, detail=f"{name} 超过 50 MB")
         if kind == "photo" and ext not in {".png", ".jpg", ".jpeg", ".webp"}:
             raise HTTPException(status_code=415, detail="项目照片只支持 PNG/JPG/WebP")
         document_id = os.urandom(16).hex()
@@ -1548,7 +1554,7 @@ async def upload_leader_photo(
         raise HTTPException(status_code=415, detail="照片只支持 PNG/JPG/WebP")
     content = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(content) > MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail=f"{name} 超过 20 MB")
+        raise HTTPException(status_code=413, detail=f"{name} 超过 50 MB")
     project_folder = store.files_dir / project_id
     project_folder.mkdir(parents=True, exist_ok=True)
     document_id = os.urandom(16).hex()
@@ -1627,8 +1633,42 @@ def register_cloud_upload(project_id: str, payload: StorageDocumentInput) -> dic
             storage_path=payload.storage_path,
             kind=payload.kind,
             content_type=payload.content_type or mimetypes.guess_type(payload.original_name)[0] or "",
+            download=False,
         )
-        file_bytes = Path(document["stored_path"]).read_bytes()
+        if payload.is_leader:
+            current_project = store.get_project(project_id)
+            current_state = dict(current_project["state"])
+            current_state["leader_photo"] = document["id"]
+            confirmed_facts = dict(current_state.get("confirmed_facts", {}))
+            confirmed_facts["leader_photo"] = document["id"]
+            current_state["confirmed_facts"] = confirmed_facts
+            store.update_project(project_id, state=current_state)
+        if not payload.process_now:
+            return {
+                "documents": [{"document": _public_document(document), "chunk_count": 0}],
+                "note": "原文件已保存，文字识别单独进行；识别失败不会删除原文件。",
+            }
+        return _process_cloud_document(document)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=422, detail=f"云端材料登记失败：{_document_extraction_error(exc)}",
+        ) from exc
+
+
+def _process_cloud_document(document: dict[str, Any]) -> dict[str, Any]:
+    """Processing is separate from upload/registration, and can be retried by ID."""
+    document_id = document["id"]
+    project_id = document["project_id"]
+    try:
+        loaded = store.get_document(document_id)
+        path = Path(loaded["stored_path"])
+        if path.stat().st_size > MAX_UPLOAD_BYTES:
+            raise ValueError("单个文件最大支持 50 MB。")
+        file_bytes = path.read_bytes()
         extraction = _extract_uploaded_document(document["original_name"], file_bytes, document["kind"])
         # 自动确认并入库建立检索索引，无需用户手动确认
         confirmed = True if document["kind"] == "template" else bool(extraction.text.strip())
@@ -1653,15 +1693,6 @@ def register_cloud_upload(project_id: str, payload: StorageDocumentInput) -> dic
                 current_state["template_preference"] = "has_template"
                 current_state["template_answer"] = f"已上传模板：{document['original_name']}"
                 store.update_project(project_id, state=current_state)
-        if payload.is_leader:
-            current_project = store.get_project(project_id)
-            if current_project:
-                current_state = dict(current_project["state"])
-                current_state["leader_photo"] = document["id"]
-                confirmed_facts = dict(current_state.get("confirmed_facts", {}))
-                confirmed_facts["leader_photo"] = document["id"]
-                current_state["confirmed_facts"] = confirmed_facts
-                store.update_project(project_id, state=current_state)
         updated = store.get_document(document["id"])
         return {
             "documents": [
@@ -1673,15 +1704,24 @@ def register_cloud_upload(project_id: str, payload: StorageDocumentInput) -> dic
             ],
             "note": "材料已上传并自动建立检索。",
         }
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-            raise HTTPException(
-                status_code=422,
-                detail=f"云端材料处理失败：{_document_extraction_error(exc)}",
-            ) from exc
+        warning = _document_extraction_error(exc)
+        store.update_document_extraction(document_id, "", "error", warning, 0, confirmed=False)
+        return {"documents": [{
+            "document": _public_document(store.get_document(document_id, download=False) or document),
+            "error": warning, "chunk_count": 0,
+        }], "note": "原文件已保存，识别失败可单独重试。"}
+
+
+@app.post("/api/documents/{document_id}/process")
+def process_cloud_document(document_id: str) -> dict[str, Any]:
+    if not CLOUD_MODE:
+        raise HTTPException(status_code=400, detail="此接口仅用于云端材料。")
+    document = store.get_document(document_id, download=False)
+    if not document:
+        raise HTTPException(status_code=404, detail="材料不存在")
+    _safe_project(document["project_id"])
+    return _process_cloud_document(document)
 
 
 @app.patch("/api/documents/{document_id}/confirm")

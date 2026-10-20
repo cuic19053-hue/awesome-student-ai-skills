@@ -285,8 +285,75 @@ def test_app_config_exposes_only_supabase_publishable_configuration(client, monk
         "voucher_redemption_enabled": False,
         "card_shop_url": "",
         "preset_enabled": False,
+        "storage_upload_endpoint": "",
+        "max_upload_bytes": 50_000_000,
     }
     assert "service_role" not in response.text
+
+
+def test_upload_proxy_is_explicitly_enabled_and_never_exposes_its_secret(client, monkeypatch):
+    import app as server_app
+    monkeypatch.setattr(server_app, "CLOUD_MODE", True)
+    monkeypatch.setenv("STORAGE_UPLOAD_PROXY_ENABLED", "true")
+    monkeypatch.setenv("UPLOAD_SESSION_SECRET", "this-must-not-reach-the-browser")
+    response = client.get("/api/config")
+    assert response.json()["storage_upload_endpoint"] == "/uploads/resumable"
+    assert "this-must-not-reach-the-browser" not in response.text
+
+
+def test_cloud_registration_does_not_download_or_parse_and_processing_can_retry(client, monkeypatch, tmp_path):
+    import app as server_app
+    import httpx
+    from types import SimpleNamespace
+    project_id, document_id = "a" * 32, "b" * 32
+    path = tmp_path / "material.txt"
+    path.write_text("这是已上传材料，解析失败后原文件必须保留。")
+    document = {
+        "id": document_id, "project_id": project_id, "original_name": "material.txt",
+        "kind": "source", "stored_path": str(path), "storage_path": f"owner/{project_id}/{document_id}.txt",
+        "extraction_status": "pending", "extracted_text": "", "confirmed": False,
+    }
+    downloads = []
+    def register_document(**kwargs):
+        assert kwargs["download"] is False
+        return document
+    def get_document(_id, download=True):
+        if download:
+            downloads.append(_id)
+        return dict(document)
+    def update(_id, text, status, warning, low, confirmed):
+        document.update(extracted_text=text, extraction_status=status, extraction_warning=warning, confirmed=confirmed)
+    fake_store = SimpleNamespace(
+        register_document=register_document, get_document=get_document,
+        get_project=lambda _: {"id": project_id, "state": {}}, update_document_extraction=update,
+    )
+    class Auth:
+        async def get(self, *a, **kw):
+            return httpx.Response(200, json={"id": "owner"})
+    monkeypatch.setattr(server_app, "CLOUD_MODE", True)
+    monkeypatch.setattr(server_app.app.state, "auth_http", Auth())
+    monkeypatch.setattr(server_app, "store", fake_store)
+    monkeypatch.setattr(server_app.retriever, "index_document", lambda *a: 1)
+    headers = {"Authorization": "Bearer user-jwt"}
+    payload = {
+        "document_id": document_id, "original_name": "material.txt", "storage_path": document["storage_path"],
+        "kind": "source", "process_now": False,
+    }
+    registered = client.post(f"/api/projects/{project_id}/documents/from-storage", json=payload, headers=headers)
+    assert registered.status_code == 200
+    assert registered.json()["documents"][0]["document"]["id"] == document_id
+    assert downloads == []
+    original_extract = server_app._extract_uploaded_document
+    monkeypatch.setattr(server_app, "_extract_uploaded_document", lambda *a: (_ for _ in ()).throw(ValueError("解析失败")))
+    failed = client.post(f"/api/documents/{document_id}/process", headers=headers)
+    assert failed.status_code == 200
+    assert failed.json()["documents"][0]["document"]["extraction_status"] == "error"
+    assert path.exists()
+    monkeypatch.setattr(server_app, "_extract_uploaded_document", original_extract)
+    retried = client.post(f"/api/documents/{document_id}/process", headers=headers)
+    assert retried.status_code == 200
+    assert retried.json()["documents"][0]["document"]["confirmed"] is True
+    assert "这是已上传材料" in retried.json()["documents"][0]["document"]["extracted_text"]
 
 
 def test_chat_uses_request_model_config_without_saving_api_key(client, monkeypatch):

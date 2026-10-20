@@ -120,3 +120,31 @@ def test_cloud_upload_storage_path_must_match_user_and_project(tmp_path):
             )
     finally:
         request_identity.reset(context)
+
+
+def test_cloud_registration_is_idempotent_and_can_skip_downloading(monkeypatch, tmp_path):
+    store = SupabaseStore("https://example.supabase.co", "sb_publishable_test", tmp_path)
+    project, document_id = "a" * 32, "b" * 32
+    path = f"owner/{project}/{document_id}.txt"
+    calls = []
+    saved = {}
+    monkeypatch.setattr(store, "get_project", lambda _: {"id": project})
+    monkeypatch.setattr(store, "get_document", lambda _id, download=False: saved.get(_id))
+    monkeypatch.setattr(store, "_storage", lambda *args: calls.append(args) or b"")
+    def rest(_table, _method, payload):
+        calls.append("insert")
+        saved[document_id] = payload
+        return [payload]
+    monkeypatch.setattr(store, "_rest", rest)
+    context = request_identity.set({"user_id": "owner", "access_token": "user-jwt"})
+    try:
+        for _ in range(2):
+            result = store.register_document(
+                project_id=project, document_id=document_id, original_name="material.txt",
+                storage_path=path, kind="source", content_type="text/plain", download=False,
+            )
+            assert result["id"] == document_id
+    finally:
+        request_identity.reset(context)
+    assert calls == [("HEAD", path), "insert"]
+    assert not Path(result["stored_path"]).exists()

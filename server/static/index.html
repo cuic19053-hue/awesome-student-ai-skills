@@ -316,7 +316,7 @@
                 <input type="file" id="fileInput" multiple hidden accept=".docx,.pdf,.txt,.md,.png,.jpg,.jpeg,.webp">
                 <div class="upload-icon">⇪</div>
                 <div class="upload-title" id="uploadTitle">拖拽文件至此处，或点击浏览选择</div>
-                <div class="upload-hint" id="uploadHint">Word、PDF、扫描件或照片 · 单个文件最大 20 MB</div>
+                <div class="upload-hint" id="uploadHint">Word、PDF、扫描件或照片 · 单个文件最大 50 MB</div>
                 <button type="button" class="button button-secondary" id="chooseFileBtn">选择本机文件</button>
               </div>
               <div id="uploadResult" class="upload-result hidden" role="status" aria-live="polite"></div>
@@ -392,7 +392,7 @@
                         <input type="file" id="leaderPhotoInput" accept=".png,.jpg,.jpeg,.webp" hidden>
                         <button type="button" class="button button-small button-secondary" id="chooseLeaderPhotoBtn">上传照片</button>
                         <button type="button" class="button button-small button-quiet hidden" id="removeLeaderPhotoBtn">删除照片</button>
-                        <div class="leader-photo-hint">支持 PNG/JPG/WebP · 导出 Word 时自动嵌入封面或表格</div>
+                        <div class="leader-photo-hint">支持 PNG/JPG/WebP · 单个文件最大 50 MB · 导出 Word 时自动嵌入封面或表格</div>
                       </div>
                     </div>
                   </div>
@@ -561,7 +561,7 @@
                 <input type="file" id="chatFileInput" multiple hidden>
                 <div class="compose-footer">
                   <div class="compose-attachments">
-                    <button type="button" id="chatAttachBtn" class="attach-button">＋ 添加材料</button>
+                    <button type="button" id="chatAttachBtn" class="attach-button" title="单个文件最大 50 MB">＋ 添加材料（单个最大 50 MB）</button>
                     <select id="chatUploadKind" aria-label="选择材料类型">
                       <option value="source">项目信息</option>
                       <option value="template">学校模板</option>
@@ -938,6 +938,7 @@
 
   <div id="toast" class="toast hidden" role="status"></div>
   <script src="/static/vendor/supabase-js-2.118.0.js"></script>
+  <script src="/static/vendor/tus-js-client-4.3.1.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

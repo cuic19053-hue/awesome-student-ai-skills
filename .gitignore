@@ -61,6 +61,9 @@ htmlcov/
 skills-lock.json
 outputs/
 .vercel/
+node_modules/
+.wrangler/
+.dev.vars*
 .supabase/
 .supabase
 supabase/.temp/

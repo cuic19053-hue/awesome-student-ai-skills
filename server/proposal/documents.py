@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import re
+import zipfile
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -12,7 +13,7 @@ from docx import Document
 from pypdf import PdfReader
 
 ALLOWED_EXTENSIONS = {".docx", ".pdf", ".txt", ".md", ".png", ".jpg", ".jpeg", ".webp"}
-MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+MAX_UPLOAD_BYTES = 50_000_000  # Decimal MB, within the Supabase Free file-size ceiling.
 MAX_PDF_PAGES = 100
 _OCR_LOCK = Lock()
 _PDF_RENDER_LOCK = Lock()
@@ -75,9 +76,16 @@ def extract_file(filename: str, data: bytes) -> Extraction:
     if not data:
         raise ValueError("上传文件为空。")
     if len(data) > MAX_UPLOAD_BYTES:
-        raise ValueError("单个文件最大支持 20 MB。")
+        raise ValueError("单个文件最大支持 50 MB。")
 
     if ext == ".docx":
+        # Compressed upload size alone does not bound the parser's memory use.
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            entries = archive.infolist()
+            if (len(entries) > 5000 or sum(item.file_size for item in entries) > 150_000_000
+                    or any(item.flag_bits & 1 for item in entries)
+                    or any(item.filename.endswith(".xml") and item.file_size > 10_000_000 for item in entries)):
+                raise ValueError("Word 解压后内容过大或包含加密条目，请拆分材料后重新识别。")
         document = Document(io.BytesIO(data))
         parts: list[tuple[str, str]] = []
         for index, paragraph in enumerate(document.paragraphs, 1):
@@ -96,10 +104,15 @@ def extract_file(filename: str, data: bytes) -> Extraction:
 
     if ext in {".txt", ".md"}:
         text = data.decode("utf-8-sig", errors="replace")
+        warning = ""
+        if len(text) > 1_000_000:
+            text = text[:1_000_000]
+            warning = "文件文字超过 100 万字符，仅提取前 100 万字符；原文件完整保留。"
         lines = [line for line in text.splitlines() if line.strip()]
         return Extraction(
             text=_clean_text("\n".join(f"[行 {i + 1}] {line}" for i, line in enumerate(lines))),
             source_pages=[(f"行 {i + 1}", line) for i, line in enumerate(lines)],
+            warning=warning,
         )
 
     if ext == ".pdf":

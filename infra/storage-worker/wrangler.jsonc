@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "stardust-storage",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-20",
+  "workers_dev": false,
+  "routes": [
+    {
+      "pattern": "agent.stardust.website/uploads/*",
+      "zone_name": "stardust.website"
+    }
+  ],
+  "vars": {
+    "APP_ORIGIN": "https://agent.stardust.website",
+    "SUPABASE_URL": "https://jcenwtgwbsmaufskxgup.supabase.co",
+    "MAX_UPLOAD_BYTES": "50000000"
+  },
+  "observability": { "enabled": false }
+}
