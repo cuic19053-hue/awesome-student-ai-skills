@@ -324,6 +324,49 @@ def test_chat_uses_request_model_config_without_saving_api_key(client, monkeypat
     assert "secret-test-key" not in json.dumps(stored, ensure_ascii=False)
 
 
+def test_storage_proxy_enforces_auth_and_ownership(client, monkeypatch):
+    import app as server_app
+    import httpx
+    monkeypatch.setattr(server_app, "CLOUD_MODE", True)
+    monkeypatch.setattr(server_app, "SUPABASE_URL", "https://fixed.supabase.co")
+
+    async def get_user(self, *args, **kwargs):
+        return httpx.Response(200, json={"id": "owner-1"})
+
+    class MockAuthClient:
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, *args):
+            return False
+        async def get(self, *args, **kwargs):
+            return httpx.Response(200, json={"id": "owner-1"})
+        async def request(self, method, url, **kwargs):
+            assert "owner-1" in str(url)
+            return httpx.Response(200, json={"Key": "uploaded-ok"})
+
+    mock_client = MockAuthClient()
+    monkeypatch.setattr(server_app.app.state, "auth_http", mock_client)
+    monkeypatch.setattr(httpx, "AsyncClient", lambda *a, **kw: mock_client)
+    headers = {"Authorization": "Bearer valid-user-jwt"}
+
+    # 试图越权操作他人文件 -> 403
+    resp = client.post(
+        "/api/storage/proxy/object/stardust-project-files/other-user/project/doc.pdf",
+        content=b"test data",
+        headers=headers,
+    )
+    assert resp.status_code == 403
+    assert "无权操作" in resp.json()["detail"]
+
+    resp = client.post(
+        "/api/storage/proxy/object/stardust-project-files/owner-1/project/doc.pdf",
+        content=b"test data",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["Key"] == "uploaded-ok"
+
+
 def test_types(client):
     r = client.get("/types")
     assert r.status_code == 200

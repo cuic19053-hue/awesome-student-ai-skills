@@ -29,8 +29,13 @@
     return (input, options) => {
       const upstream = new URL(supabaseUrl);
       const url = new URL(typeof input === "string" ? input : input.url);
-      if (url.origin === upstream.origin && url.pathname.startsWith("/auth/v1/")) {
-        return fetch(`/api/auth/proxy/${url.pathname.slice(9)}${url.search}`, options);
+      if (url.origin === upstream.origin) {
+        if (url.pathname.startsWith("/auth/v1/")) {
+          return fetch(`/api/auth/proxy/${url.pathname.slice(9)}${url.search}`, options);
+        }
+        if (url.pathname.startsWith("/storage/v1/")) {
+          return fetch(`/api/storage/proxy/${url.pathname.slice(12)}${url.search}`, options);
+        }
       }
       return fetch(input, options);
     };

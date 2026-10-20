@@ -27,4 +27,7 @@ def supabase_urlopen(request, timeout=20):
             request.full_url, response.status_code, "Supabase request failed",
             response.headers, io.BytesIO(response.content),
         )
-    return io.BytesIO(response.content)
+    result = io.BytesIO(response.content)
+    result.headers = response.headers
+    result.status = response.status_code
+    return result

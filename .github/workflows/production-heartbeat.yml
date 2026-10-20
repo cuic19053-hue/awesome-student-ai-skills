@@ -1,0 +1,25 @@
+name: Production Uptime
+
+on:
+  schedule:
+    # 避开整点拥塞，约每十分钟一次；GitHub 调度可能延迟，不保证实例常驻。
+    - cron: '7,17,27,37,47,57 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-uptime
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: 检查生产存活并进行轻量预热
+        run: python3 scripts/check_site_health.py

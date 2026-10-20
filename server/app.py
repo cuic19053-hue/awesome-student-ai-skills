@@ -595,6 +595,55 @@ def _cloud_config_store():
     return store
 
 
+@app.api_route("/api/storage/proxy/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
+async def storage_proxy(path: str, request: Request):
+    """材料存储请求代理：走同源连接，避免国内浏览器直连 Supabase Storage 遭遇阻断。"""
+    if not CLOUD_MODE:
+        raise HTTPException(404, "云端存储代理仅在云端模式启用。")
+    ident = request_identity.get()
+    if not ident or not ident.get("access_token"):
+        raise HTTPException(401, "请先登录后操作材料存储。")
+
+    user_id = str(ident["user_id"])
+    clean_path = path.lstrip("/")
+    expected_prefix = f"object/stardust-project-files/{user_id}/"
+    # 严格校验：防越权读写他人目录
+    if clean_path.startswith("object/stardust-project-files/") and not clean_path.startswith(expected_prefix):
+        raise HTTPException(403, "无权操作其他用户的存储对象。")
+
+    import httpx
+    headers = {
+        "apikey": SUPABASE_PUBLISHABLE_KEY,
+        "Authorization": f"Bearer {ident['access_token']}",
+    }
+    content_type = request.headers.get("content-type")
+    if content_type:
+        headers["Content-Type"] = content_type
+    x_upsert = request.headers.get("x-upsert")
+    if x_upsert:
+        headers["x-upsert"] = x_upsert
+
+    body = await request.body()
+    try:
+        async with auth_http() as client:
+            upstream = await client.request(
+                request.method,
+                f"{SUPABASE_URL}/storage/v1/{clean_path}",
+                params=list(request.query_params.multi_items()),
+                content=body,
+                headers=headers,
+                timeout=45,
+            )
+        return Response(
+            upstream.content,
+            status_code=upstream.status_code,
+            media_type=upstream.headers.get("content-type", "application/json"),
+            headers={"Cache-Control": "private, no-store"},
+        )
+    except httpx.HTTPError:
+        return JSONResponse({"message": "材料存储服务暂不可用，请稍后重试。"}, status_code=503)
+
+
 @app.get("/api/user/llm-config")
 def get_user_model_config():
     try:

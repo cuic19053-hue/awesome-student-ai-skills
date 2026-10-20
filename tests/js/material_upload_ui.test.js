@@ -442,7 +442,7 @@ test("public cache recovers from corrupt, expired or unavailable storage", () =>
   assert.equal(h.ui.readPublicCache("skills"), null);
 });
 
-test("all SDK auth operations use same-origin proxy without redirecting storage", async () => {
+test("all SDK auth and storage operations use same-origin proxy", async () => {
   const h = harness();
   h.context.URL = URL;
   const fetcher = h.ui.sameOriginAuthFetch("https://project.supabase.co");
@@ -452,8 +452,8 @@ test("all SDK auth operations use same-origin proxy without redirecting storage"
   assert.equal(h.requests[0].url, "/api/auth/proxy/token?grant_type=refresh_token");
   assert.equal(h.requests[1].url, "/api/auth/proxy/user");
   assert.equal(h.requests[2].url, "/api/auth/proxy/logout");
-  await fetcher("https://project.supabase.co/storage/v1/object/test");
-  assert.match(h.requests[3].url, /^https:\/\/project.supabase.co\/storage/);
+  await fetcher("https://project.supabase.co/storage/v1/object/stardust-project-files/test");
+  assert.equal(h.requests[3].url, "/api/storage/proxy/object/stardust-project-files/test");
 });
 
 test("cloud keys are memory-only; cloud deletion and account switch cannot restore stale key", async () => {
