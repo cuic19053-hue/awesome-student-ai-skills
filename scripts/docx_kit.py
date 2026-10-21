@@ -470,13 +470,32 @@ def cover(doc, org: str, doc_kind: str, title: str, subtitle: str = "",
     doc.add_page_break()
 
 
-def signature_block(doc, titles, box_h_cm=1.8):
-    """审核意见区：整块做成一张不可跨页拆开的表格。
+def _para_border(p, edge="bottom", sz=6, color="7A7A7A"):
+    """给段落画一条边框线（代替表格内部分隔线，使一栏压成单行后仍保留视觉分隔）。"""
+    pPr = p._p.get_or_add_pPr()
+    pBdr = pPr.find(qn("w:pBdr"))
+    if pBdr is None:
+        pBdr = OxmlElement("w:pBdr")
+        pPr.append(pBdr)
+    e = OxmlElement(f"w:{edge}")
+    e.set(qn("w:val"), "single")
+    e.set(qn("w:sz"), str(sz))
+    e.set(qn("w:space"), "1")
+    e.set(qn("w:color"), color)
+    pBdr.append(e)
 
-    每个意见栏 = 标题条 + 书写区 + 签字行，共三行。
-    全部行设 cantSplit，且除最后一行外的段落全部 keep_with_next，
-    使整块在放不下时整体移到下一页，避免
-    「标题留在页底、签字行被甩到下一页」以及末页只剩半行字的情况。
+
+def signature_block(doc, titles, box_h_cm=1.8):
+    """审核意见区：每个意见栏压成「一行」，保证整栏不可被拆到两页。
+
+    早期做法是一栏 = 标题条 / 书写区 / 签字行 三行，靠 keep_with_next 把三行
+    粘起来。但 keep_with_next 是段落属性，对「表格行之间」的约束在不同渲染器
+    里实现不一——LibreOffice/Word 会整块换页，腾讯文档预览之类的渲染器不认，
+    于是出现「学院审核意见」标题孤零零留在页底、书写区和签字行被甩到下一页。
+
+    改成一栏一行、栏内三个段落（栏内分隔线用段落边框画），
+    配合行级 cantSplit：任何渲染器都无法在栏内断开，
+    最坏情况退化为「整栏移到下一页」，每栏仍是完整的签字单元。
     """
     t = doc.add_table(rows=0, cols=1)
     t.style = "Table Grid"
@@ -488,39 +507,38 @@ def signature_block(doc, titles, box_h_cm=1.8):
     t._tbl.tblPr.append(layout)
 
     for title in titles:
-        # 标题条
         r = t.add_row()
-        r.cells[0].width = Cm(TEXT_W)
-        p = r.cells[0].paragraphs[0]
-        p.paragraph_format.space_before = Pt(2)
-        p.paragraph_format.space_after = Pt(2)
-        set_font(p.add_run(title), HEI, 10.5, True)
+        cell = r.cells[0]
+        cell.width = Cm(TEXT_W)
 
-        # 书写区（留白供手写/打印意见）
-        r2 = t.add_row()
-        r2.cells[0].width = Cm(TEXT_W)
-        r2.height = Cm(box_h_cm)
-        r2.height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
-        p2 = r2.cells[0].paragraphs[0]
-        p2.paragraph_format.space_before = Pt(0)
-        p2.paragraph_format.space_after = Pt(0)
+        # ① 标题条
+        p1 = cell.paragraphs[0]
+        p1.paragraph_format.space_before = Pt(2)
+        p1.paragraph_format.space_after = Pt(2)
+        set_font(p1.add_run(title), HEI, 10.5, True)
+        _para_border(p1, "bottom")
 
-        # 签字行
-        r3 = t.add_row()
-        r3.cells[0].width = Cm(TEXT_W)
-        p3 = r3.cells[0].paragraphs[0]
+        # ② 书写区：空段落按精确行距撑出固定高度（供手写/盖章）
+        p2 = cell.add_paragraph()
+        pf2 = p2.paragraph_format
+        pf2.space_before = Pt(0)
+        pf2.space_after = Pt(0)
+        pf2.line_spacing = Cm(box_h_cm)
+
+        # ③ 签字行
+        p3 = cell.add_paragraph()
         p3.alignment = WD_ALIGN_PARAGRAPH.RIGHT
         p3.paragraph_format.space_before = Pt(4)
         p3.paragraph_format.space_after = Pt(4)
         set_font(p3.add_run("签字：＿＿＿＿＿＿＿＿　　　日期：　　年　　月　　日"),
                  SONG, 10.5, False, GREY)
+        _para_border(p3, "top")
 
     t.columns[0].width = Cm(TEXT_W)
     n = len(t.rows)
     for i, row in enumerate(t.rows):
         row._tr.get_or_add_trPr().append(OxmlElement("w:cantSplit"))
-        # 全部意见栏绑成一整块：宁可整体换页，也不要出现
-        # 「末页只剩一个意见栏」这种孤栏页（比上一页留白更难看）。
+        # 栏间仍整块绑定：支持的渲染器里整块换页，不支持的至少不会断在栏内
         if i < n - 1:
             for cell in row.cells:
                 for p in cell.paragraphs:
