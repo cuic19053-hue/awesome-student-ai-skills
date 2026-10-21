@@ -72,3 +72,6 @@ supabase/.temp/
 !.env.example
 shots/
 tools/
+
+# ===== 仅本地留存的运维提示词（不进公开仓库）=====
+docs/ops/
