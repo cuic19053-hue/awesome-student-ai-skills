@@ -732,6 +732,332 @@ def time_allocation(name="16_timeuse.png"):
     return _save(fig, name)
 
 
+# ---------------------------------------------------------------- 18. 单亩经济模型瀑布
+def unit_economics(name="18_unit_econ.png"):
+    """单亩单次收入如何被成本吃掉，最终剩 3.6 元（毛利率 45%）。"""
+    steps = [
+        ("服务收入", 8.0, "total"),
+        ("飞手人工", -1.7, "cost"),
+        ("设备折旧\n与油电", -1.2, "cost"),
+        ("数据处理", -0.6, "cost"),
+        ("管理与损耗", -0.9, "cost"),
+        ("单亩毛利", 3.6, "total"),
+    ]
+    fig, ax = plt.subplots(figsize=(10.6, 4.3))
+    running, xs = 0.0, range(len(steps))
+    for x, (label, val, kind) in zip(xs, steps):
+        if kind == "total":
+            bottom, height = 0, val
+            color, edge = (BLUEF, BLUE) if x == 0 else (GREENF, GREEN)
+        else:
+            bottom, height = running + val, -val
+            color, edge = REDF, RED
+        ax.bar(x, height, bottom=bottom, width=0.56, color=color,
+               edgecolor=edge, lw=1.6, zorder=3)
+        top = bottom + height
+        ty = top + 0.22 if kind == "total" else top + 0.18
+        ax.text(x, ty, f"{val:+.1f}" if kind == "cost" else f"{val:.1f}",
+                ha="center", va="bottom", fontsize=10.5,
+                color=edge, fontweight="bold", zorder=4)
+        if kind == "cost":
+            ax.plot([x - 0.28, x + 0.28], [running, running],
+                    color=GREY, lw=0.9, ls=(0, (3, 2)), zorder=2)
+            running += val
+        else:
+            running = height if x == 0 else running
+    # 连接线
+    for i in range(len(steps) - 1):
+        a, b = steps[i], steps[i + 1]
+        ya = a[1] if a[2] == "total" else None
+    ax.set_xticks(list(xs))
+    ax.set_xticklabels([s[0] for s in steps], fontsize=9.6, color=INK)
+    ax.set_ylabel("元 / 亩·次", fontsize=9.8, color=GREY)
+    ax.set_ylim(0, 9.4)
+    ax.tick_params(length=0, colors=GREY)
+    for sp in ("top", "right"):
+        ax.spines[sp].set_visible(False)
+    for sp in ("left", "bottom"):
+        ax.spines[sp].set_color(GRID)
+    ax.grid(axis="y", color=GRID, lw=0.9, zorder=0)
+    ax.set_axisbelow(True)
+    ax.set_title("单亩单次经济模型：8.0 元收入中成本占 4.4 元（毛利率 45%）",
+                 fontsize=12.5, color=INK, fontweight="bold", pad=14)
+    return _save(fig, name)
+
+
+# ---------------------------------------------------------------- 19. 服务交付流程
+def service_flow(name="19_service_flow.png"):
+    """六步交付链路，标注责任角色与单次耗时。"""
+    steps = [
+        ("签约建档", "市场", "1 天", PURPLE, PURPLEF),
+        ("航线规划", "算法", "0.5 天", BLUE, BLUEF),
+        ("多光谱采集", "飞手", "2 小时/千亩", AMBER, AMBERF),
+        ("数据处理", "算法", "4 小时", BLUE, BLUEF),
+        ("报告交付", "算法", "0.5 天", BLUE, BLUEF),
+        ("复购回访", "市场", "持续", PURPLE, PURPLEF),
+    ]
+    fig, ax = plt.subplots(figsize=(11.2, 3.5))
+    ax.set_xlim(0, len(steps) * 2.0)
+    ax.set_ylim(0, 3.0)
+    ax.axis("off")
+    for i, (label, role, dur, ec, fc) in enumerate(steps):
+        x = i * 2.0 + 0.16
+        ax.add_patch(FancyBboxPatch(
+            (x, 1.28), 1.62, 0.86,
+            boxstyle="round,pad=0.02,rounding_size=0.12",
+            fc=fc, ec=ec, lw=1.6, zorder=3))
+        ax.text(x + 0.81, 1.79, label, ha="center", va="center",
+                fontsize=11, color=INK, fontweight="bold", zorder=4)
+        ax.text(x + 0.81, 1.44, f"{role} · {dur}", ha="center", va="center",
+                fontsize=8.6, color=ec, zorder=4)
+        if i < len(steps) - 1:
+            ax.annotate("", xy=(x + 1.96, 1.71), xytext=(x + 1.66, 1.71),
+                        arrowprops=dict(arrowstyle="-|>", color=GREY, lw=1.4))
+    ax.text(0.1, 0.66, "单次作业从签约到交付 3—4 个工作日；订阅客户按生长季滚动，"
+                       "复购环节不重复建档与规划",
+            fontsize=9.6, color=GREY)
+    ax.text(0.1, 0.28, "关键约束：飞手旺季单日上限 1,200 亩（含转场），"
+                       "超过则需临时增派——这是服务半径的直接上限",
+            fontsize=9.6, color=AMBER)
+    return _save(fig, name)
+
+
+# ---------------------------------------------------------------- 20. 能力与岗位匹配矩阵
+def match_matrix(name="20_match_matrix.png"):
+    """四个岗位方向 × 五项能力，分值 1—5，用于说明培训成本差异。"""
+    posts = ["无人机侦察/巡线", "信息化装备维护", "通信与指挥辅助", "文书与信息化办公"]
+    skills = ["执照与操控", "飞控与调试", "编程与数据", "设备维护", "纪律与体能"]
+    score = [
+        [5, 4, 3, 2, 4],
+        [3, 3, 4, 5, 4],
+        [2, 2, 4, 3, 4],
+        [1, 1, 5, 3, 4],
+    ]
+    fig, ax = plt.subplots(figsize=(9.6, 4.2))
+    cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
+        "wf", ["#FEF3C7", "#BBF7D0"])
+    im = ax.imshow(score, cmap=cmap, vmin=0, vmax=5, aspect="auto")
+    ax.set_xticks(range(len(skills)))
+    ax.set_xticklabels(skills, fontsize=9.8, color=INK)
+    ax.set_yticks(range(len(posts)))
+    ax.set_yticklabels(posts, fontsize=9.8, color=INK)
+    ax.tick_params(length=0)
+    for sp in ax.spines.values():
+        sp.set_visible(False)
+    ax.set_xticks([x - 0.5 for x in range(1, len(skills))], minor=True)
+    ax.set_yticks([y - 0.5 for y in range(1, len(posts))], minor=True)
+    ax.grid(which="minor", color="white", lw=2)
+    for i, row in enumerate(score):
+        for j, v in enumerate(row):
+            ax.text(j, i, str(v), ha="center", va="center", fontsize=12,
+                    color=INK if v >= 3 else GREY, fontweight="bold")
+    cb = fig.colorbar(im, ax=ax, fraction=0.026, pad=0.02)
+    cb.set_label("本人准备程度（5 = 可直接上手）", fontsize=9, color=GREY)
+    cb.ax.tick_params(length=0, colors=GREY)
+    ax.set_title("专业能力与岗位方向的匹配度自评", fontsize=12.5,
+                 color=INK, fontweight="bold", pad=12)
+    return _save(fig, name)
+
+
+# ---------------------------------------------------------------- 21. 回国发展路径
+def career_path(name="21_career_path.png"):
+    """留学两年 + 回国服务期 + 长期目标的横向时间轴（色块在上、节点在下）。"""
+    fig, ax = plt.subplots(figsize=(11.2, 3.8))
+    ax.set_xlim(2026.9, 2034.5)
+    ax.set_ylim(0, 3.4)
+    ax.axis("off")
+
+    AXIS_Y = 1.62
+    ax.plot([2027.2, 2034.1], [AXIS_Y, AXIS_Y], color=GRID, lw=3, zorder=1)
+
+    segs = [
+        (2027.2, 2029.3, "公派留学 24 个月", BLUE, BLUEF),
+        (2029.3, 2031.4, "回国服务期（≥2 年）", AMBER, AMBERF),
+        (2031.4, 2034.1, "长期：独立课题与产业化", GREEN, GREENF),
+    ]
+    for x0, x1, label, ec, fc in segs:
+        ax.add_patch(FancyBboxPatch(
+            (x0, 2.52), x1 - x0, 0.5,
+            boxstyle="round,pad=0.01,rounding_size=0.10",
+            fc=fc, ec=ec, lw=1.6, zorder=3))
+        ax.text((x0 + x1) / 2, 2.77, label, ha="center", va="center",
+                fontsize=10.4, color=ec, fontweight="bold", zorder=4)
+        # 色块下缘引出竖虚线到时间轴
+        ax.plot([(x0 + x1) / 2, (x0 + x1) / 2], [2.5, AXIS_Y + 0.06],
+                color=ec, lw=1, ls=(0, (3, 3)), zorder=2)
+
+    marks = [
+        (2027.2, "赴德入学"),
+        (2029.3, "按期回国入职"),
+        (2031.4, "服务期满"),
+        (2034.1, "团队与成果转化"),
+    ]
+    for x, label in marks:
+        ax.plot(x, AXIS_Y, "o", ms=8, mfc="white", mec=INK, mew=1.7, zorder=5)
+        ax.text(x, AXIS_Y - 0.2, label, ha="center", va="top",
+                fontsize=9.6, color=INK)
+        ax.text(x, 0.72, str(int(x)) if float(x).is_integer() else f"{x:.1f}",
+                ha="center", va="center", fontsize=9.6, color=GREY)
+
+    ax.text(2026.95, 3.18, "回国服务承诺的落点：把系统级验证方法带回国内团队",
+            fontsize=11, color=INK, fontweight="bold")
+    return _save(fig, name)
+
+
+# ---------------------------------------------------------------- 22. 分场景成功率
+def scenario_success(name="22_scenario_success.png"):
+    """四类典型场景的避障成功率，基线 vs 本项目。"""
+    scenes = ["室内走廊", "窄通道", "动态障碍密集", "室外有风"]
+    base = [98, 64, 71, 58]
+    ours = [99, 92, 94, 88]
+    fig, ax = plt.subplots(figsize=(9.6, 4.1))
+    x = range(len(scenes))
+    w = 0.34
+    b1 = ax.bar([i - w / 2 for i in x], base, w, color=AMBERF,
+                edgecolor=AMBER, lw=1.5, label="基线 A*")
+    b2 = ax.bar([i + w / 2 for i in x], ours, w, color=GREENF,
+                edgecolor=GREEN, lw=1.5, label="本项目")
+    for bars in (b1, b2):
+        for r in bars:
+            ax.text(r.get_x() + r.get_width() / 2, r.get_height() + 1.6,
+                    f"{r.get_height():.0f}", ha="center", fontsize=10,
+                    color=INK, fontweight="bold")
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(scenes, fontsize=10, color=INK)
+    ax.set_ylim(0, 112)
+    ax.set_ylabel("避障成功率（%）", fontsize=9.8, color=GREY)
+    ax.axhline(94.3, color=BLUE, lw=1.2, ls=(0, (4, 3)), zorder=1)
+    ax.text(len(scenes) - 0.45, 96, "200 组随机场景总体 94.3%",
+            ha="right", fontsize=9, color=BLUE)
+    ax.tick_params(length=0, colors=GREY)
+    for sp in ("top", "right"):
+        ax.spines[sp].set_visible(False)
+    for sp in ("left", "bottom"):
+        ax.spines[sp].set_color(GRID)
+    ax.grid(axis="y", color=GRID, lw=0.9, zorder=0)
+    ax.set_axisbelow(True)
+    ax.legend(frameon=False, fontsize=9.6, loc="lower right", labelcolor=INK, ncol=2)
+    ax.set_title("分场景避障成功率：提升集中在窄通道与动态障碍场景",
+                 fontsize=12.5, color=INK, fontweight="bold", pad=14)
+    return _save(fig, name)
+
+
+# ---------------------------------------------------------------- 23. 团队组织架构
+def org_chart(name="23_org_chart.png"):
+    """五人核心团队 + 两条执行线的组织架构。"""
+    fig, ax = plt.subplots(figsize=(10.4, 4.2))
+    ax.set_xlim(0, 10.4)
+    ax.set_ylim(0, 4.2)
+    ax.axis("off")
+
+    def box(x, y, w, h, title, sub, ec, fc, ts=10.6):
+        ax.add_patch(FancyBboxPatch(
+            (x - w / 2, y - h / 2), w, h,
+            boxstyle="round,pad=0.02,rounding_size=0.12",
+            fc=fc, ec=ec, lw=1.6, zorder=3))
+        ax.text(x, y + 0.16, title, ha="center", va="center",
+                fontsize=ts, color=INK, fontweight="bold", zorder=4)
+        ax.text(x, y - 0.20, sub, ha="center", va="center",
+                fontsize=8.6, color=ec, zorder=4)
+
+    box(5.2, 3.55, 2.5, 0.78, "创始人 / CEO", "王浩 · 融资与政府对接", BLUE, BLUEF)
+    box(8.6, 3.55, 2.2, 0.78, "技术顾问", "陈立新 教授", PURPLE, PURPLEF)
+
+    mid = [(1.7, "算法负责人", "李明 · 模型与报告", AMBER, AMBERF),
+           (5.2, "作业负责人", "张强 · 飞手与调度", GREEN, GREENF),
+           (8.0, "市场负责人", "周宁 · 县域合伙", AMBER, AMBERF)]
+    for x, t, sub, ec, fc in mid:
+        box(x, 2.05, 2.3, 0.76, t, sub, ec, fc)
+        ax.plot([5.2, 5.2, x], [3.16, 2.62, 2.62], color=GREY, lw=1.2, zorder=2)
+        ax.plot([x, x], [2.62, 2.43], color=GREY, lw=1.2, zorder=2)
+    ax.plot([5.2, 8.6], [3.16, 3.16], color=PURPLE, lw=1.2, ls=(0, (3, 2)), zorder=2)
+
+    low = [(1.7, "数据处理 1 人"), (5.2, "飞手 3—5 人 / 县"), (8.0, "农资采购 1 人（待补）")]
+    for x, t in low:
+        ax.add_patch(FancyBboxPatch(
+            (x - 1.05, 0.72), 2.1, 0.44,
+            boxstyle="round,pad=0.02,rounding_size=0.10",
+            fc="white", ec=GREY, lw=1.1, ls=(0, (3, 2)), zorder=3))
+        ax.text(x, 0.94, t, ha="center", va="center", fontsize=9, color=GREY, zorder=4)
+        ax.plot([x, x], [1.67, 1.16], color=GREY, lw=1, ls=(0, (2, 2)), zorder=2)
+
+    ax.text(0.15, 0.24, "缺口：懂农资供应链的人。集采上量后采购与账期管理需专职，"
+                        "计划 A 轮前引进（图中虚线框）",
+            fontsize=9.2, color=RED)
+    return _save(fig, name)
+
+
+# ---------------------------------------------------------------- 24. 入伍后阶段规划
+def service_plan(name="24_service_plan.png"):
+    """入伍后 2 年 / 5 年 / 长期三段规划，色块在上、节点在下。"""
+    fig, ax = plt.subplots(figsize=(11.0, 3.6))
+    ax.set_xlim(0, 10.4)
+    ax.set_ylim(0, 3.4)
+    ax.axis("off")
+
+    segs = [
+        (0.35, 3.5, "义务兵役期 2 年", "打基础：队列、体能、专业岗位", BLUE, BLUEF),
+        (3.75, 6.9, "选取士官 / 考学（第 3—5 年）", "进专业：成为岗位骨干", AMBER, AMBERF),
+        (7.15, 10.2, "长期：技术骨干与带训", "带团队：把经验交给下一批", GREEN, GREENF),
+    ]
+    for x0, x1, title, sub, ec, fc in segs:
+        ax.add_patch(FancyBboxPatch(
+            (x0, 1.62), x1 - x0, 1.06,
+            boxstyle="round,pad=0.02,rounding_size=0.12",
+            fc=fc, ec=ec, lw=1.6, zorder=3))
+        ax.text((x0 + x1) / 2, 2.36, title, ha="center", va="center",
+                fontsize=10.4, color=ec, fontweight="bold", zorder=4)
+        ax.text((x0 + x1) / 2, 1.92, sub, ha="center", va="center",
+                fontsize=9.2, color=INK, zorder=4)
+    for x, t in ((3.62, "转段节点"), (7.02, "二次选择")):
+        ax.annotate("", xy=(x + 0.12, 2.15), xytext=(x - 0.12, 2.15),
+                    arrowprops=dict(arrowstyle="-|>", color=GREY, lw=1.4))
+        ax.text(x, 1.28, t, ha="center", va="center", fontsize=8.6, color=GREY)
+
+    ax.text(0.35, 0.72, "三个阶段对应的能力要求不同，我的准备也有侧重：",
+            fontsize=9.8, color=INK)
+    ax.text(0.35, 0.34, "① 体能与纪律（已提前 8 个月训练）　② 专业岗位技能（无人机执照 + 飞控调试）"
+                        "　③ 组织与带训能力（在校任学生干部 2 年）",
+            fontsize=9.4, color=GREY)
+    return _save(fig, name)
+
+
+# ---------------------------------------------------------------- 25. 消融实验
+def ablation(name="25_ablation.png"):
+    """逐项剥离后成功率的变化，标注各模块贡献。"""
+    items = [
+        ("完整方法", 94.3, GREEN, GREENF, "—"),
+        ("去掉曲率约束", 92.8, AMBER, AMBERF, "−1.5"),
+        ("去掉动态代价函数", 85.6, RED, REDF, "−8.7"),
+        ("去掉滚动时域", 78.1, RED, REDF, "−16.2"),
+    ]
+    fig, ax = plt.subplots(figsize=(9.8, 3.9))
+    ys = range(len(items))
+    for y, (label, val, ec, fc, delta) in zip(ys, items):
+        ax.barh(y, val, height=0.5, color=fc, edgecolor=ec, lw=1.5, zorder=3)
+        ax.text(val + 0.8, y, f"{val:.1f}%", va="center", ha="left",
+                fontsize=10.5, color=ec, fontweight="bold", zorder=4)
+        ax.text(2.5, y, label, va="center", ha="left", fontsize=10.2,
+                color=INK, zorder=4)
+        if delta != "—":
+            ax.text(val - 1.5, y, delta, va="center", ha="right",
+                    fontsize=9.6, color=ec, zorder=4)
+    ax.set_xlim(0, 104)
+    ax.set_ylim(-0.65, len(items) - 0.35)
+    ax.invert_yaxis()
+    ax.set_yticks([])
+    ax.tick_params(length=0, colors=GREY)
+    for sp in ("top", "right", "left"):
+        ax.spines[sp].set_visible(False)
+    ax.spines["bottom"].set_color(GRID)
+    ax.grid(axis="x", color=GRID, lw=0.9, zorder=0)
+    ax.set_axisbelow(True)
+    ax.set_xlabel("200 组随机动态场景下的避障成功率（%）", fontsize=9.6, color=GREY)
+    ax.set_title("消融实验：滚动时域贡献最大，曲率约束主要影响能耗而非成功率",
+                 fontsize=12.2, color=INK, fontweight="bold", pad=14)
+    return _save(fig, name)
+
+
 def main():
     font = setup_font()
     print(f"中文字体：{font}")
@@ -739,7 +1065,9 @@ def main():
     for fn in (tech_roadmap, gantt, budget_donut, algo_compare, swot, innovation_chain,
                business_canvas, capability_radar, achievement_timeline,
                revenue_forecast, literature_dist, work_package, risk_matrix,
-               grade_trend, training_plan, time_allocation, readiness_bars):
+               grade_trend, training_plan, time_allocation, readiness_bars,
+               unit_economics, service_flow, match_matrix, career_path,
+               scenario_success, org_chart, service_plan, ablation):
         fn()
     print("全部完成")
 

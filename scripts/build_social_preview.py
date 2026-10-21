@@ -112,7 +112,7 @@ def build() -> Path:
     d.line((left, H - 96, W - 72, H - 96), fill=LINE, width=2)
     d.text((left, H - 72), "github.com/cuic19053-hue/awesome-student-ai-skills",
            font=load_font(19, 3), fill=GREY)
-    d.text((left, H - 44), "39,285 字示例内容 · 44 张代码渲染配图 · 75 张表格",
+    d.text((left, H - 44), "40,468 字示例内容 · 54 张代码渲染配图 · 75 张表格",
            font=load_font(17, 3), fill=(156, 163, 175))
 
     canvas.save(OUT, "PNG", optimize=True)
