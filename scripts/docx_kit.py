@@ -23,6 +23,10 @@ FIG = ROOT / "build" / "figures"
 
 # 正文可用宽度：A4 21cm − 左 3.0 − 右 2.6 = 15.4cm
 TEXT_W = 15.4
+# 版心可用高度：A4 29.7cm − 上 2.5 − 下 2.5 = 24.7cm，再扣章标题与间距约 1.7cm
+_SIGN_AVAIL_CM = 23.0
+# 调试用：强制栏高（cm），0 表示按公式自适应
+_SIGN_FORCE_CM = 0.0
 
 HEI = "黑体"
 SONG = "宋体"
@@ -496,22 +500,40 @@ def kv_table(doc, items, k_w=4.6, v_w=10.8, k_align=WD_ALIGN_PARAGRAPH.RIGHT):
     return t
 
 
+def _spacer(doc, h_cm: float):
+    """定高占位段。用精确行距撑高，不用空段落——空段落的高度随正文字号/行距漂移。"""
+    p = doc.add_paragraph()
+    pf = p.paragraph_format
+    pf.space_before = Pt(0)
+    pf.space_after = Pt(0)
+    pf.line_spacing_rule = WD_LINE_SPACING.EXACTLY
+    pf.line_spacing = Cm(h_cm)
+    p.add_run("")
+    return p
+
+
 def cover(doc, org: str, doc_kind: str, title: str, subtitle: str = "",
           info=None, red_header: bool = False):
-    """封面：机构名 + 文档类型 + 项目名 + 信息表。"""
-    for _ in range(3):
-        doc.add_paragraph()
+    """封面：机构名 + 文档类型 + 项目名 + 信息表。
+
+    顶部留白用定高占位段控制。实测原「3 个空段落」版本，11 份封面的信息表
+    底边落在页面 55%～60% 处，下半页留白 42%～46%，视觉上明显上重下空。
+    改为按内容高度给不同留白，使上下留白接近（红头版内容更高，留白相应减小）。
+    """
+    _spacer(doc, 6.0 if red_header else 7.0)
 
     if red_header:
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p.paragraph_format.space_after = Pt(24)
         set_font(p.add_run(org), HEI, 30, True, RED)
-
-    p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p.paragraph_format.space_after = Pt(10)
-    set_font(p.add_run(org), HEI, 22 if not red_header else 18, True)
+    else:
+        # 红头版已用 30pt 红字打了机构全称，此处不再重复一遍——早期版本两行文字
+        # 完全相同（红→黑各一行），是封面最扎眼的冗余。
+        p = doc.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p.paragraph_format.space_after = Pt(10)
+        set_font(p.add_run(org), HEI, 22, True)
 
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -552,7 +574,7 @@ def _para_border(p, edge="bottom", sz=6, color="7A7A7A"):
     pBdr.append(e)
 
 
-def signature_block(doc, titles, box_h_cm=1.8):
+def signature_block(doc, titles, box_h_cm=None):
     """审核意见区：每个意见栏压成「一行」，保证整栏不可被拆到两页。
 
     早期做法是一栏 = 标题条 / 书写区 / 签字行 三行，靠 keep_with_next 把三行
@@ -563,11 +585,20 @@ def signature_block(doc, titles, box_h_cm=1.8):
     改成一栏一行、栏内三个段落（栏内分隔线用段落边框画），
     配合行级 cantSplit：任何渲染器都无法在栏内断开，
     最坏情况退化为「整栏移到下一页」，每栏仍是完整的签字单元。
+
+    栏高按栏数反算，使整块约占总版心的 90%：早期固定 1.8cm 时，
+    2 栏版本在末页只占三分之一页、下面半页全空，且栏高不够手写评语。
     """
     t = doc.add_table(rows=0, cols=1)
     t.style = "Table Grid"
     t.alignment = WD_TABLE_ALIGNMENT.CENTER
     t.autofit = False
+
+    if box_h_cm is None:
+        n = max(1, len(titles))
+        box_h_cm = min(7.0, max(3.0, (_SIGN_AVAIL_CM * 0.85 - 2.4 * n) / n))
+    if _SIGN_FORCE_CM:
+        box_h_cm = _SIGN_FORCE_CM
 
     layout = OxmlElement("w:tblLayout")
     layout.set(qn("w:type"), "fixed")

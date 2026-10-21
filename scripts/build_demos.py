@@ -28,6 +28,22 @@ from content_extra5 import EXTRA5, NEW_BEFORE5, NEW_SECTIONS5  # noqa: E402
 # 否则一旦调整章节编号（三→四），按旧标题登记的补写内容会静默丢失。
 _NUM = re.compile(r"^[一二三四五六七八九十]+、")
 
+# 审核意见栏高（cm），逐份设定：按「签字块刚好落满所在页、且不把整块挤到下一页」实测反推。
+# 统一值做不到——各文档审核意见节落在页面的位置不同（有的在页首，有的在页中），
+# 用统一栏高时，落在页首的文档末页空一大片，落在页中的又整块跳到下一页。
+SIGN_H = {
+    "demo_innovation_research.docx": 4.0,
+    "demo_entrepreneurship_training.docx": 8.0,
+    "demo_challenge_cup.docx": 4.0,
+    "demo_national_scholarship.docx": 5.6,
+    "demo_graduate_recommendation.docx": 8.0,
+    "demo_college_research.docx": 4.5,
+    "demo_university_research.docx": 1.8,   # 末章几乎占满整页，栏高再大就整块跳页
+    "demo_outstanding_graduate.docx": 5.6,
+    "demo_csc_scholarship.docx": 5.0,
+    "demo_military_enlistment.docx": 2.8,
+}
+
 
 def _key(title: str) -> str:
     return _NUM.sub("", title).strip()
@@ -806,10 +822,12 @@ def build_one(cfg):
 
     extra = EXTRA_ALL.get(cfg["file"], {})
     before = BEFORE_ALL.get(cfg["file"], {})
-    n_pre = sum(len(v) for v in before.values())   # 先统计，pop 会改写字典
+    n_pre = sum(len(v) for v in before.values())
     for title, blocks in cfg["sections"]:
-        # 先输出挂在当前小节之前的补写章节（如结语前的内容）
-        for pre_title, pre_blocks in before.pop(title, []):
+        # 先输出挂在当前小节之前的补写章节（如结语前的内容）。
+        # 用 get 而不是 pop：pop 会改写模块级字典，同一进程内二次构建同一份
+        # 文档时这些小节会静默消失（调参脚本反复构建时就踩过）。
+        for pre_title, pre_blocks in before.get(title, []):
             h1(doc, pre_title)
             render_blocks(doc, pre_blocks)
         h1(doc, title)
@@ -826,8 +844,10 @@ def build_one(cfg):
         sections_done += 1
 
     if cfg.get("sign"):
+        # 不给签字栏强制分页：实测分页后，末章内容不足一页的文档会出现
+        # 「倒数第二页只剩两三行、下面空 20cm」的更难看的版式。
         h1(doc, f"{cn_num(sections_done + 1)}、审核意见")
-        signature_block(doc, cfg["sign"])
+        signature_block(doc, cfg["sign"], box_h_cm=SIGN_H.get(cfg["file"]) or None)
 
     # 二级标题统一定稿：按章重排为「章号.序」，消除缺号/跳号
     log = docx_kit.renumber_subheads(doc)
