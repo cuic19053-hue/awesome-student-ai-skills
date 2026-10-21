@@ -14,6 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import docx_kit  # noqa: E402
 from docx_kit import (  # noqa: E402
     ROOT, cn_num, cover, h1, kv_table, new_doc, render_blocks, signature_block, table,
 )
@@ -793,6 +794,8 @@ TRACKS = [
 
 
 def build_one(cfg):
+    # 表题登记表按文档取题，先告知当前文档键
+    docx_kit.CURRENT_DOC = cfg["file"].replace("demo_", "").replace(".docx", "")
     doc = new_doc()
     cover(doc, cfg["org"], cfg["kind"], cfg["title"],
           cfg.get("subtitle", ""), cfg.get("info"),
@@ -822,6 +825,11 @@ def build_one(cfg):
     if cfg.get("sign"):
         h1(doc, f"{cn_num(sections_done + 1)}、审核意见")
         signature_block(doc, cfg["sign"])
+
+    # 二级标题统一定稿：按章重排为「章号.序」，消除缺号/跳号
+    log = docx_kit.renumber_subheads(doc)
+    if log:
+        print(f"    小节重排 {len(log)} 处：{log[0]} …")
 
     out = OUTDIR / cfg["file"]
     out.parent.mkdir(parents=True, exist_ok=True)

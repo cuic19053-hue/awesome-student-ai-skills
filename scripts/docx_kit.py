@@ -41,6 +41,51 @@ def set_font(run, name=SONG, size=12, bold=False, color=INK):
     return run
 
 
+def _field_run(p, instr: str):
+    """在段落里插入一个会随打印刷新取值的域（PAGE / NUMPAGES）。"""
+    r1 = p.add_run()
+    fc = OxmlElement("w:fldChar")
+    fc.set(qn("w:fldCharType"), "begin")
+    r1._r.append(fc)
+
+    r2 = p.add_run()
+    it = OxmlElement("w:instrText")
+    it.set(qn("xml:space"), "preserve")
+    it.text = f" {instr} "
+    r2._r.append(it)
+
+    r3 = p.add_run()
+    sep = OxmlElement("w:fldChar")
+    sep.set(qn("w:fldCharType"), "separate")
+    r3._r.append(sep)
+
+    r4 = p.add_run("1")          # 占位值，打开时由 Word/WPS 刷新
+
+    r5 = p.add_run()
+    end = OxmlElement("w:fldChar")
+    end.set(qn("w:fldCharType"), "end")
+    r5._r.append(end)
+
+    for r in (r1, r2, r3, r4, r5):
+        set_font(r, SONG, 9, False, GREY)
+    return p
+
+
+def _add_page_footer(doc):
+    """页脚居中「第 X 页　共 Y 页」，封面不显示（评审装订后便于定位）。"""
+    sec = doc.sections[0]
+    sec.different_first_page_header_footer = True
+    p = sec.footer.paragraphs[0]
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_before = Pt(0)
+    p.paragraph_format.space_after = Pt(0)
+    set_font(p.add_run("第 "), SONG, 9, False, GREY)
+    _field_run(p, "PAGE")
+    set_font(p.add_run(" 页　共 "), SONG, 9, False, GREY)
+    _field_run(p, "NUMPAGES")
+    set_font(p.add_run(" 页"), SONG, 9, False, GREY)
+
+
 def new_doc() -> Document:
     doc = Document()
     sec = doc.sections[0]
@@ -51,6 +96,7 @@ def new_doc() -> Document:
     style.font.name = SONG
     style.font.size = Pt(12)
     style.element.rPr.rFonts.set(qn("w:eastAsia"), SONG)
+    _add_page_footer(doc)
     return doc
 
 
@@ -78,8 +124,8 @@ def para(doc, text="", size=12, bold=False, name=SONG, align=None,
 def h1(doc, text, size=15):
     p = doc.add_paragraph()
     pf = p.paragraph_format
-    pf.space_before = Pt(18)
-    pf.space_after = Pt(8)
+    pf.space_before = Pt(14)
+    pf.space_after = Pt(7)
     pf.line_spacing = 1.5
     pf.keep_with_next = True          # 标题不与正文分离
     pf.keep_together = True
@@ -119,6 +165,115 @@ def _next_fig_no(doc) -> int:
     return n
 
 
+_CN_DIGIT = {c: i + 1 for i, c in enumerate("一二三四五六七八九")}
+
+
+def cn_int(s: str) -> int:
+    """中文序号转整数（一→1，十一→11，二十九→29），识别失败返回 0。"""
+    s = s.strip()
+    if not s:
+        return 0
+    if "十" not in s:
+        return _CN_DIGIT.get(s[0], 0) if len(s) == 1 else 0
+    head, _, tail = s.partition("十")
+    tens = _CN_DIGIT.get(head, 0) if head else 1
+    ones = _CN_DIGIT.get(tail, 0) if tail else 0
+    return tens * 10 + ones
+
+
+_H1_RE = re.compile(r"^([一二三四五六七八九十]+)、")
+_SUB_RE = re.compile(r"^(\d+)\.(\d+)(\s+\S.*)$")
+
+
+def renumber_subheads(doc) -> list:
+    """二级标题按所在章重排为「章号.序」，保证连续且与章序号对应。
+
+    手工补写内容时最容易出现的硬伤：某章小节从 2.2 起跳、4.1/4.2 缺失。
+    评审翻到「2.2」却找不到「2.1」会直接判定材料拼凑，故统一重排。
+    """
+    cur_ch, seq, log = 0, 0, []
+    for p in doc.paragraphs:
+        t = p.text.strip()
+        if not t or not p.runs:
+            continue
+        if not p.runs[0].bold:
+            continue
+        m1 = _H1_RE.match(t)
+        if m1:
+            cur_ch = cn_int(m1.group(1))
+            seq = 0
+            continue
+        m = _SUB_RE.match(t)
+        if not m or not cur_ch:
+            continue
+        seq += 1
+        old = f"{m.group(1)}.{m.group(2)}"
+        new = f"{cur_ch}.{seq}"
+        if old == new:
+            continue
+        r0 = p.runs[0]
+        if old not in r0.text:
+            print(f"  ⚠ 小节编号跨 run，未重排：{t[:30]}")
+            continue
+        r0.text = r0.text.replace(old, new, 1)
+        log.append(f"{old}→{new} {m.group(3).strip()[:18]}")
+    return log
+
+
+
+def _next_tab_no(doc) -> int:
+    """文档级表格计数器：图、表各自独立编号。"""
+    n = getattr(doc, "_tab_counter", 0) + 1
+    doc._tab_counter = n
+    return n
+
+
+# 当前正在构建的文档键（供表题登记表按文档取题），由 build_demos 设置
+CURRENT_DOC = ""
+
+
+def _table_caption(doc, header, explicit=None):
+    """表题文本（不含「表 N」前缀）。显式给出优先，否则查登记表。"""
+    if explicit:
+        return explicit
+    try:
+        from table_captions import CAPTIONS
+    except ImportError:
+        return None
+    key = (CURRENT_DOC, tuple(str(h) for h in header))
+    val = CAPTIONS.get(key)
+    if val is None:
+        val = CAPTIONS.get(("*", tuple(str(h) for h in header)))
+    if val is None:
+        print(f"  ⚠ 缺表题：{CURRENT_DOC} / {' | '.join(map(str, header))}")
+        return None
+    if isinstance(val, (list, tuple)):
+        used = getattr(doc, "_tab_used", None)
+        if used is None:
+            used = doc._tab_used = {}
+        i = used.get(key, 0)
+        used[key] = i + 1
+        return val[i] if i < len(val) else val[-1]
+    return val
+
+
+def table_caption(doc, header, explicit=None):
+    """在表格上方输出「表 N　表题」（黑体五号居中），并与表格绑定同页。"""
+    text = _table_caption(doc, header, explicit)
+    if not text:
+        return None
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    pf = p.paragraph_format
+    pf.space_before = Pt(6)
+    pf.space_after = Pt(2)
+    pf.line_spacing = 1.2
+    pf.keep_with_next = True        # 表题不与表格分离
+    pf.keep_together = True
+    set_font(p.add_run(f"表 {_next_tab_no(doc)}　{text}"), HEI, 10.5, False, INK)
+    return p
+
+
 def figure(doc, filename, caption, width_cm=14.8, max_h_cm=7.0):
     path = FIG / filename
     if not path.exists():
@@ -145,8 +300,8 @@ def figure(doc, filename, caption, width_cm=14.8, max_h_cm=7.0):
     # 图片段落与图注绑定，避免图在一页、图注在下一页
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p.paragraph_format.space_before = Pt(10)
-    p.paragraph_format.space_after = Pt(4)
+    p.paragraph_format.space_before = Pt(8)
+    p.paragraph_format.space_after = Pt(3)
     p.paragraph_format.keep_with_next = True
     p.paragraph_format.keep_together = True
     p.add_run().add_picture(str(path), width=Cm(w_cm))
@@ -154,7 +309,7 @@ def figure(doc, filename, caption, width_cm=14.8, max_h_cm=7.0):
     cap = doc.add_paragraph()
     cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
     cap.paragraph_format.space_before = Pt(0)
-    cap.paragraph_format.space_after = Pt(14)
+    cap.paragraph_format.space_after = Pt(10)
     cap.paragraph_format.keep_together = True
     set_font(cap.add_run(caption), SONG, 10.5, False, GREY)
 
@@ -206,9 +361,10 @@ def _table_spacer(doc):
 
 
 def table(doc, header: Sequence[str], rows: Iterable[Sequence], widths=None,
-          bold_last=False):
+          bold_last=False, caption=None):
     rows = list(rows)
     n_cols = len(header)
+    table_caption(doc, header, caption)      # 表题在上，与表格同页
     t = doc.add_table(rows=1, cols=n_cols)
     t.style = "Table Grid"
 
@@ -395,7 +551,8 @@ def render_blocks(doc, blocks):
         elif kind == "table":
             table(doc, b[1], b[2],
                   b[3] if len(b) > 3 else None,
-                  b[4] if len(b) > 4 else False)
+                  b[4] if len(b) > 4 else False,
+                  b[5] if len(b) > 5 else None)
         elif kind == "kv":
             kv_table(doc, b[1])
         else:

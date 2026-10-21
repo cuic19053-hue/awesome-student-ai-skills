@@ -503,6 +503,35 @@ NEW_SECTIONS5 = {
                   "不能直接外推到市政环卫场景。如果后续有人要用，"
                   "需要重新采集数据并做域适应，这一点我会写进报告的局限性一节。"),
         ]),
+        ("八、参考文献", [
+            ("p", "文献检索说明：本项目的技术选型集中在「轻量骨干 + 结构化剪枝」一条线上，"
+                  "检索时以 MobileNet 系列、通道剪枝、知识蒸馏三组关键词为主，"
+                  "共检得 43 篇，精读 11 篇。第 1、4 篇确定了骨干网络的选择，"
+                  "第 2 篇是剪枝方案的主要依据，第 3 篇用于说明本项目为何不采用蒸馏路线，"
+                  "第 5 篇作为精度上界的参照，第 6 篇提供了公开的垃圾图像数据基线，"
+                  "第 7、8 篇是分类口径的规范来源——"
+                  "项目里「四分类」的边界不是我们自己定的，而是照这两份文件执行。"),
+            ("p", "　[1] Howard A, Sandler M, Chu G, et al. Searching for MobileNetV3[C]."
+                  "Proceedings of the IEEE/CVF International Conference on Computer Vision "
+                  "(ICCV), 2019: 1314-1324.", False, 10.5),
+            ("p", "　[2] Liu Z, Li J, Shen Z, et al. Learning Efficient Convolutional Networks "
+                  "through Network Slimming[C]. Proceedings of the IEEE International "
+                  "Conference on Computer Vision (ICCV), 2017: 2736-2744.", False, 10.5),
+            ("p", "　[3] Hinton G, Vinyals O, Dean J. Distilling the Knowledge in a Neural "
+                  "Network[J]. arXiv preprint arXiv:1503.02531, 2015.", False, 10.5),
+            ("p", "　[4] Sandler M, Howard A, Zhu M, et al. MobileNetV2: Inverted Residuals and "
+                  "Linear Bottlenecks[C]. Proceedings of the IEEE Conference on Computer Vision "
+                  "and Pattern Recognition (CVPR), 2018: 4510-4520.", False, 10.5),
+            ("p", "　[5] Tan M, Le Q. EfficientNet: Rethinking Model Scaling for Convolutional "
+                  "Neural Networks[C]. Proceedings of the 36th International Conference on "
+                  "Machine Learning (ICML), 2019: 6105-6114.", False, 10.5),
+            ("p", "　[6] Yang M, Thung G. Classification of Trash for Recyclability Status[R]. "
+                  "CS229 Project Report, Stanford University, 2016.", False, 10.5),
+            ("p", "　[7] 住房和城乡建设部. 生活垃圾分类标志：GB/T 19095—2019[S]. "
+                  "北京: 中国标准出版社, 2019.", False, 10.5),
+            ("p", "　[8] 中国城市环境卫生协会. 城市生活垃圾分类投放指南："
+                  "T/CUESA 002—2021[S]. 2021.", False, 10.5),
+        ]),
     ],
 
     # ============================================ 保研个人陈述 · 两节
@@ -625,6 +654,39 @@ NEW_SECTIONS5 = {
                   "负结果也写进报告。这条约束是我在复现基线那次踩坑后定下的——"
                   "当时因为换了评测设置，白高兴了一周。"),
         ]),
+        ("八、参考文献", [
+            ("p", "文献检索说明：检索式以 multi-object tracking、data association、"
+                  "occlusion recovery 三组主题词组合，检得 168 篇，精读 62 篇。"
+                  "第 1、2、5、6 篇是关联环节的四条主要技术路线（纯 IoU、IoU + 相机补偿、"
+                  "强特征重识别、观测中心化），第 4 篇是 DeepSORT 的原始出处，"
+                  "第 3 篇给出评测基准与标注口径，第 7 篇是 MOTA / IDF1 指标的定义来源，"
+                  "第 8 篇用于确认边缘盒子接入既有监控系统的合规边界。"
+                  "正文中凡提到「已有工作」均指以上文献，不作泛称。"),
+            ("p", "　[1] Zhang Y, Sun P, Jiang Y, et al. ByteTrack: Multi-Object Tracking by "
+                  "Associating Every Detection Box[C]. Proceedings of the European Conference "
+                  "on Computer Vision (ECCV), 2022: 1-21.", False, 10.5),
+            ("p", "　[2] Aharon N, Orfaig R, Bobrovsky B Z. BoT-SORT: Robust Associations "
+                  "Multi-Pedestrian Tracking[J]. arXiv preprint arXiv:2206.14651, 2022.",
+             False, 10.5),
+            ("p", "　[3] Milan A, Leal-Taixé L, Reid I, et al. MOT16: A Benchmark for "
+                  "Multi-Object Tracking[J]. arXiv preprint arXiv:1603.00831, 2016.",
+             False, 10.5),
+            ("p", "　[4] Wojke N, Bewley A, Paulus D. Simple Online and Realtime Tracking with "
+                  "a Deep Association Metric[C]. Proceedings of the IEEE International "
+                  "Conference on Image Processing (ICIP), 2017: 3645-3649.", False, 10.5),
+            ("p", "　[5] Du Y, Zhao Z, Song Y, et al. StrongSORT: Make DeepSORT Great Again[J]. "
+                  "IEEE Transactions on Multimedia, 2023, 25: 8725-8737.", False, 10.5),
+            ("p", "　[6] Cao J, Pang J, Weng X, et al. Observation-Centric SORT: Rethinking "
+                  "SORT for Robust Multi-Object Tracking[C]. Proceedings of the IEEE/CVF "
+                  "Conference on Computer Vision and Pattern Recognition (CVPR), 2023: "
+                  "9686-9696.", False, 10.5),
+            ("p", "　[7] Bernardin K, Stiefelhagen R. Evaluating Multiple Object Tracking "
+                  "Performance: The CLEAR MOT Metrics[J]. EURASIP Journal on Image and Video "
+                  "Processing, 2008, 2008: 246309.", False, 10.5),
+            ("p", "　[8] 全国安全防范报警系统标准化技术委员会. 安全防范视频监控人脸识别"
+                  "系统技术要求：GB/T 31488—2015[S]. 北京: 中国标准出版社, 2015.",
+             False, 10.5),
+        ]),
     ],
 
     # ============================================ 创业训练 · 一节
@@ -699,4 +761,5 @@ NEW_SECTIONS5 = {
                   "因为这是唯一能让「效益」不被夸大的办法。"),
         ]),
     ],
+
 }
