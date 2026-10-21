@@ -88,6 +88,12 @@ def _add_page_footer(doc):
 
 def new_doc() -> Document:
     doc = Document()
+    # 文档属性：默认会留下 "python-docx" 的作者名，正式材料里像模板残留
+    cp = doc.core_properties
+    cp.author = "示例文档"
+    cp.last_modified_by = "示例文档"
+    cp.comments = "虚构示例，仅用于展示申报书排版与图表规范"
+    cp.keywords = "学生申报书; 示例; 排版规范"
     sec = doc.sections[0]
     sec.page_width, sec.page_height = Cm(21.0), Cm(29.7)
     sec.top_margin, sec.bottom_margin = Cm(2.54), Cm(2.54)
@@ -262,6 +268,8 @@ def table_caption(doc, header, explicit=None):
     text = _table_caption(doc, header, explicit)
     if not text:
         return None
+    no = _next_tab_no(doc)
+    _cite_prev(doc, "表", no)           # 正文补「如表 N 所示」
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     pf = p.paragraph_format
@@ -270,7 +278,7 @@ def table_caption(doc, header, explicit=None):
     pf.line_spacing = 1.2
     pf.keep_with_next = True        # 表题不与表格分离
     pf.keep_together = True
-    set_font(p.add_run(f"表 {_next_tab_no(doc)}　{text}"), HEI, 10.5, False, INK)
+    set_font(p.add_run(f"表 {no}　{text}"), HEI, 10.5, False, INK)
     return p
 
 
@@ -282,7 +290,9 @@ def figure(doc, filename, caption, width_cm=14.8, max_h_cm=7.0):
 
     # 图号自动生成：调用方若已写「图 N　」，剥掉后重新编号
     caption = re.sub(r"^图\s*\d+[　\s]*", "", caption)
-    caption = f"图 {_next_fig_no(doc)}　{caption}"
+    no = _next_fig_no(doc)
+    caption = f"图 {no}　{caption}"
+    _cite_prev(doc, "图", no)           # 正文补「如图 N 所示」
 
     # 按图片纵横比约束高度，避免过高的图放不进页面而把整页撑出空白
     w_cm = min(width_cm, TEXT_W)
@@ -312,6 +322,48 @@ def figure(doc, filename, caption, width_cm=14.8, max_h_cm=7.0):
     cap.paragraph_format.space_after = Pt(10)
     cap.paragraph_format.keep_together = True
     set_font(cap.add_run(caption), SONG, 10.5, False, GREY)
+
+
+def _set_para_text(p, text):
+    """整段替换文本（保留段落格式与首个 run 的字体）。"""
+    runs = p.runs
+    if not runs:
+        return
+    runs[0].text = text
+    for r in runs[1:]:
+        r.text = ""
+
+
+_CAPTION_RE = re.compile(r"^[图表] \d+　")
+
+
+def _cite_prev(doc, kind, no):
+    """在图表之前的那段正文里补上编号引用。
+
+    国标要求图表既有编号、又在正文中被引用。原来的稿子全用「如下图」这类
+    无编号指代，等于编号形同虚设——读者在十几页里没法凭正文定位到第几张图。
+    这里只改紧邻的那一段：以冒号收尾的引导句换成「如图 N 所示：」，
+    否则在句末补「（见图 N）」。
+    """
+    for p in reversed(doc.paragraphs):
+        t = p.text.strip()
+        if not t:
+            continue
+        if _CAPTION_RE.match(t):          # 上一张图的图注，不住回改
+            return
+        if not p.runs or p.runs[0].bold:  # 标题不回改
+            return
+        cite = f"如{kind} {no} 所示"
+        if t.endswith(("：", ":")):
+            head = t[:-1]
+            head = re.sub(r"[，,]?\s*(如下|见下|以下|下面)$", "", head)
+            _set_para_text(p, f"{head}{cite}：")
+        elif t.endswith(("。", "！", "？")):
+            _set_para_text(p, f"{t[:-1]}（见{kind} {no}）。")
+        else:
+            _set_para_text(p, f"{t}（见{kind} {no}）")
+        return
+
 
 
 def _table_setup(t, n_cols, widths):

@@ -177,19 +177,21 @@ NEW_SECTIONS4 = {
             ("p", "　[3] Fox D, Burgard W, Thrun S. The Dynamic Window Approach to Collision "
                   "Avoidance[J]. IEEE Robotics & Automation Magazine, 1997, 4(1): 23-33.",
              False, 10.5),
-            ("p", "　[4] Zhou X, Wang Y. Dynamic Path Planning for UAV in Uncertain "
-                  "Environments: A Survey[J]. IEEE Access, 2023, 11: 88214-88231.",
+            ("p", "　[4] Coutinho W P, Battarra M, Fliege J. The unmanned aerial vehicle "
+                  "routing and trajectory optimisation problem, a taxonomic review[J]. "
+                  "Computers & Industrial Engineering, 2018, 120: 116-128.",
              False, 10.5),
             ("p", "　[5] Zhou X, Wang X, Efe M Ö, et al. EGO-Planner: An ESDF-Free "
                   "Gradient-Based Local Planner for Quadrotors[J]. IEEE Robotics and "
                   "Automation Letters, 2021, 6(2): 478-485.", False, 10.5),
-            ("p", "　[6] 王伟, 李强. 动态环境下移动机器人路径规划研究综述[J]. "
-                  "自动化学报, 2023, 49(6): 1121-1138.", False, 10.5),
-            ("p", "　[7] 张涛, 陈明. 基于滚动时域的无人机避障规划方法[J]. "
-                  "航空学报, 2024, 45(3): 328-341.", False, 10.5),
-            ("p", "　[8] 刘洋, 赵磊. 改进 A* 算法在室内机器人导航中的应用[J]. "
-                  "机器人, 2024, 46(2): 156-165.", False, 10.5),
-            ("p", "　说明：以上条目为示例，格式遵循 GB/T 7714—2015。", False, 10.5),
+            ("p", "　[6] LaValle S M. Planning Algorithms[M]. Cambridge: Cambridge "
+                  "University Press, 2006.", False, 10.5),
+            ("p", "　[7] Karaman S, Frazzoli E. Sampling-Based Algorithms for Optimal "
+                  "Motion Planning[J]. The International Journal of Robotics Research, "
+                  "2011, 30(7): 846-894.", False, 10.5),
+            ("p", "　[8] Zhou B, Gao F, Wang L, et al. Robust and Efficient Quadrotor "
+                  "Trajectory Generation for Fast Autonomous Flight[J]. IEEE Robotics "
+                  "and Automation Letters, 2019, 4(4): 3529-3536.", False, 10.5),
         ]),
     ],
 

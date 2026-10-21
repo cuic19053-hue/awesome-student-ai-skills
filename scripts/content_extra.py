@@ -148,10 +148,16 @@ EXTRA = {
                   "用滚动时域把全局问题切成可实时求解的局部问题、"
                   "在输出端加曲率约束保证路径可跟随。"
                   "三项改进都不新，组合方式与验证深度是本作品的差异所在。"),
+            ("p", "三项改进各有出处：局部梯度优化[5][8]给出了实时性的实现路径与曲率约束的"
+                  "处理方式，规划算法的基础框架[6]提供了问题形式化的依据；"
+                  "我们未采用采样类方法[7]，原因是其在窄通道场景下的收敛速度"
+                  "难以满足 200 ms 的时域要求。这些工作的共同前提是本作品在"
+                  "选题之初就明确了「可解释、可跟随、可验证」三条约束——"
+                  "凡是无法在这三条上给出证据的方法，一律不进入候选集。"),
         ],
         "三、技术路线与创新点": [
             ("h2", "3.4 三项创新的具体内容"),
-            ("p", "创新一：动态代价函数。把传统 A* 的代价 g(n) 扩展为 g(n,t)，"
+            ("p", "创新一：动态代价函数。把传统 A*[1] 的代价 g(n) 扩展为 g(n,t)，"
                   "障碍物按其运动预测在时空中形成禁行锥体，节点在时刻 t 落入锥体内则代价趋于无穷。"
                   "难点在于启发函数 h(n,t) 的可采纳性——引入时间维度后欧氏距离不再是可靠下界，"
                   "因为「等待」有时比「绕行」更优。我们构造了一个基于「时空最短可达距离」的下界函数，"
@@ -336,9 +342,9 @@ EXTRA = {
     "demo_university_research.docx": {
         "一、立项依据": [
             ("h2", "1.3 现有方法的不足"),
-            ("p", "ByteTrack 的核心思路是把检测框按置信度分为高低两组，"
+            ("p", "ByteTrack[1] 的核心思路是把检测框按置信度分为高低两组，"
                   "高分组用于建立轨迹，低分组用于补充匹配，从而在遮挡时保留轨迹连续性。"
-                  "这一设计在 MOT17 上取得了很好的效果，但它在校园密集人群场景下有两点不适应。"),
+                  "这一设计在 MOT17[3] 上取得了很好的效果，但它在校园密集人群场景下有两点不适应。"),
             ("p", "第一，它几乎完全依赖 IoU 做匹配。当人群密度高、目标相互遮挡时，"
                   "相邻两帧的 IoU 可能因为检测框抖动而急剧下降，导致轨迹断裂。"
                   "虽然 ByteTrack 引入了低分框补充，但补充的依据仍是 IoU，"
@@ -346,7 +352,7 @@ EXTRA = {
             ("p", "第二，它对丢失轨迹的处理过于激进。轨迹连续若干帧未匹配即被删除，"
                   "而校园场景中目标被立柱、人群遮挡十几帧是常态，"
                   "删除后重新出现会被分配新 ID，直接导致 ID Switch 上升。"),
-            ("p", "BoT-SORT 通过引入相机运动补偿与 ReID 特征部分缓解了第一个问题，"
+            ("p", "BoT-SORT[2] 通过引入相机运动补偿与 ReID 特征部分缓解了第一个问题，"
                   "但 ReID 分支带来的计算开销在边缘设备上难以承受，"
                   "而本项目的目标平台正是校园现有的边缘盒子。"),
             ("h2", "1.4 本项目的技术判断"),
@@ -394,11 +400,11 @@ EXTRA = {
                   "既不需要稳定网络，也不涉及原始画面上传。代价是算力受限，"
                   "必须在模型精度与推理速度之间做取舍，这正是本项目要研究的内容。"),
             ("h2", "1.4 技术路线选择"),
-            ("p", "在模型选择上，本项目放弃了精度更高的 ResNet 系骨干，选择 MobileNetV3 作为基础，"
+            ("p", "在模型选择上，本项目放弃了精度更高的 ResNet 系骨干，选择 MobileNetV3[1] 作为基础，"
                   "原因是算力预算先于精度确定。RK3588 的 NPU 在 INT8 量化下可提供约 6 TOPS 算力，"
                   "但要留出余量给视频解码与预处理，实际可用于推理的不到一半。"
                   "按这个预算反推，模型参数量必须控制在 3 M 以内。"),
-            ("p", "在压缩策略上，本项目不采用知识蒸馏而选择通道剪枝。"
+            ("p", "在压缩策略上，本项目不采用知识蒸馏[3]而选择通道剪枝[2]。"
                   "蒸馏需要训练一个更大的教师模型，训练成本对学生项目而言偏高；"
                   "通道剪枝只需在现有模型上做敏感度分析，逐层裁剪后微调，"
                   "工程上更可控，也更容易在报告中解释每一步的取舍。"),
@@ -548,19 +554,21 @@ NEW_SECTIONS = {
             ("p", "　[3] Fox D, Burgard W, Thrun S. The Dynamic Window Approach to Collision "
                   "Avoidance[J]. IEEE Robotics & Automation Magazine, 1997, 4(1): 23-33.",
              False, 10.5),
-            ("p", "　[4] 王伟, 李强. 动态环境下移动机器人路径规划研究综述[J]. "
-                  "自动化学报, 2023, 49(6): 1121-1138.", False, 10.5),
-            ("p", "　[5] 张涛, 陈明. 基于滚动时域的无人机避障规划方法[J]. "
-                  "航空学报, 2024, 45(3): 328-341.", False, 10.5),
-            ("p", "　[6] Zhou X, Wang Y. Dynamic Path Planning for UAV in Uncertain "
-                  "Environments: A Survey[J]. IEEE Access, 2023, 11: 88214-88231.",
+            ("p", "　[4] Coutinho W P, Battarra M, Fliege J. The unmanned aerial vehicle "
+                  "routing and trajectory optimisation problem, a taxonomic review[J]. "
+                  "Computers & Industrial Engineering, 2018, 120: 116-128.",
              False, 10.5),
-            ("p", "　[7] 刘洋, 赵磊. 改进 A* 算法在室内机器人导航中的应用[J]. "
-                  "机器人, 2024, 46(2): 156-165.", False, 10.5),
+            ("p", "　[5] LaValle S M. Planning Algorithms[M]. Cambridge: Cambridge "
+                  "University Press, 2006.", False, 10.5),
+            ("p", "　[6] Karaman S, Frazzoli E. Sampling-Based Algorithms for Optimal "
+                  "Motion Planning[J]. The International Journal of Robotics Research, "
+                  "2011, 30(7): 846-894.", False, 10.5),
+            ("p", "　[7] Zhou B, Gao F, Wang L, et al. Robust and Efficient Quadrotor "
+                  "Trajectory Generation for Fast Autonomous Flight[J]. IEEE Robotics "
+                  "and Automation Letters, 2019, 4(4): 3529-3536.", False, 10.5),
             ("p", "　[8] Schulman J, Ho J, Lee A, et al. Finding Locally Optimal, "
                   "Collision-Free Trajectories with Sequential Convex Optimization[C]. "
                   "Robotics: Science and Systems, 2013.", False, 10.5),
-            ("p", "　说明：以上文献为示例条目，格式遵循 GB/T 7714—2015。", False, 10.5),
         ]),
     ],
     "demo_challenge_cup.docx": [

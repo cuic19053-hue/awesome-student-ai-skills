@@ -506,10 +506,10 @@ NEW_SECTIONS5 = {
         ("八、参考文献", [
             ("p", "文献检索说明：本项目的技术选型集中在「轻量骨干 + 结构化剪枝」一条线上，"
                   "检索时以 MobileNet 系列、通道剪枝、知识蒸馏三组关键词为主，"
-                  "共检得 43 篇，精读 11 篇。第 1、4 篇确定了骨干网络的选择，"
-                  "第 2 篇是剪枝方案的主要依据，第 3 篇用于说明本项目为何不采用蒸馏路线，"
-                  "第 5 篇作为精度上界的参照，第 6 篇提供了公开的垃圾图像数据基线，"
-                  "第 7、8 篇是分类口径的规范来源——"
+                  "共检得 43 篇，精读 11 篇。[1][4] 确定了骨干网络的选择，"
+                  "[2] 是剪枝方案的主要依据，[3] 用于说明本项目为何不采用蒸馏路线，"
+                  "[5] 作为精度上界的参照，[6] 提供了公开的垃圾图像数据基线，"
+                  "[7][8] 是分类口径的规范来源——"
                   "项目里「四分类」的边界不是我们自己定的，而是照这两份文件执行。"),
             ("p", "　[1] Howard A, Sandler M, Chu G, et al. Searching for MobileNetV3[C]."
                   "Proceedings of the IEEE/CVF International Conference on Computer Vision "
@@ -657,10 +657,10 @@ NEW_SECTIONS5 = {
         ("八、参考文献", [
             ("p", "文献检索说明：检索式以 multi-object tracking、data association、"
                   "occlusion recovery 三组主题词组合，检得 168 篇，精读 62 篇。"
-                  "第 1、2、5、6 篇是关联环节的四条主要技术路线（纯 IoU、IoU + 相机补偿、"
-                  "强特征重识别、观测中心化），第 4 篇是 DeepSORT 的原始出处，"
-                  "第 3 篇给出评测基准与标注口径，第 7 篇是 MOTA / IDF1 指标的定义来源，"
-                  "第 8 篇用于确认边缘盒子接入既有监控系统的合规边界。"
+                  "[1][2][5][6] 是关联环节的四条主要技术路线（纯 IoU、IoU + 相机补偿、"
+                  "强特征重识别、观测中心化），[4] 是 DeepSORT 的原始出处，"
+                  "[3] 给出评测基准与标注口径，[7] 是 MOTA / IDF1 指标的定义来源，"
+                  "[8] 用于确认边缘盒子接入既有监控系统的合规边界。"
                   "正文中凡提到「已有工作」均指以上文献，不作泛称。"),
             ("p", "　[1] Zhang Y, Sun P, Jiang Y, et al. ByteTrack: Multi-Object Tracking by "
                   "Associating Every Detection Box[C]. Proceedings of the European Conference "
