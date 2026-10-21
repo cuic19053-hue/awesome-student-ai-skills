@@ -686,13 +686,19 @@ def delete_user_model_config():
     return {"deleted": True}
 
 
+# 发版标记：凡涉及排版/导出行为的改动 +1。部署后用 /api/ping 核对，
+# 不依赖任何环境变量——CLI 直接部署时 Vercel 不会注入 commit sha。
+LAYOUT_REV = 1
+
+
 @app.get("/api/ping")
 def ping():
     # 只验证服务存活，不探测 Ollama、数据库或模型，不触发扣费。
-    # 部署在 Vercel 时会注入 VERCEL_GIT_COMMIT_SHA，带上它就能从外部确认
-    # 「线上跑的正是这次提交」，不用登录后台翻部署记录。
     commit = (os.environ.get("VERCEL_GIT_COMMIT_SHA") or "")[:7]
-    return {"status": "ok", "commit": commit} if commit else {"status": "ok"}
+    payload = {"status": "ok", "layout_rev": LAYOUT_REV}
+    if commit:
+        payload["commit"] = commit
+    return payload
 
 
 @app.get("/api/skills")

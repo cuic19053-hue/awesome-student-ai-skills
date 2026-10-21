@@ -716,7 +716,9 @@ def test_sensitive_endpoints_are_never_cached_or_echo_invalid_secrets(client, mo
     assert 'no-cache' in response.headers['cache-control']
     assert '/static/app.js?v=' in response.text
     assert '/static/app.css?v=' in response.text
-    assert client.get('/api/ping').json() == {'status': 'ok'}
+    body = client.get('/api/ping').json()
+    assert body['status'] == 'ok'
+    assert body.get('layout_rev') == 1  # 发版标记，用于部署后核对线上版本
 
 
 def test_auth_sdk_proxy_is_fixed_upstream_preserves_jwt_and_errors(client, monkeypatch):
