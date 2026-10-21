@@ -10,3 +10,9 @@ onnxruntime>=1.18
 mcp>=2.0,<3
 ddgs>=9.0,<10
 cryptography>=44,<51
+
+# 配图渲染（utils/figgen.py、scripts/demo_figures.py）
+# 缺失时 figgen 会静默降级为表格模拟，示例文档将不含任何图片。
+# 若出现「示例无图」问题，先确认本行已安装。
+matplotlib>=3.7
+pyyaml>=6.0
