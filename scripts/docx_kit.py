@@ -400,6 +400,21 @@ def table(doc, header: Sequence[str], rows: Iterable[Sequence], widths=None,
             set_font(p.add_run(str(v)), SONG, 10.5, is_last)
 
     _table_setup(t, n_cols, widths)
+
+    # 短表整表不跨页：示例里的数据表最多 9 行、高不超过 12cm，
+    # 完全可以整张放在一页。否则最常见的结果是「90% 在上一页，
+    # 最后 1 行带着重复表头孤零零跑到下一页」，比整表换页难看得多。
+    # 超长表（>12 行）不绑，避免反而制造整页留白。
+    if len(t.rows) <= 13:
+        n = len(t.rows)
+        for i, row in enumerate(t.rows):
+            if i == n - 1:
+                continue
+            for cell in row.cells:
+                for p in cell.paragraphs:
+                    p.paragraph_format.keep_with_next = True
+                    p.paragraph_format.keep_together = True
+
     _table_spacer(doc)
     return t
 
