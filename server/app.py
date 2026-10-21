@@ -689,7 +689,10 @@ def delete_user_model_config():
 @app.get("/api/ping")
 def ping():
     # 只验证服务存活，不探测 Ollama、数据库或模型，不触发扣费。
-    return {"status": "ok"}
+    # 部署在 Vercel 时会注入 VERCEL_GIT_COMMIT_SHA，带上它就能从外部确认
+    # 「线上跑的正是这次提交」，不用登录后台翻部署记录。
+    commit = (os.environ.get("VERCEL_GIT_COMMIT_SHA") or "")[:7]
+    return {"status": "ok", "commit": commit} if commit else {"status": "ok"}
 
 
 @app.get("/api/skills")
