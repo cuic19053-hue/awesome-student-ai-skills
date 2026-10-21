@@ -2501,6 +2501,24 @@ def export_docx(project_id: str) -> dict[str, Any]:
         raise HTTPException(status_code=422, detail=f"Word 草稿生成失败：{exc}") from exc
     if not result.get("success"):
         raise HTTPException(status_code=500, detail=result.get("error", "Word 导出失败"))
+
+    # 排版硬化 + 质检：35 个子 skill 各自手写 docx，表格防拆/图注绑定/页码/大纲
+    # 的覆盖率是 0，在这一层统一补齐，用户拿到的每一份都过同一把尺子。
+    try:
+        from utils.docx_layout_fix import fix as _harden
+        from utils.layout_audit import audit as _audit
+
+        _harden(output_path)
+        _qa = _audit(Path(output_path), render=False)
+        result["layout"] = {
+            "score": _qa.score,
+            "fails": [{"rule": i.rule, "detail": i.detail, "fix": i.fix} for i in _qa.fails],
+            "warns": [{"rule": i.rule, "detail": i.detail} for i in _qa.warns],
+        }
+    except Exception as exc:  # 质检失败不影响导出
+        logging.getLogger(__name__).warning("排版硬化失败：%s", exc)
+        result["layout"] = {"score": None, "error": str(exc)[:200]}
+
     if hasattr(store, "persist_generated_file"):
         storage_path = store.persist_generated_file(
             project_id,

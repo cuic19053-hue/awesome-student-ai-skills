@@ -247,6 +247,11 @@ if candidates:
 
 ## 通用格式标准（所有子 skill 共享）
 
+字体字号只是第一层。完整条款见 **[`references/layout_standard.md`](references/layout_standard.md)**：
+13 条静态条款 + 5 条渲染条款，每条都有编号、判据、检测方式与实现手法。
+
+### 基础排版
+
 - 纸张：A4，页边距 2.5cm（部分学校 2.54cm，详见 `utils/school_template.py`）
 - 正文：宋体小四，1.5 倍行距，首行缩进 2 字符
 - 一级标题：黑体三号，居中，段前段后 12pt
@@ -254,6 +259,31 @@ if candidates:
 - 三级标题：宋体四号加粗
 - 表格：宋体五号，居中
 - 英文/数字：Times New Roman
+
+### 交付前必过（不可跳过）
+
+生成的 `.docx` 必须通过排版审计，退出码为 `0` 才能交付：
+
+```bash
+python utils/layout_audit.py <输出路径>            # 18 条静态/结构条款
+python utils/layout_audit.py <输出路径> --render   # 再加 5 条渲染条款（需 LibreOffice）
+```
+
+- 不通过 → 按报告里每条 FAIL 的「修法」改，改完重跑，直到 `0`。
+- 确实无法修复（环境没有 LibreOffice / 装不上 pymupdf）→ 在交付说明里列出未通过的条款编号，**不得假装通过**。
+- 报告里的每条 FAIL 都值得人工复核：审计器自己也会误判（例：正则把「发表 14 篇」读成「表 14」）。
+
+### 三条最容易踩的红线
+
+| 条款 | 典型症状 | 修法 |
+|---|---|---|
+| **L07** 表格不可拆行 | 8 行表被拆成 6+2，第二页只剩表尾没有表头 | `utils.docx_common.harden_table(t)` |
+| **L10** 图注与图同页 | 图在页底、图注跑到下一页顶部 | 图段 `keep_with_next=True` |
+| **L04** 图表引用闭环 | 全文 50 张表，正文没有一处「见表 N」 | 收尾跑 `cite_all(doc)` 全文兜底 |
+
+`utils/docx_common.py` 已内置这三项：`add_table()` 自动调 `harden_table()`；
+`add_figure()` 自动绑定图注；`add_review_boxes()` 生成不可拆分的三级评审意见栏；
+`add_page_number()` 生成带「共 N 页」且封面不显示的页码。
 
 具体到每个类型的栏目顺序、字数要求、撰写要点，由对应子 skill 的 SKILL.md 详细规定。
 

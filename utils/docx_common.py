@@ -427,6 +427,147 @@ def add_table(
             set_cell_text(cell, val, font_name=FONT_SONG,
                           font_size=font_size, bold=False)
             cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+
+    harden_table(table)
+    return table
+
+
+# 超过此行数的表视为「长表」，需要表头跨页重复
+BIG_TABLE_ROWS = 8
+# 不超过此行数的表整表不跨页（避免表尾只剩一两行孤在下一页）
+KEEP_TOGETHER_MAX_ROWS = 13
+
+
+def harden_table(table, keep_together: bool = True) -> None:
+    """给表格加三道防拆保护——不调用的话表格会被排版引擎随意撕开。
+
+    ① 行级 cantSplit：单行内容不会被劈成上下两截；
+    ② 长表首行 tblHeader：跨页时表头自动重复；
+    ③ 短表行间 keep_with_next：整表一起换页，不出现「表尾 1–2 行孤在下一页」。
+
+    ③ 有代价：整表换页会在上一页底部留白。13 行以内的表通常放得下，
+    超过 13 行就只能靠 ①② 保证跨页后仍然可读。
+    """
+    n = len(table.rows)
+    if n == 0:
+        return
+    for row in table.rows:
+        row._tr.get_or_add_trPr().append(OxmlElement("w:cantSplit"))
+    if n >= BIG_TABLE_ROWS:
+        table.rows[0]._tr.get_or_add_trPr().append(OxmlElement("w:tblHeader"))
+    if keep_together and n <= KEEP_TOGETHER_MAX_ROWS:
+        for row in table.rows[:-1]:
+            for cell in row.cells:
+                for p in cell.paragraphs:
+                    p.paragraph_format.keep_with_next = True
+                    p.paragraph_format.keep_together = True
+
+
+def add_figure(doc, image_path, caption: str = "", width_cm: float = 14.0,
+               fig_no: Optional[int] = None):
+    """插入图片 + 图注，并保证两者永远在同一页。
+
+    图注必须**紧跟在图之后**，且图所在段落设 keep_with_next。
+    少了这一步，排版引擎会把图留在页底、图注甩到下一页顶部——
+    这是评审最容易一眼看到的排版事故。
+
+    Args:
+        caption: 图注文字，不含「图 N」前缀
+        fig_no: 图序号；给出时自动拼成「图 3　说明」
+    """
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_before = Pt(6)
+    p.paragraph_format.space_after = Pt(0)
+    p.paragraph_format.keep_with_next = True
+    p.paragraph_format.keep_together = True
+    p.add_run().add_picture(str(image_path), width=Cm(width_cm))
+
+    cap = doc.add_paragraph()
+    cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    cap.paragraph_format.space_before = Pt(3)
+    cap.paragraph_format.space_after = Pt(10)
+    cap.paragraph_format.keep_together = True
+    text = f"图 {fig_no}\u3000{caption}" if fig_no else caption
+    set_run_font(cap.add_run(text), font_name=FONT_SONG, font_size=SIZE_WU)
+    return p
+
+
+def _para_border(p, edge: str = "bottom", size: int = 6,
+                 color: str = "7A7A7A") -> None:
+    """给段落画一条边框线，用来在「一栏压成一行」后仍保留栏内分隔线。"""
+    pPr = p._p.get_or_add_pPr()
+    pBdr = pPr.find(qn("w:pBdr"))
+    if pBdr is None:
+        pBdr = OxmlElement("w:pBdr")
+        pPr.append(pBdr)
+    e = OxmlElement(f"w:{edge}")
+    e.set(qn("w:val"), "single")
+    e.set(qn("w:sz"), str(size))
+    e.set(qn("w:space"), "1")
+    e.set(qn("w:color"), color)
+    pBdr.append(e)
+
+
+def add_review_boxes(doc, titles: Sequence[str], box_h_cm: Optional[float] = None):
+    """评审意见栏（指导教师 / 学院 / 学校三级）。
+
+    一栏 = **一行**，栏内的「标题条 / 书写区 / 签字行」用三个段落 + 段落边框实现。
+    早期做法是一栏三行、靠 keep_with_next 粘合，但 keep_with_next 是段落属性，
+    对「表格行之间」的约束在腾讯文档预览之类的渲染器里不生效，结果栏被从中间拆开。
+    改成一栏一行 + 行级 cantSplit 后，任何渲染器都无法在栏内断开。
+
+    Args:
+        box_h_cm: 书写区高度。None 时按栏数反算，使整块约占版心 85%
+                  （2 栏约 7.6cm，3 栏约 4.5cm）。固定 1.8cm 会让末页空出 17cm。
+    """
+    table = doc.add_table(rows=0, cols=1)
+    table.style = "Table Grid"
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    table.autofit = False
+    layout = OxmlElement("w:tblLayout")
+    layout.set(qn("w:type"), "fixed")
+    table._tbl.tblPr.append(layout)
+
+    if box_h_cm is None:
+        n = max(1, len(titles))
+        box_h_cm = min(8.0, max(3.0, (23.0 * 0.85 - 2.4 * n) / n))
+
+    total_w = 15.4
+    for title in titles:
+        row = table.add_row()
+        row._tr.get_or_add_trPr().append(OxmlElement("w:cantSplit"))
+        cell = row.cells[0]
+        cell.width = Cm(total_w)
+
+        p1 = cell.paragraphs[0]
+        p1.paragraph_format.space_before = Pt(2)
+        p1.paragraph_format.space_after = Pt(2)
+        set_run_font(p1.add_run(title), font_name=FONT_HEI, font_size=SIZE_WU,
+                     bold=True)
+        _para_border(p1, "bottom")
+
+        p2 = cell.add_paragraph()
+        pf2 = p2.paragraph_format
+        pf2.space_before = Pt(0)
+        pf2.space_after = Pt(0)
+        pf2.line_spacing_rule = WD_LINE_SPACING.EXACTLY
+        pf2.line_spacing = Cm(box_h_cm)
+
+        p3 = cell.add_paragraph()
+        p3.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        p3.paragraph_format.space_before = Pt(4)
+        p3.paragraph_format.space_after = Pt(4)
+        set_run_font(p3.add_run("签字：＿＿＿＿＿＿＿＿　　　日期：　　年　　月　　日"),
+                     font_name=FONT_SONG, font_size=SIZE_WU)
+        _para_border(p3, "top")
+
+    table.columns[0].width = Cm(total_w)
+    for i, row in enumerate(table.rows[:-1]):
+        for cell in row.cells:
+            for p in cell.paragraphs:
+                p.paragraph_format.keep_with_next = True
+                p.paragraph_format.keep_together = True
     return table
 
 
@@ -570,38 +711,60 @@ def add_footer(doc, text: str) -> None:
         _set_header_footer_text(section, "footer", text)
 
 
-def _create_field(paragraph, field_code: str) -> None:
-    """向段落中插入 Word 域代码（如 PAGE / NUMPAGES）"""
-    run = paragraph.add_run()
-    fldChar_begin = OxmlElement("w:fldChar")
-    fldChar_begin.set(qn("w:fldCharType"), "begin")
-    instrText = OxmlElement("w:instrText")
-    instrText.set(qn("xml:space"), "preserve")
-    instrText.text = field_code
-    fldChar_sep = OxmlElement("w:fldChar")
-    fldChar_sep.set(qn("w:fldCharType"), "separate")
-    fldChar_end = OxmlElement("w:fldChar")
-    fldChar_end.set(qn("w:fldCharType"), "end")
-    run._element.append(fldChar_begin)
-    run._element.append(instrText)
-    run._element.append(fldChar_sep)
-    run._element.append(fldChar_end)
-    set_run_font(run, font_name=FONT_SONG, font_size=SIZE_XIAO_WU,
+def _create_field(paragraph, field_code: str, placeholder: str = "1") -> None:
+    """向段落中插入 Word 域代码（如 PAGE / NUMPAGES）
+
+    必须按 OOXML 域结构拆成五个 run：
+        begin → instrText → separate → 结果占位 → end
+    早期版本把四个 fldChar/instrText 塞进同一个 run，中间没有「结果 run」，
+    Word / WPS 打开后页码显示为空——域代码语法没错，显示却是空白，
+    这类问题只看 XML 看不出来，必须逐段生成。
+    """
+    def _run_with(el):
+        r = paragraph.add_run()
+        r._element.append(el)
+        set_run_font(r, font_name=FONT_SONG, font_size=SIZE_XIAO_WU,
+                     color=COLOR_DARK_GRAY)
+        return r
+
+    def _fc(kind: str):
+        el = OxmlElement("w:fldChar")
+        el.set(qn("w:fldCharType"), kind)
+        return _run_with(el)
+
+    _fc("begin")
+
+    it = OxmlElement("w:instrText")
+    it.set(qn("xml:space"), "preserve")
+    it.text = f" {field_code} "
+    _run_with(it)
+
+    _fc("separate")
+
+    r_val = paragraph.add_run(placeholder)
+    set_run_font(r_val, font_name=FONT_SONG, font_size=SIZE_XIAO_WU,
                  color=COLOR_DARK_GRAY)
 
+    _fc("end")
 
-def add_page_number(doc, fmt: str = "第 {PAGE} 页 共 {NUMPAGES} 页") -> None:
+
+def add_page_number(doc, fmt: str = "第 {PAGE} 页 共 {NUMPAGES} 页",
+                    skip_first_page: bool = True) -> None:
     """添加页码到页脚（居中）
 
     Args:
         fmt: 格式字符串，{PAGE} 与 {NUMPAGES} 占位符分别替换为
              当前页码与总页数（Word 域代码）。
+        skip_first_page: 封面不显示页码。申报书的封面是独立一页，
+             带页码会显得像正文的一部分。
 
     Notes:
         会覆盖所有 section 的页脚内容。
     """
     parts = re.split(r"(\{PAGE\}|\{NUMPAGES\})", fmt)
     for section in doc.sections:
+        if skip_first_page:
+            section.different_first_page_header_footer = True
         footer = section.footer
         if not footer.paragraphs:
             p = footer.add_paragraph()
@@ -748,6 +911,7 @@ class DocxBuilder:
         self.output_path = str(output_path)
         self.doc = Document()
         setup_a4_page(self.doc, margins=margins)
+        sanitize_properties(self.doc)
         if header:
             add_header(self.doc, header)
         if with_page_number:
@@ -849,9 +1013,26 @@ class DocxBuilder:
 # 11. 便捷工厂
 # ============================================================
 
+def sanitize_properties(doc, title: str = "") -> None:
+    """清掉 python-docx 留在文档属性里的模板痕迹。
+
+    python-docx 新建文档时，`core_properties.author` 默认是 "python-docx"，
+    `last_modified_by` 也是。用户拿到的文件在「文件 → 属性」里一眼就能看到
+    这行字——和正文里留着「此处填写」是一个性质，属于模板残留。
+    """
+    cp = doc.core_properties
+    cp.author = "文档助手"
+    cp.last_modified_by = "文档助手"
+    if title:
+        cp.title = title
+    if not cp.keywords:
+        cp.keywords = "申报书,申请书,模板"
+
+
 def create_docx(
-    output_path: Union[str, Path],
+    output_path: Union[str, Path] = "output.docx",
     margins: Optional[Dict[str, float]] = None,
+    title: str = "",
 ) -> _Document:
     """便捷工厂：创建一个已设置 A4 页面的空 Document
 
@@ -864,6 +1045,7 @@ def create_docx(
     """
     doc = Document()
     setup_a4_page(doc, margins=margins)
+    sanitize_properties(doc, title=title)
     return doc
 
 

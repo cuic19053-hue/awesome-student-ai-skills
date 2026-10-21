@@ -51,5 +51,8 @@ jobs:
       - name: 文档一致性门禁（35 个赛道 / README 声称量 / 索引数量）
         run: python scripts/check_doc_consistency.py
 
+      - name: 排版硬指标门禁（references/layout_standard.md，18 条静态条款）
+        run: python utils/layout_audit.py examples/demos
+
       - name: 运行测试
         run: python -m pytest tests -q -rs

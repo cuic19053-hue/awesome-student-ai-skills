@@ -131,6 +131,19 @@ def para(doc, text="", size=12, bold=False, name=SONG, align=None,
     return p
 
 
+def _outline(p, lvl: int):
+    """给标题段打大纲级别，让 Word 导航窗格 / 自动目录能识别结构。
+
+    不套内置 Heading 样式是刻意的：Heading 1/2 自带字体、颜色、段前后与行距，
+    会把已经调好的版式全部推翻（字号变小、行距变 1.08、标题变蓝）。
+    只写 w:outlineLvl，视觉零变化，但结构信息完整。
+    """
+    pPr = p._p.get_or_add_pPr()
+    el = OxmlElement("w:outlineLvl")
+    el.set(qn("w:val"), str(lvl))
+    pPr.insert_element_before(el, "w:rPr", "w:sectPr")
+
+
 def h1(doc, text, size=15):
     p = doc.add_paragraph()
     pf = p.paragraph_format
@@ -140,6 +153,7 @@ def h1(doc, text, size=15):
     pf.keep_with_next = True          # 标题不与正文分离
     pf.keep_together = True
     set_font(p.add_run(text), HEI, size, True)
+    _outline(p, 0)
     return p
 
 
@@ -152,6 +166,7 @@ def h2(doc, text, size=12.5):
     pf.keep_with_next = True
     pf.keep_together = True
     set_font(p.add_run(text), HEI, size, True)
+    _outline(p, 1)
     return p
 
 
@@ -357,6 +372,9 @@ def _cite_prev(doc, kind, no):
             return
         if not p.runs or p.runs[0].bold:  # 标题不回改
             return
+        # 正文已经点了这张图/表的号（如「构成见图 7、明细见表 5」），不再重复补
+        if re.search(rf"{kind}\s*{no}(?!\d)", t):
+            return
         cite = f"如{kind} {no} 所示"
         if t.endswith(("：", ":")):
             head = t[:-1]
@@ -367,6 +385,111 @@ def _cite_prev(doc, kind, no):
         else:
             _set_para_text(p, f"{t}（见{kind} {no}）")
         return
+
+
+# 正文引用：排除「发表 14 篇」「代表 3 项」这类词内假阳性
+_CITE_FIG_RE = re.compile(r"(?<![意试企地蓝构])图\s*(\d+)(?!\d)")
+_CITE_TAB_RE = re.compile(r"(?<![发代图报仪外])表\s*(\d+)(?!\d)")
+_CAP_ANY_RE = re.compile(r"^([图表])\s*(\d+)[\s　]")
+
+
+def _append_cite(p, kind, no):
+    """在段末补/并引用括号。已有同类括号时并入，避免「（见表 4）（见表 5）」。"""
+    t = p.text.rstrip()
+    m = re.search(rf"（见{kind}\s*([\d、]+)）\s*$", t)
+    if m:
+        nums = m.group(1).split("、")
+        if str(no) not in nums:
+            nums.append(str(no))
+            _set_para_text(p, t[:m.start()] + f"（见{kind} {'、'.join(nums)}）")
+        return
+    if t.endswith(("。", "！", "？")):
+        _set_para_text(p, t[:-1] + f"（见{kind} {no}）{t[-1]}")
+    elif t.endswith(("：", ":")):
+        _set_para_text(p, t[:-1] + f"（见{kind} {no}）：")
+    else:
+        _set_para_text(p, f"{t}（见{kind} {no}）")
+
+
+def cite_all(doc) -> list:
+    """构建收尾统一补齐图表引用——任何编号图/表都必须被正文提及至少一次。
+
+    `_cite_prev()` 只在输出图表的那一刻回改紧邻的上一段，遇到三种结构就补不上：
+    ① 章标题后直接接表（上一段是加粗标题）；② 图后紧跟表（上一段是图注）；
+    ③ 连续两张表（上一块是表格）。这三种在申报书里都很常见。
+
+    这里改为在全文层面兜底：从图表位置向前找最近的一段正文（跳过空段、题注、
+    图、表），若先撞上标题，则退到该标题之后的第一段正文补。补引用时按标点
+    选「（见表 N）。」或「见表 N：」，同段已有同类括号则并入，不叠第二个括号。
+
+    返回补齐记录，便于构建日志核对。
+    """
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
+
+    body = list(doc.element.body.iterchildren())
+    anchors = []          # (kind, no, idx)
+    texts = {}            # idx -> Paragraph
+    for i, ch in enumerate(body):
+        if ch.tag != qn("w:p"):
+            continue
+        p = Paragraph(ch, doc)
+        t = p.text.strip()
+        if not t:
+            continue
+        m = _CAP_ANY_RE.match(t)
+        if m:
+            anchors.append((m.group(1), int(m.group(2)), i))
+            continue
+        texts[i] = p
+
+    cited = {"图": set(), "表": set()}
+    for p in texts.values():
+        cited["图"].update(int(x) for x in _CITE_FIG_RE.findall(p.text))
+        cited["表"].update(int(x) for x in _CITE_TAB_RE.findall(p.text))
+
+    log = []
+    for kind, no, idx in anchors:
+        if no in cited[kind]:
+            continue
+        target, head = None, None
+        j = idx - 1
+        while j >= 0:
+            ch = body[j]
+            if ch.tag == qn("w:tbl"):
+                j -= 1
+                continue
+            p = Paragraph(ch, doc)
+            t = p.text.strip()
+            if not t or _CAP_ANY_RE.match(t) or p._p.findall(".//" + qn("w:drawing")):
+                j -= 1
+                continue
+            if not p.runs or p.runs[0].bold:      # 撞到标题
+                head = j
+                break
+            target = p
+            break
+        if target is None and head is not None:
+            # 标题下直接接图表：改从图表之后找本篇第一段正文（跨过表体/空段），
+            # 遇到下一个标题就停——否则会把「见表 N」补到下一章的正文里。
+            j = idx + 1
+            while j < len(body):
+                ch = body[j]
+                if ch.tag == qn("w:p"):
+                    p = Paragraph(ch, doc)
+                    t = p.text.strip()
+                    if t and not _CAP_ANY_RE.match(t) and not p._p.findall(".//" + qn("w:drawing")):
+                        if p.runs and p.runs[0].bold:
+                            break
+                        target = p
+                        break
+                j += 1
+        if target is None:
+            continue
+        _append_cite(target, kind, no)
+        cited[kind].add(no)
+        log.append(f"{kind} {no}")
+    return log
 
 
 
@@ -483,7 +606,10 @@ def kv_table(doc, items, k_w=4.6, v_w=10.8, k_align=WD_ALIGN_PARAGRAPH.RIGHT):
     layout.set(qn("w:type"), "fixed")
     t._tbl.tblPr.append(layout)
     for k, v in items:
-        cells = t.add_row().cells
+        row = t.add_row()
+        # 行级不可拆分：信息表行数少，一旦跨页会把「项目负责人」和姓名拆到两页
+        row._tr.get_or_add_trPr().append(OxmlElement("w:cantSplit"))
+        cells = row.cells
         cells[0].width, cells[1].width = Cm(k_w), Cm(v_w)
         p0 = cells[0].paragraphs[0]
         p0.alignment = k_align
