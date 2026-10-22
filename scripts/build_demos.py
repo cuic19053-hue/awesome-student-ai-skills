@@ -23,6 +23,8 @@ from content_extra2 import EXTRA2  # noqa: E402
 from content_extra3 import EXTRA3  # noqa: E402
 from content_extra4 import EXTRA4, NEW_SECTIONS4  # noqa: E402
 from content_extra5 import EXTRA5, NEW_BEFORE5, NEW_SECTIONS5  # noqa: E402
+from content_extra6 import EXTRA6  # noqa: E402
+from content_extra7 import EXTRA7, NEW_SECTIONS7  # noqa: E402
 
 # 补写内容按「去掉序号后的标题」匹配。
 # 否则一旦调整章节编号（三→四），按旧标题登记的补写内容会静默丢失。
@@ -51,7 +53,7 @@ def _key(title: str) -> str:
 
 # 多个补写模块按批次合并：同一小节的追加内容按 1→2→3→4→5 顺序拼接
 EXTRA_ALL = {}
-for _mod in (EXTRA, EXTRA2, EXTRA3, EXTRA4, EXTRA5):
+for _mod in (EXTRA, EXTRA2, EXTRA3, EXTRA4, EXTRA5, EXTRA6, EXTRA7):
     for _f, _secs in _mod.items():
         tgt = EXTRA_ALL.setdefault(_f, {})
         for _title, _blocks in _secs.items():
@@ -424,7 +426,7 @@ TRACKS = [
                 ("table", ["市场层级", "规模", "测算依据"], [
                     ("TAM 总体市场", "576 亿元", "18 亿亩 × 4 次 × 8 元/亩"),
                     ("SAM 可服务市场", "192 亿元", "规模种植户 6 亿亩"),
-                    ("SOM 可获取市场", "2.4 亿元", "首期 3 个县、300 万亩"),
+                    ("SOM 可获取市场", "0.96 亿元", "首期 3 个县、300 万亩"),
                 ], [4.2, 3.6, 8.0]),
             ]),
             ("三、商业模式", [
@@ -446,7 +448,7 @@ TRACKS = [
                     ("营业收入（万元）", "48", "132", "268", "720"),
                     ("净利润（万元）", "-14", "-6", "72", "282"),
                     ("毛利率", "—", "10.6%", "26.9%", "39.2%"),
-                    ("服务面积（万亩）", "0.6", "1.8", "3.6", "9.2"),
+                    ("服务面积（万亩次）", "6.0", "16.5", "33.5", "90.0"),
                 ], [4.6, 3.0, 3.0, 3.0, 3.0]),
             ]),
             ("六、融资与股权结构", [
@@ -844,10 +846,14 @@ def build_one(cfg):
     sections_done = len(cfg["sections"]) + n_pre
     all_new = (list(NEW_SECTIONS.get(cfg["file"], []))
                + list(NEW_SECTIONS4.get(cfg["file"], []))
-               + list(NEW_SECTIONS5.get(cfg["file"], [])))
+               + list(NEW_SECTIONS5.get(cfg["file"], []))
+               + list(NEW_SECTIONS7.get(cfg["file"], [])))
     for title, blocks in all_new:
         h1(doc, title)
-        render_blocks(doc, blocks)
+        # 新增章同样要能接收后续批次的补写：EXTRA_ALL 里与该章同名的块追加在章末。
+        # 七～十章是 NEW_SECTIONS 机制加的，不在 cfg["sections"] 里，
+        # 不在这里合并的话 EXTRA 里为它们写的内容会被静默丢弃。
+        render_blocks(doc, list(blocks) + list(extra.get(_key(title), [])))
         sections_done += 1
 
     if cfg.get("sign"):

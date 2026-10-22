@@ -789,7 +789,12 @@ def render_blocks(doc, blocks):
         elif kind == "h2":
             h2(doc, b[1])
         elif kind == "fig":
-            figure(doc, b[1], b[2], b[3] if len(b) > 3 else 15.2)
+            # ("fig", file, caption[, width_cm[, max_h_cm]])
+            # 信息密度高的图（甘特、瀑布、热力）可放宽高度上限换取可读性，
+            # 否则会被 7cm 卡住、只能缩到 10cm 宽，图内字号掉到 4pt 级别。
+            figure(doc, b[1], b[2],
+                   b[3] if len(b) > 3 else 15.2,
+                   b[4] if len(b) > 4 else 7.0)
         elif kind == "table":
             table(doc, b[1], b[2],
                   b[3] if len(b) > 3 else None,

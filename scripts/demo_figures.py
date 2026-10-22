@@ -34,6 +34,10 @@ PALETTE = [BLUE, AMBER, GREEN, PURPLE, "#0891B2", "#DB2777"]
 OUT = Path(__file__).resolve().parent.parent / "build" / "figures"
 
 
+def ink_() -> str:
+    return INK
+
+
 def setup_font() -> str:
     """挑一个能显示中文的字体，找不到就报错退出（不产出豆腐块）。"""
     candidates = ("PingFang SC", "Heiti SC", "Songti SC", "SimHei",
@@ -1058,6 +1062,337 @@ def ablation(name="25_ablation.png"):
     return _save(fig, name)
 
 
+
+# ---------------------------------------------------------------- 26. 市场漏斗
+def market_funnel(name="26_market_funnel.png"):
+    """TAM → SAM → SOM 逐层收敛，标明每层的收敛条件。"""
+    layers = [
+        ("TAM 理论市场", "576 亿元", "全国耕地 18 亿亩 × 年巡田 4 次 × 8 元/亩", 1.00, BLUE, BLUEF),
+        ("SAM 可服务市场", "192 亿元", "50 亩以上规模种植户 6 亿亩", 0.62, AMBER, AMBERF),
+        ("SOM 可获取市场", "0.96 亿元", "首期 3 个县、300 万亩", 0.30, GREEN, GREENF),
+    ]
+    fig, ax = plt.subplots(figsize=(8.6, 3.9))
+    ax.set_xlim(0, 10)
+    ax.set_ylim(0, 4)
+    ax.axis("off")
+
+    top_w = 7.0
+    for i, (label, val, cond, ratio, ec, fc) in enumerate(layers):
+        y = 3.0 - i * 1.0
+        w = top_w * ratio
+        x0 = (7.4 - w) / 2
+        ax.add_patch(plt.Polygon(
+            [(x0, y + 0.42), (x0 + w, y + 0.42),
+             (x0 + w - 0.34 * ratio, y - 0.42), (x0 + 0.34 * ratio, y - 0.42)],
+            closed=True, facecolor=fc, edgecolor=ec, lw=1.6, zorder=3))
+        ax.text(x0 + w / 2, y + 0.04, label, ha="center", va="center",
+                fontsize=10.2, color=ink_(), fontweight="bold", zorder=5)
+        ax.text(x0 + w / 2, y - 0.26, val, ha="center", va="center",
+                fontsize=11.0, color=ec, fontweight="bold", zorder=5)
+        ax.text(w + (7.4 - w) / 2 + 0.25, y + 0.02, cond, ha="left", va="center",
+                fontsize=8.8, color=GREY, zorder=5)
+
+    ax.text(0.02, 0.20,
+            "首年目标 48 万元，仅为 SOM 的 0.5%：渗透假设刻意取保守值，"
+            "宁可低估市场，也不要靠乐观假设撑估值。",
+            ha="left", va="bottom", fontsize=8.8, color=GREY, style="italic")
+    return _save(fig, name)
+
+
+# ---------------------------------------------------------------- 27. 竞争定位
+def competitive_map(name="27_competitive_map.png"):
+    """横轴监测专业度、纵轴服务闭环度，四类玩家与本项目的位置。"""
+    players = [
+        ("植保无人机厂商", 7.2, 3.6, 1150, BLUE, "o"),
+        ("农服平台", 3.8, 8.2, 1150, AMBER, "o"),
+        ("县域飞防队", 1.8, 2.6, 850, GREY, "o"),
+        ("第三方检测机构", 6.4, 1.2, 780, PURPLE, "o"),
+        ("智农巡田（本项目）", 8.6, 7.2, 1500, GREEN, "*"),
+    ]
+    fig, ax = plt.subplots(figsize=(8.6, 3.9))
+    ax.set_xlim(0, 10)
+    ax.set_ylim(0, 10)
+    ax.axvspan(5, 10, ymin=0.5, ymax=1.0, color=GREENF, alpha=0.55, zorder=0)
+    ax.axhline(5, color=GRID, lw=1.1, ls=(0, (4, 3)), zorder=1)
+    ax.axvline(5, color=GRID, lw=1.1, ls=(0, (4, 3)), zorder=1)
+
+    for label, x, y, size, color, marker in players:
+        ax.scatter(x, y, s=size, color=color, marker=marker,
+                   edgecolor="white", lw=1.4, zorder=4, alpha=0.95)
+        if marker == "*":
+            ax.text(x, y - 0.95, label, fontsize=9.6, color=GREEN,
+                    ha="center", va="top", fontweight="bold", zorder=5)
+        elif x >= 6.0:
+            ax.text(x - 0.55, y, label, fontsize=9.4, color=INK,
+                    ha="right", va="center", zorder=5)
+        else:
+            ax.text(x + 0.55, y, label, fontsize=9.4, color=INK,
+                    ha="left", va="center", zorder=5)
+
+    ax.text(9.7, 9.7, "有监测能力、又有交付闭环（目前是空位）",
+            ha="right", va="top", fontsize=9.2, color=GREEN, fontweight="bold")
+    ax.text(0.3, 9.7, "有渠道、缺自主数据", ha="left", va="top",
+            fontsize=8.8, color=GREY)
+    ax.text(9.7, 0.4, "硬件强、监测只是附属功能", ha="right", va="bottom",
+            fontsize=8.8, color=GREY)
+    ax.set_xlabel("监测专业度（自有数据 + 模型能力）→", fontsize=9.2, color=GREY)
+    ax.set_ylabel("服务闭环度（能否直接交付到农户）→", fontsize=9.2, color=GREY,
+                  labelpad=8)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    for s_ in ("top", "right"):
+        ax.spines[s_].set_visible(False)
+    for s_ in ("left", "bottom"):
+        ax.spines[s_].set_color(GRID)
+    ax.set_title("四类玩家各占一角，右上角还没有人站住",
+                 fontsize=11.6, color=INK, fontweight="bold", pad=12)
+    fig.text(0.01, 0.01,
+             "注：位置依据公开资料与 47 份农户访谈整理，为定性判断，非量化测评。",
+             ha="left", va="bottom", fontsize=8.4, color=GREY, style="italic")
+    return _save(fig, name)
+
+
+# ---------------------------------------------------------------- 28. 现金流
+def cashflow(name="28_cashflow.png"):
+    """净利润柱 + 累计现金流线，标出资金最低点。"""
+    years = ["第 1 年", "第 2 年", "第 3 年"]
+    profit = [-14, -6, 72]
+    cum = [-14, -20, 52]
+
+    fig, ax = plt.subplots(figsize=(8.6, 3.9))
+    x = list(range(len(years)))
+    bars = ax.bar(x, profit, width=0.46, color=[REDF, REDF, GREENF],
+                  edgecolor=[RED, RED, GREEN], lw=1.6, zorder=3, label="当年净利润")
+    for xi, v in zip(x, profit):
+        ax.text(xi, v + (6 if v >= 0 else -6), f"{v:+d}", ha="center",
+                va="bottom" if v >= 0 else "top", fontsize=10.2,
+                color=GREEN if v >= 0 else RED, fontweight="bold", zorder=4)
+
+    ax.plot(x, cum, marker="o", ms=7, color=BLUE, lw=2.2, zorder=5,
+            label="累计净利润")
+    for xi, v in zip(x, cum):
+        ax.annotate(f"{v:+d}", (xi, v), textcoords="offset points",
+                    xytext=(0, -17), ha="center", fontsize=9.4, color=BLUE, zorder=6)
+
+    ax.axhline(0, color=GREY, lw=1.0)
+    ax.annotate("资金最低点 −20 万元\n（第 2 年末）", (1, -20),
+                textcoords="offset points", xytext=(28, -34), fontsize=9.0,
+                color=RED, arrowprops=dict(arrowstyle="-|>", color=RED, lw=1.2),
+                zorder=7)
+    ax.annotate("第 3 年累计转正", (2, 52), textcoords="offset points",
+                xytext=(-8, 22), ha="right", fontsize=9.0, color=GREEN,
+                arrowprops=dict(arrowstyle="-|>", color=GREEN, lw=1.2), zorder=7)
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(years, fontsize=9.8, color=INK)
+    ax.set_ylabel("万元", fontsize=9.6, color=GREY)
+    ax.set_ylim(-46, 78)
+    ax.grid(axis="y", color=GRID, lw=0.9, zorder=0)
+    ax.set_axisbelow(True)
+    for s_ in ("top", "right"):
+        ax.spines[s_].set_visible(False)
+    ax.spines["left"].set_color(GRID)
+    ax.spines["bottom"].set_color(GRID)
+    ax.tick_params(length=0, colors=GREY)
+    ax.legend(frameon=False, fontsize=9.2, loc="upper left", labelcolor=INK)
+    ax.text(0.02, -42, "注：未计入融资款，仅反映经营自身造血能力；融资到账后现金缺口完全覆盖。",
+            fontsize=8.4, color=GREY, style="italic")
+    return _save(fig, name)
+
+
+# ---------------------------------------------------------------- 29. 风险热力
+def risk_heat(name="29_risk_heat.png"):
+    """概率 × 影响 的风险热力矩阵，8 项风险落点。"""
+    risks = [
+        ("R1", "作业窗口受天气挤压", 4, 3),
+        ("R2", "飞手流失", 3, 3),
+        ("R3", "价格战", 4, 4),
+        ("R4", "模型准确率不达预期", 2, 4),
+        ("R5", "补贴政策退坡", 2, 2),
+        ("R6", "回款账期拉长", 3, 2),
+        ("R7", "设备炸机与丢失", 2, 3),
+        ("R8", "竞品下沉县域", 3, 4),
+    ]
+    fig, ax = plt.subplots(figsize=(8.6, 3.9))
+    for i in range(1, 5):
+        for j in range(1, 5):
+            score = i * j
+            if score >= 12:
+                fc, ec = REDF, RED
+            elif score >= 6:
+                fc, ec = AMBERF, AMBER
+            else:
+                fc, ec = GREENF, GREEN
+            ax.add_patch(Rectangle((i - 0.5, j - 0.5), 1, 1, facecolor=fc,
+                                   edgecolor="white", lw=2.0, zorder=1))
+    for code, label, p, im in risks:
+        ax.scatter(p, im, s=620, color="white", edgecolor=INK, lw=1.6, zorder=5)
+        ax.text(p, im, code, ha="center", va="center", fontsize=8.6,
+                color=INK, fontweight="bold", zorder=6)
+    # 右侧列出编号对照，避免图内文字过密
+    for k, (code, label, _, _) in enumerate(risks):
+        ax.text(5.15, 4.05 - k * 0.46, f"{code} {label}", fontsize=8.8,
+                color=INK, ha="left", va="center")
+    ax.set_xlim(0.4, 8.6)
+    ax.set_ylim(0.4, 4.6)
+    ax.set_xticks([1, 2, 3, 4])
+    ax.set_xticklabels(["很低", "低", "中", "高"], fontsize=9.2, color=INK)
+    ax.set_yticks([1, 2, 3, 4])
+    ax.set_yticklabels(["很小", "小", "中", "大"], fontsize=9.2, color=INK)
+    ax.set_xlabel("发生概率 →", fontsize=9.4, color=GREY)
+    ax.set_ylabel("影响程度 →", fontsize=9.4, color=GREY)
+    ax.tick_params(length=0, colors=GREY)
+    for s_ in ("top", "right"):
+        ax.spines[s_].set_visible(False)
+    for s_ in ("left", "bottom"):
+        ax.spines[s_].set_color(GRID)
+    ax.set_title("右上角两项（价格战、竞品下沉）是真正会致命的",
+                 fontsize=11.4, color=INK, fontweight="bold", pad=12)
+    return _save(fig, name)
+
+
+# ---------------------------------------------------------------- 30. 实施甘特图
+def gantt_impl(name="30_gantt_impl.png"):
+    """M1–M12 三条泳道的实施排期，含里程碑与依赖关系。"""
+    lanes = [
+        ("产品与数据", BLUE, BLUEF, [
+            ("采集流程标准化", 1, 3),
+            ("模型 v1 训练", 2, 5),
+            ("地块档案系统", 4, 8),
+            ("模型 v2 迭代", 8, 12),
+        ]),
+        ("组织与作业", AMBER, AMBERF, [
+            ("飞手招募培训", 1, 4),
+            ("首县整村作业", 4, 7),
+            ("作业 SOP", 6, 9),
+            ("第二县复制", 9, 12),
+        ]),
+        ("商务与合规", GREEN, GREENF, [
+            ("合作社签约 8 家", 2, 5),
+            ("经营许可与保险", 1, 4),
+            ("按亩定价", 5, 7),
+            ("第三县签约回款", 10, 12),
+        ]),
+    ]
+    milestones = [
+        (5, "M5 首县跑通", "center", -1.16),
+        (8, "M8 复购验证", "center", -1.62),
+        (12, "M12 三县达产", "right", -1.16),
+    ]
+
+    fig, ax = plt.subplots(figsize=(8.6, 3.9))
+    ylabels, ypos, y = [], {}, 0.0
+    row_h = 0.62
+    for lname, c, cf, items in lanes:
+        ylabels.append((y + (len(items) - 1) * row_h / 2, lname))
+        for text, s, e in items:
+            ypos[text] = y
+            ax.add_patch(FancyBboxPatch(
+                (s - 0.5, y - 0.22), (e - s + 1), 0.44,
+                boxstyle="round,pad=0.02,rounding_size=0.10",
+                facecolor=cf, edgecolor=c, linewidth=1.3, zorder=3))
+            ax.text((s + e) / 2, y, text, ha="center", va="center",
+                    fontsize=12, color=INK, zorder=4)
+            y += row_h
+        y += 0.42
+
+    ax.set_yticks([])
+    ax.set_ylim(y - 0.55, -1.95)
+    ax.set_xlim(-0.95, 12.95)
+    ax.set_xticks(range(1, 13))
+    ax.set_xticklabels([f"M{i}" for i in range(1, 13)], fontsize=11, color=INK)
+    ax.xaxis.grid(True, color=GRID, linewidth=1.0, zorder=0)
+    ax.set_axisbelow(True)
+    for s in ("top", "right", "left"):
+        ax.spines[s].set_visible(False)
+    ax.spines["bottom"].set_color(GRID)
+    ax.tick_params(axis="x", length=0, pad=6)
+
+    for yy, lname in ylabels:
+        ax.text(-0.90, yy, lname, ha="left", va="center",
+                fontsize=11.5, color=INK, fontweight="bold")
+
+    # 顶部里程碑带：竖虚线定月份，菱形对齐到排期行
+    for x, label, ha, ly in milestones:
+        ax.plot([x, x], [-0.62, y - 0.62], color=RED, linewidth=0.9,
+                linestyle=(0, (4, 4)), alpha=0.45, zorder=1)
+        ax.plot([x], [-0.72], marker="D", markersize=10.0,
+                color=RED, zorder=6, clip_on=False)
+        ax.text(x, ly, label, ha=ha, va="center",
+                fontsize=11, color=RED, fontweight="bold")
+
+    ax.text(-0.90, -1.16, "对外承诺里程碑", ha="left", va="center",
+            fontsize=11, color=RED, fontweight="bold")
+
+    ax.set_title("十二个月实施排期：三条泳道并行推进，三个里程碑卡住节奏",
+                 fontsize=13.2, color=INK, fontweight="bold", pad=14)
+    fig.text(0.01, 0.005,
+             "说明：菱形为对外承诺的里程碑，未按期达成即触发融资款暂缓到账（见第六章）。",
+             fontsize=10.2, color=GREY)
+    return _save(fig, name)
+
+
+# ---------------------------------------------------------------- 31. 单位经济瀑布
+def unit_walk(name="31_unit_walk.png"):
+    """每亩次收入如何被各项成本吃掉，最后剩下 3.6 元毛利。"""
+    steps = [
+        ("按亩收费", 8.0, "total", BLUE),
+        ("飞行作业", -2.6, "neg", RED),
+        ("数据标注", -1.1, "neg", AMBER),
+        ("销售与履约", -0.7, "neg", PURPLE),
+        ("单亩毛利", 3.6, "total", GREEN),
+    ]
+    fig, ax = plt.subplots(figsize=(8.6, 3.9))
+    run = 0.0
+    xs = []
+    for i, (label, val, kind, c) in enumerate(steps):
+        xs.append(i)
+        if kind == "total":
+            ax.bar(i, val, width=0.56, facecolor=c, edgecolor=c,
+                   linewidth=1.2, alpha=0.92, zorder=3)
+            ax.text(i, val + 0.20, f"{val:.1f}", ha="center", va="bottom",
+                    fontsize=12.8, color=c, fontweight="bold")
+            run = val if i == 0 else run
+        else:
+            ax.bar(i, val, width=0.56, bottom=run, facecolor="#FFFFFF",
+                   edgecolor=c, linewidth=1.8, hatch="///", zorder=3)
+            ax.text(i, run + val - 0.42, f"{val:.1f}", ha="center", va="top",
+                    fontsize=12.4, color=c, fontweight="bold")
+            run = run + val
+        if i < len(steps) - 1 and kind != "total":
+            ax.plot([i - 0.28, i + 0.28], [run, run], color=GREY,
+                    linewidth=1.1, linestyle=(0, (3, 3)), zorder=2)
+        elif i == 0:
+            ax.plot([i - 0.28, i + 0.28], [run, run], color=GREY,
+                    linewidth=1.1, linestyle=(0, (3, 3)), zorder=2)
+
+    ax.set_xticks(xs)
+    ax.set_xticklabels([s[0] for s in steps], fontsize=11.6, color=INK)
+    ax.set_ylabel("元 / 亩·次", fontsize=11.6, color=INK)
+    ax.set_ylim(0, 9.4)
+    ax.yaxis.grid(True, color=GRID, linewidth=1.0, zorder=0)
+    ax.set_axisbelow(True)
+    for s in ("top", "right"):
+        ax.spines[s].set_visible(False)
+    ax.spines["left"].set_color(GRID)
+    ax.spines["bottom"].set_color(GRID)
+    ax.tick_params(length=0)
+
+    ax.text(3.62, 7.05,
+            "毛利 3.6 元 = 45%\n变动成本 4.4 元 = 55%",
+            ha="center", va="center", fontsize=11.6, color=INK,
+            bbox=dict(boxstyle="round,pad=0.45", facecolor=GREENF,
+                      edgecolor=GREEN, linewidth=1.2))
+
+    ax.set_title("单位经济拆解：8 元的收费里，有 4.4 元是随作业量走的变动成本",
+                 fontsize=13.2, color=INK, fontweight="bold", pad=14)
+    fig.text(0.01, -0.02,
+             "说明：土地、设备折旧、管理与研发等固定成本未摊入，"
+             "盈亏平衡点按固定成本总额除以 3.6 元反算（见第五章）。",
+             fontsize=10.2, color=GREY)
+    return _save(fig, name)
+
+
 def main():
     font = setup_font()
     print(f"中文字体：{font}")
@@ -1067,7 +1402,9 @@ def main():
                revenue_forecast, literature_dist, work_package, risk_matrix,
                grade_trend, training_plan, time_allocation, readiness_bars,
                unit_economics, service_flow, match_matrix, career_path,
-               scenario_success, org_chart, service_plan, ablation):
+               scenario_success, org_chart, service_plan, ablation,
+               market_funnel, competitive_map, cashflow, risk_heat,
+               gantt_impl, unit_walk):
         fn()
     print("全部完成")
 
