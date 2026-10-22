@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
@@ -46,6 +47,25 @@ def load_font(size: int, weight: int = 3) -> ImageFont.FreeTypeFont:
             except Exception:
                 continue
     raise SystemExit("找不到可用的中文字体，拒绝产出乱码图")
+
+
+def corpus_stats() -> tuple[int, int, int]:
+    """按示例文档实际内容统计（字数含表格文字，不含页眉页脚）。
+
+    原先这三个数字是手写的，文档补写后立刻失真（写着 41,659 字，
+    实际已到 6.7 万字）。改为每次生成时现算，避免再对不上。
+    """
+    from docx import Document
+
+    words = images = tables = 0
+    for f in sorted((ROOT / "examples" / "demos").glob("*.docx")):
+        doc = Document(str(f))
+        words += sum(len(re.sub(r"\s+", "", p.text)) for p in doc.paragraphs)
+        words += sum(len(re.sub(r"\s+", "", c.text))
+                     for t in doc.tables for r in t.rows for c in r.cells)
+        images += len(doc.inline_shapes)
+        tables += len(doc.tables)
+    return words, images, tables
 
 
 def rounded(img: Image.Image, radius: int) -> Image.Image:
@@ -112,7 +132,9 @@ def build() -> Path:
     d.line((left, H - 96, W - 72, H - 96), fill=LINE, width=2)
     d.text((left, H - 72), "github.com/cuic19053-hue/awesome-student-ai-skills",
            font=load_font(19, 3), fill=GREY)
-    d.text((left, H - 44), "41,659 字示例内容 · 54 张代码渲染配图 · 75 张表格",
+    n_words, n_imgs, n_tables = corpus_stats()
+    d.text((left, H - 44),
+           f"{n_words:,} 字示例内容 · {n_imgs} 张代码渲染配图 · {n_tables} 张表格",
            font=load_font(17, 3), fill=(156, 163, 175))
 
     canvas.save(OUT, "PNG", optimize=True)
