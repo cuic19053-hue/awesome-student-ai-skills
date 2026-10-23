@@ -6,6 +6,40 @@ on:
   workflow_dispatch:
 
 jobs:
+  material-worker-container:
+    name: Material Worker 容器运行时冒烟测试
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 构建 Worker 镜像
+        run: docker build --platform linux/amd64 -t stardust-material-worker:ci -f infra/material-worker/Dockerfile .
+
+      - name: 验证离线模块导入、中文字体和 SVG 渲染
+        run: |
+          docker run --rm --platform linux/amd64 \
+            --network none --cpus 1 --memory 2g --memory-swap 2g --pids-limit 256 \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --tmpfs /tmp:rw,nosuid,nodev,size=256m --workdir /tmp \
+            stardust-material-worker:ci python -c '
+          from pathlib import Path
+          import shutil
+          from proposal.material_export import check_pages
+          from proposal.material_figures import FigureSpec, font_path, render_svg
+          from utils.layout_audit import audit
+          assert Path(font_path()).is_file()
+          assert shutil.which("chromium")
+          assert shutil.which("libreoffice") or shutil.which("soffice")
+          output = Path("/tmp/worker-smoke")
+          output.mkdir()
+          image = render_svg(FigureSpec(
+              id="smoke", section_id="abstract", title="离线容器冒烟测试",
+              renderer="svg", nodes=["虚构输入", "虚构输出"]), output)
+          assert image.is_file() and image.stat().st_size > 0
+          print("worker container imports and SVG rendering passed")
+          '
+
   docs-and-tests:
     name: 文档一致性 + 测试（Python ${{ matrix.python-version }}）
     runs-on: ubuntu-latest

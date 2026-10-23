@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium libreoffice-writer fonts-noto-cjk ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
+ENV PYTHONPATH=/app:/app/server
 COPY infra/material-worker/requirements.txt /tmp/worker-requirements.txt
 RUN pip install --no-cache-dir -r /tmp/worker-requirements.txt \
     && useradd --create-home --uid 10001 worker
