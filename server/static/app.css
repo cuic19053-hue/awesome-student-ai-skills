@@ -4238,3 +4238,16 @@ button:disabled {
   border-radius: 0 4px 4px 0;
   line-height: 1.5;
 }
+/* Innovation pilot: a compact extension, not a replacement workspace. */
+.material-pilot { margin: 12px 0; padding: 16px; border: 1px solid var(--border, #dbe3ef); border-radius: 12px; background: var(--surface, #f8fafc); }
+.material-pilot summary { font-weight: 600; cursor: pointer; padding: 8px 0; }
+.material-pilot details details { margin-top: 12px; border-top: 1px solid #dbe3ef; padding-top: 6px; }
+.material-pilot p { font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.material-pilot button { margin: 5px 8px 5px 0; }
+.material-field { display: block; margin: 10px 0; font-size: 13px; }
+.material-field input, .material-field select, .material-field textarea { display: block; width: 100%; box-sizing: border-box; padding: 9px; margin-top: 5px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; color: #111827; }
+.material-job { border-bottom: 1px solid #dbe3ef; padding: 12px 0; overflow-wrap: anywhere; }
+.material-job pre { white-space: pre-wrap; max-height: 360px; overflow-y: auto; }
+.material-job img { display: block; max-width: 100%; margin: 12px 0; border: 1px solid #e2e8f0; }
+.material-warning { color: #9a3412; }
+.material-pages { max-height: 700px; overflow-y: auto; }

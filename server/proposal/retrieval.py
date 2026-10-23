@@ -109,6 +109,7 @@ class ProjectRetriever:
         results = [
             {
                 "source_name": item["source_name"],
+                "document_id": item.get("document_id", ""),
                 "source_ref": item["source_ref"],
                 "text": item["content"],
                 "score": round(score, 4),

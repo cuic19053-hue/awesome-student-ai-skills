@@ -64,6 +64,7 @@ class ProjectBlackboard(BaseModel):
         lines = [
             f"### 1. 已核实确认的项目事实（必须严格遵循，绝不准夸大或推翻）：",
             f"- **项目名称**：{self.project_name or '待补充'}",
+            "说明：以上“确认”指用户提供/确认，不代表系统完成外部核验；来源不足仍需核对。",
         ]
         for k, v in self.confirmed_facts.items():
             if str(v).strip():
@@ -102,11 +103,28 @@ class ContextBudgeter:
         evidence_items: List[Dict[str, Any]],
         guidance_text: str,
     ) -> Dict[str, str]:
-        bb_part = blackboard_text[:1500]
-        ev_str = json.dumps(evidence_items, ensure_ascii=False, indent=2)
-        if len(ev_str) > 2500:
-            ev_str = ev_str[:2500] + "\n...[已核验证据片段超长，保留核心部分]"
-        remain = max(1000, self.max_context_chars - len(bb_part) - len(ev_str))
+        bb_limit = max(1500, self.max_context_chars // 2)
+        bb_lines, size = [], 0
+        for line in blackboard_text.splitlines():
+            if size + len(line) > bb_limit:
+                bb_lines.append("【上下文预算提示：其余项目字段未放入本轮，请勿据此编造或推翻未展示字段】")
+                break
+            bb_lines.append(line)
+            size += len(line) + 1
+        bb_part = "\n".join(bb_lines)
+        selected = []
+        for original in evidence_items:
+            item = dict(original)
+            if len(str(item.get("text", ""))) > 1000:
+                item["text"] = str(item["text"])[:1000] + "【片段已截短】"
+            candidate = json.dumps(selected + [item], ensure_ascii=False)
+            if len(candidate) > 2500:
+                break
+            selected.append(item)
+        ev_str = json.dumps(selected, ensure_ascii=False)
+        if len(selected) < len(evidence_items):
+            ev_str += "\n【其余来源未放入本轮上下文，不代表不存在；不得据此虚构事实】"
+        remain = max(0, self.max_context_chars - len(bb_part) - len(ev_str))
         guidance_part = guidance_text[:min(remain, 3500)]
         return {
             "blackboard": bb_part,
@@ -392,6 +410,7 @@ class AgenticWorkflowEngine:
                 draft_content=current_draft.content,
                 project_context=project_context,
                 blackboard=bb,
+                evidence_results=evidence_results,
             )
             try:
                 critic_text = self.critic_caller(critic_messages, {
@@ -571,11 +590,12 @@ class AgenticWorkflowEngine:
         draft_content: str,
         project_context: Dict[str, Any],
         blackboard: ProjectBlackboard,
+        evidence_results: Optional[List[Dict[str, Any]]] = None,
     ) -> List[Dict[str, str]]:
         budgeter = ContextBudgeter(max_context_chars=7000)
         allocated = budgeter.allocate(
             blackboard_text=blackboard.to_context_prompt(),
-            evidence_items=[],
+            evidence_items=evidence_results or [],
             guidance_text=skill_guidance,
         )
         user_content = (
@@ -583,7 +603,8 @@ class AgenticWorkflowEngine:
             f"【章节名称】：{section_title}\n"
             f"【项目全局事实黑板】：\n{allocated['blackboard']}\n\n"
             f"【赛道考核规范】：\n{allocated['guidance']}\n\n"
-            f"【待评审草稿正文】：\n{draft_content[:4000]}\n\n"
+            f"【本章可用材料证据】：\n{allocated['evidence']}\n\n"
+            f"【待评审草稿正文】：\n{draft_content}\n\n"
             "请严格以纯 JSON 格式输出评估报告，必须包含 overall_score, passed, dimensions, "
             "strengths, weaknesses, actionable_revisions, user_action_required, blocking_issues。"
         )

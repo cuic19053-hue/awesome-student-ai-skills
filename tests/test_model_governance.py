@@ -20,7 +20,10 @@ def test_context_budgeter_allocation_bounds():
     assert len(allocated["blackboard"]) <= 1500
     assert len(allocated["evidence"]) <= 2600
     assert len(allocated["guidance"]) <= 3500
-    assert "...[已核验证据片段超长" in allocated["evidence"]
+    evidence_json, notice = allocated["evidence"].split("\n", 1)
+    assert json.loads(evidence_json)  # Complete JSON records, not a sliced JSON string.
+    assert "其余来源未放入本轮上下文" in notice
+    assert sum(map(len, allocated.values())) <= 4000
 
 
 def test_agent_retry_on_transient_error(monkeypatch):

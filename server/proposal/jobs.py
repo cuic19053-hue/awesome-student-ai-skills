@@ -15,6 +15,8 @@ from __future__ import annotations
 import hashlib
 import logging
 from concurrent.futures import Future, ThreadPoolExecutor
+from contextvars import copy_context
+from threading import Lock
 from typing import Any, Callable, Dict, Optional
 
 logger = logging.getLogger("proposal_agent.jobs")
@@ -32,6 +34,7 @@ class GenerationJobRunner:
         self.store = store
         self.executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="gen-job-")
         self._active_futures: Dict[str, Future[Any]] = {}
+        self._submit_lock = Lock()
 
     def submit_job(
         self,
@@ -42,7 +45,11 @@ class GenerationJobRunner:
         current_section_content: str = "",
     ) -> dict[str, Any]:
         """幂等提交生成任务；若已存在相同 key 或活跃任务，则直接返回。"""
-        # 1. 幂等键防重检查
+        with self._submit_lock:
+            return self._submit_job(project_id, section_id, invoke_fn, idempotency_key, current_section_content)
+
+    def _submit_job(self, project_id, section_id, invoke_fn, idempotency_key, current_section_content):
+        # Legacy, single-process runner. Durable pilot uses MaterialJobs instead.
         if idempotency_key:
             existing = self.store.find_job_by_idempotency_key(project_id, idempotency_key)
             if existing:
@@ -65,6 +72,7 @@ class GenerationJobRunner:
 
         # 4. 派发至后台线程池
         future = self.executor.submit(
+            copy_context().run,
             self._execute_job,
             job_id=job_id,
             project_id=project_id,
@@ -126,7 +134,7 @@ class GenerationJobRunner:
             current_now = (project.get("sections") or {}).get(section_id, "") if project else ""
             current_ver_now = content_hash(current_now)
 
-            if current_ver_now != base_version and current_now.strip():
+            if current_ver_now != base_version:
                 # 用户在后台生成期间手动编辑了输入框！绝不强行静默覆盖！
                 saved_ver = self.store.save_section_version(
                     project_id=project_id,

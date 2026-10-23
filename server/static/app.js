@@ -1150,6 +1150,7 @@
       renderConfirmedSources();
       renderOutline();
       renderSections();
+      if (window.MaterialPilot) await window.MaterialPilot.mount({ api, state, toast, reload: loadProject });
       renderDiagrams();
       renderMessages();
       updateTemplateQuickActions(project);
@@ -2376,7 +2377,9 @@
     btn.disabled = true;
     btn.textContent = "正在整理…";
     try {
-      const result = await api(`/api/projects/${state.project.id}/outline/generate`, { method: "POST" });
+      const result = window.MaterialPilot?.active()
+        ? await window.MaterialPilot.outline()
+        : await api(`/api/projects/${state.project.id}/outline/generate`, { method: "POST" });
       state.outline = result.outline;
       renderOutline();
       $("#outlineActions").classList.remove("hidden");
@@ -2454,6 +2457,7 @@
 
   async function saveOutline() {
     try {
+      if (window.MaterialPilot?.active()) await window.MaterialPilot.flushEdits();
       const result = await api(`/api/projects/${state.project.id}/outline`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -2463,6 +2467,7 @@
       $("#outlineActions").classList.add("hidden");
       renderOutline();
       renderSections();
+      if (window.MaterialPilot?.active()) await window.MaterialPilot.refresh();
       toast("目录已确认。现在可以逐章生成或编辑。");
     } catch (error) {
       toast(error.message, true);
@@ -2527,11 +2532,17 @@
       if (text) text.textContent = `正在生成 [${i + 1}/${total}]：${section.title}…`;
 
       try {
-        const result = await api(`/api/projects/${state.project.id}/sections/${section.id}/generate`, { method: "POST" });
+        const result = window.MaterialPilot?.active()
+          ? await window.MaterialPilot.section(section.id, null)
+          : await api(`/api/projects/${state.project.id}/sections/${section.id}/generate`, { method: "POST" });
+        if (result.conflict_status === "user_edit_preserved") {
+          toast(result.notice || "结果已保留为备选");
+          continue;
+        }
         state.project.sections = state.project.sections || {};
         state.project.sections[section.id] = result.content;
 
-        await api(`/api/projects/${state.project.id}/sections/${section.id}`, {
+        if (!result.material_applied) await api(`/api/projects/${state.project.id}/sections/${section.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ content: result.content }),
@@ -2773,7 +2784,9 @@
         statusPill.textContent = "✦ 生成中…";
         wrapper.classList.add("generating");
         try {
-          let result = await api(`/api/projects/${state.project.id}/sections/${section.id}/generate`, { method: "POST" });
+          let result = window.MaterialPilot?.active()
+            ? await window.MaterialPilot.section(section.id, editor)
+            : await api(`/api/projects/${state.project.id}/sections/${section.id}/generate`, { method: "POST" });
           if (result && result.status === "processing" && result.job_id) {
             statusPill.textContent = "✦ 后台生成中…";
             for (let i = 0; i < 45; i++) {
@@ -2805,7 +2818,7 @@
             state.project.sections = state.project.sections || {};
             state.project.sections[section.id] = result.content;
 
-            await api(`/api/projects/${state.project.id}/sections/${section.id}`, {
+            if (!result.material_applied) await api(`/api/projects/${state.project.id}/sections/${section.id}`, {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ content: result.content }),
@@ -2834,13 +2847,17 @@
       });
       save.addEventListener("click", async () => {
         try {
-          await api(`/api/projects/${state.project.id}/sections/${section.id}`, {
+          const saved = await api(`/api/projects/${state.project.id}/sections/${section.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ content: editor.value }),
+            body: JSON.stringify({ content: editor.value,
+              ...(window.MaterialPilot?.active() ? { expected_revision: state.project.material_revision,
+                base_content: state.project.sections?.[section.id] || "" } : {}) }),
           });
+          if (saved.material_revision !== undefined) state.project.material_revision = saved.material_revision;
           state.project.sections = state.project.sections || {};
           state.project.sections[section.id] = editor.value;
+          if (window.MaterialPilot?.active()) await window.MaterialPilot.refresh();
           statusPill.className = "section-status-pill saved";
           statusPill.textContent = "✓ 已保存";
           updateDraftStats();
@@ -2968,10 +2985,17 @@
       const title = document.createElement("h3");
       title.textContent = diagram.title;
       card.append(title);
-      const imgUrl = diagram.preview_url || (diagram.preview ? `/api/projects/${state.project.id}/diagrams/${diagram.id}/preview` : null);
+      const imgUrl = diagram.material_job_id
+        ? `/api/projects/${state.project.id}/material/jobs/${diagram.material_job_id}/files/figure.png`
+        : diagram.preview_url || (diagram.preview ? `/api/projects/${state.project.id}/diagrams/${diagram.id}/preview` : null);
       if (imgUrl) {
         const image = document.createElement("img");
-        image.src = imgUrl;
+        if (diagram.material_job_id && window.MaterialPilot) {
+          window.MaterialPilot.blobUrl(imgUrl).then(url => {
+            image.src = url;
+            image.onclick = () => showImageLightbox(url, diagram.title);
+          }).catch(() => { image.alt = "图片暂不可用，请在任务区重试预览"; });
+        } else image.src = imgUrl;
         image.alt = diagram.title;
         image.title = "点击查看高清大图";
         image.addEventListener("click", () => showImageLightbox(imgUrl, diagram.title));
@@ -2985,6 +3009,10 @@
       actionsBar.className = "diagram-card-actions";
 
       const edit = button("✏️ 编辑步骤", "button button-small button-secondary");
+      if (diagram.material_job_id) {
+        edit.disabled = true;
+        edit.textContent = "在上方图表计划中编辑";
+      }
       edit.addEventListener("click", () => {
         state.editingDiagramId = diagram.id;
         $("#diagramTitle").value = diagram.title;
@@ -3526,6 +3554,11 @@
   }
 
   async function exportDoc() {
+    if (window.MaterialPilot?.active()) {
+      try { await window.MaterialPilot.exportDocument(); }
+      catch (error) { toast(error.message, true); }
+      return;
+    }
     const btn = $("#exportBtn");
     const topBtn = $("#quickExportTopBtn");
     const headingBtn = $("#headingExportBtn");
