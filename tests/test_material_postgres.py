@@ -60,6 +60,9 @@ def sql():
           language sql as $$ select '{"status":"refunded"}'::jsonb $$;
         """)
         run((ROOT/"supabase/migrations/20261022154243_material_pipeline.sql").read_text())
+        run((ROOT/"supabase/migrations/20261023143437_enable_worker_capability_rls.sql").read_text())
+        run((ROOT/"supabase/migrations/20261023164211_material_worker_context.sql").read_text())
+        run((ROOT/"supabase/migrations/20261023165858_authorize_worker_byok_calls.sql").read_text())
         run(f"""
          insert into auth.users values('{UID}'),('{OTHER}');
          insert into public.projects(id,owner_id,sections_json) values('p','{UID}','{{"abstract":"old"}}'),('other','{OTHER}','{{}}');
@@ -137,3 +140,61 @@ def test_cancelled_job_cannot_finish_or_reserve(sql):
     sql("set role anon; select public.material_worker_rpc('worker-test-secret','finish',"
         f"'{{\"id\":\"{JOB}\",\"lease\":\"{job['lease']}\",\"status\":\"completed\"}}');",ok=False)
     assert sql(f"select status from material_jobs where id='{JOB}'") == "cancelled"
+
+
+def test_worker_context_is_scoped_to_secret_live_lease_and_minimal_payload(sql):
+    payload = {
+        "paid": True, "platform": False, "base_revision": 0,
+        "config_ciphertext": "cipher-only",
+        "messages": [{"content": "should-not-return"}],
+        "image_upload_url": "https://storage.invalid/upload",
+    }
+    submit(sql, payload=payload)
+    job = worker(sql, "claim")
+    result = json.loads(sql(
+        "set role anon; select public.material_worker_context("
+        f"'worker-test-secret','{JOB}','{job['lease']}');"
+    ))
+    assert result["owner_id"] == UID
+    assert result["payload"]["config_ciphertext"] == "cipher-only"
+    assert result["payload"]["image_upload_url"] == "https://storage.invalid/upload"
+    assert "messages" not in result["payload"]
+    sql("set role anon; select public.material_worker_context("
+        f"'wrong-secret','{JOB}','{job['lease']}');", ok=False)
+    sql("set role anon; select public.material_worker_context("
+        f"'worker-test-secret','{JOB}','{'f' * 32}');", ok=False)
+    assert sql("select relrowsecurity::text from pg_class c join pg_namespace n "
+               "on n.oid=c.relnamespace where n.nspname='material_private' "
+               "and c.relname='worker_capability'") == "true"
+
+
+def test_byok_worker_calls_are_authorized_once_and_bounded(sql):
+    submit(sql, payload={"paid": True, "platform": False, "base_revision": 0})
+    job = worker(sql, "claim")
+    result = json.loads(sql(
+        "set role anon; select public.material_worker_authorize_byok("
+        f"'worker-test-secret','{JOB}','{job['lease']}','{'1' * 32}','text');"
+    ))
+    assert result["ok"]
+    sql("set role anon; select public.material_worker_authorize_byok("
+        f"'worker-test-secret','{JOB}','{job['lease']}','{'1' * 32}','text');", ok=False)
+    for i in range(2, 7):
+        sql("set role anon; select public.material_worker_authorize_byok("
+            f"'worker-test-secret','{JOB}','{job['lease']}','{i:032x}','text');")
+    sql("set role anon; select public.material_worker_authorize_byok("
+        f"'worker-test-secret','{JOB}','{job['lease']}','{'7' * 32}','text');", ok=False)
+
+
+def test_byok_image_call_is_limited_to_one_per_confirmed_figure_job(sql):
+    submit(sql, kind="figure", target="scene", payload={
+        "paid": True, "platform": False, "base_revision": 0,
+        "spec": {"renderer": "gpt"},
+    })
+    job = worker(sql, "claim")
+    result = json.loads(sql(
+        "set role anon; select public.material_worker_authorize_byok("
+        f"'worker-test-secret','{JOB}','{job['lease']}','{'2' * 32}','image');"
+    ))
+    assert result["ok"]
+    sql("set role anon; select public.material_worker_authorize_byok("
+        f"'worker-test-secret','{JOB}','{job['lease']}','{'3' * 32}','image');", ok=False)

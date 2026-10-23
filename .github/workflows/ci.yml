@@ -27,8 +27,10 @@ jobs:
           import shutil
           from proposal.material_export import check_pages
           from proposal.material_figures import FigureSpec, font_path, render_svg
+          from proposal.material_worker_proxy import MaterialWorkerBridge
           from utils.layout_audit import audit
           assert Path(font_path()).is_file()
+          assert MaterialWorkerBridge
           assert shutil.which("chromium")
           assert shutil.which("libreoffice") or shutil.which("soffice")
           output = Path("/tmp/worker-smoke")

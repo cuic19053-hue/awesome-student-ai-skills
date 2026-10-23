@@ -25,36 +25,37 @@ MATERIAL_PIPELINE_ENABLED=true .venv/bin/python server/material_worker.py \
 
 `--once` 处理一个任务，适合故障注入；不要用本机模式承接线上用户。
 仅 SVG/Python 绘图和导出不调用模型；正文、GPT 图在用户确认后才提交。
-BYOK 配置加密后保存至任务，需要 API 与 Worker 配置相同的
-`USER_CONFIG_ENCRYPTION_KEY`；任务终态清除凭据密文，不保存用户 JWT。
+BYOK 配置加密后保存至任务。生产 Worker 不持有 `USER_CONFIG_ENCRYPTION_KEY`
+或任何供应商密钥；它通过有任务租约的 Vercel 内部代理发起推理，由 Vercel
+解密配置并完成原有计费。任务终态清除凭据密文，不保存用户 JWT。
 
-## 云端部署顺序（本次不执行）
+## 云端部署顺序
 
-1. 按仓库规范先检查 `git status`，保护工作进度，再同步远程；在最新基线测试。
-2. 在测试数据库应用 `20261022154243_material_pipeline.sql`。新增项目版本、
-   持久任务和不可变章节版本，不迁移钱包、不重置积分或免费次数。
-3. 用安全渠道生成专用随机 Worker 密钥；只在数据库管理员会话写入哈希：
+1. 按仓库规范检查并保护工作区，再同步远程；只从 `main` 的已验证提交发布。
+2. 依序应用材料工作流与 Worker 上下文 RPC 迁移。新增项目版本、持久任务和
+   不可变章节版本，不迁移钱包、不重置积分或免费次数。
+3. 用安全渠道生成专用随机 Worker 密钥，只把哈希写入数据库：
    ```sql
    insert into material_private.worker_capability(singleton,secret_hash)
    values(true,sha256(convert_to('<专用随机密钥>','UTF8')))
    on conflict(singleton) do update set secret_hash=excluded.secret_hash;
    ```
    不把真实密钥写入终端历史、仓库或日志；实际通过受控秘密管理操作。
-4. 在另行确认的**独立云端资源**构建运行：
-   `docker build -f infra/material-worker/Dockerfile -t stardust-material-worker .`。
-   不复用其他项目服务器，不使用旧电脑。容器以非 root 运行。
-5. Worker 配置 Supabase URL、publishable key、Worker 密钥；
-   如需要平台模型，沿用现有平台服务配置和暂停开关；
-   如需 BYOK，配置相同的凭据加密密钥。禁止配置 project-wide service-role。
-6. Worker 无需用户长期 JWT。仅通过有密钥、租约校验的 RPC 领取任务、记录状态、
-   使用该任务的计费额度。原文件和产物通过项目范围的限时签名地址传输。
-7. 测试中文字体、Chromium、LibreOffice、下载和签名上传。Noto 字体随 Debian
-   授权包安装；可查看 `/usr/share/doc/fonts-noto-cjk/copyright`。
+4. 在受控 Linux Worker 主机用 `infra/material-worker/Dockerfile` 构建并运行。
+   容器以非 root、只读根文件系统、CPU/内存/PID 上限运行，不挂载宿主项目数据。
+5. Worker 只配置 Supabase URL、publishable key、Worker 密钥及 Vercel 应用地址；
+   不配置 Supabase `service_role`、`WOPALLY_*`、`USER_CONFIG_ENCRYPTION_KEY`，
+   也不将这些 Vercel secrets 复制到 Worker 主机。
+6. Worker 仅通过租约校验的 RPC 领取任务和结算；模型与 GPT Image 通过 Vercel
+   内部代理转发，代理从任务记录确认项目、赛道、付费确认、配置和图像资产地址。
+   文件仍通过项目范围的限时签名地址传输，Worker 不获取用户 JWT。
+7. 测试中文字体、Chromium、LibreOffice、模型代理鉴权、签名下载和图像上传。
+   Noto 字体随 Debian 授权包安装；可查看 `/usr/share/doc/fonts-noto-cjk/copyright`。
    正式指定字体不能满足时需提示，不能宣称已完全匹配。
-8. Vercel 保持当前项目 `stardust-agent` / `sin1`；确认 Worker 能工作再设置
-   `MATERIAL_PIPELINE_ENABLED=true`、`MATERIAL_WORKER_READY=true`，灰度启用。
-9. 检查真实业务链路：登录、资料确认、要求、计划、图表、导出、预览、计费。
-   `/api/health` 通过不代表完整验收。
+8. Vercel 保持当前项目 `stardust-agent` / `sin1`；代理与 Worker 连接验证后才设置
+   `MATERIAL_PIPELINE_ENABLED=true`、`MATERIAL_WORKER_READY=true` 灰度启用。
+9. 验证登录、资料确认、要求、计划、图表、导出、预览、计费。`/api/health`
+   通过不代表完整验收；真实模型调用仅在用户确认该轮调用后发生。
 
 不修改旧版本历史；开启试点后的云端章节版本使用 `material_revisions`。
 关闭开关回到原界面，但数据库和新产物保留。回滚时不能删除新增表、重放模型请求

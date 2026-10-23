@@ -1,11 +1,14 @@
 """Single-process durable material worker. Run separately from the Vercel API.
 
-Cloud: SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, MATERIAL_WORKER_SECRET.
+Cloud: SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, MATERIAL_WORKER_SECRET and the
+fixed MATERIAL_API_URL. Provider credentials and the user-config encryption
+key stay in Vercel; the Worker relays only active-lease requests.
 Local: --local-data /path/to/.agent-data (explicit development mode only).
 """
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import logging
 import os
@@ -13,6 +16,7 @@ import shutil
 import tempfile
 import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import zipfile
@@ -45,19 +49,93 @@ class CloudQueue:
             body = response.read()
             return json.loads(body) if body else None
 
+    def _internal_request(self, path, job, body, *, timeout):
+        import httpx
+        from urllib.parse import urlparse
+        base = os.environ.get("MATERIAL_API_URL", "https://agent.stardust.website").rstrip("/")
+        parsed = urlparse(base)
+        if parsed.scheme != "https" or parsed.hostname not in {
+            "agent.stardust.website",
+            "stardust-agent.vercel.app",
+        } or parsed.username or parsed.password or parsed.query or parsed.fragment:
+            raise ValueError("worker API destination is not allow-listed")
+        with httpx.Client(timeout=timeout, follow_redirects=False, headers={"Cookie": ""}) as client:
+            response = client.post(
+                base + path,
+                json={"job_id": job["id"], "lease": job["lease"], **body},
+                headers={"Authorization": f"Bearer {self.secret}", "Content-Type": "application/json"},
+            )
+        if 300 <= response.status_code < 400:
+            raise ValueError("worker API returned a redirect")
+        return response
 
-class MeterStore:
-    def __init__(self, queue, job):
-        self.queue, self.job = queue, job
+    def model_opener(self, job):
+        """Route inference through Vercel, keeping provider/config secrets there."""
+        def open_request(request, timeout=60):
+            try:
+                request_body = json.loads(request.data or b"{}")
+            except (TypeError, ValueError):
+                raise ValueError("invalid model request") from None
+            response = self._internal_request(
+                "/api/material/internal/model",
+                job,
+                {"request_body": request_body},
+                timeout=min(timeout, 55),
+            )
+            if response.status_code >= 300:
+                raise urllib.error.HTTPError(
+                    request.full_url, response.status_code, "model proxy rejected request",
+                    response.headers, io.BytesIO('{"error":{"message":"模型服务暂不可用"}}'.encode("utf-8")),
+                )
+            usage_id = response.headers.get("X-Material-Usage-Request-ID")
+            if usage_id:
+                model = str(request_body.get("model") or "")
+                try:
+                    self._internal_request(
+                        "/api/material/internal/settle",
+                        job,
+                        {"request_id": usage_id, "model": model},
+                        timeout=35,
+                    )
+                except Exception:
+                    # The already-returned model response remains usable; an
+                    # unsettled hold stays available for later reconciliation.
+                    log.warning("model settlement handoff failed job=%s", job["id"])
+            result = io.BytesIO(response.content)
+            result.headers = response.headers
+            result.status = response.status_code
+            return result
+        return open_request
 
-    def reserve_workbench_usage(self, user_id, request_id, model, amount, api_key_id=None):
-        return self.queue.call("reserve", self.job, request_id=request_id, model=model, api_key_id=api_key_id)
-
-    def settle_workbench_usage(self, request_id, amount, provider_id):
-        return self.queue.call("settle", self.job, request_id=request_id, amount=amount, provider_id=provider_id)
-
-    def refund_workbench_usage(self, request_id, reason="provider_error"):
-        return self.queue.call("refund", self.job, request_id=request_id, reason=reason)
+    def generate_image(self, job, prompt):
+        response = self._internal_request(
+            "/api/material/internal/image",
+            job,
+            {"prompt": prompt[:2000]},
+            timeout=58,
+        )
+        if response.status_code >= 300:
+            raise RuntimeError("概念图片生成失败，请核对该步骤后重试")
+        try:
+            result = response.json()
+            download_url = result["download_url"]
+            request_id = result.get("request_id") or ""
+        except (ValueError, KeyError, TypeError):
+            raise RuntimeError("图片资产尚未确认，请核对该步骤后重试") from None
+        if request_id:
+            try:
+                self._internal_request(
+                    "/api/material/internal/settle",
+                    job,
+                    {"request_id": request_id, "model": "gpt-image-2"},
+                    timeout=35,
+                )
+            except Exception:
+                log.warning("image settlement handoff failed job=%s", job["id"])
+        image = transfer(download_url)
+        if not image.startswith(b"\x89PNG\r\n\x1a\n") or len(image) > 12_000_000:
+            raise RuntimeError("图片资产格式无效，请核对该步骤后重试")
+        return image
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -179,38 +257,56 @@ def execute(job, workspace, checkpoint, local_source=None, queue=None):
             return None
     tools = ProposalTools(store, ProjectRetriever(store, NoEmbed()))
     config = payload.get("config", {})
-    if payload.get("config_ciphertext"):
+    if payload.get("config_ciphertext") and queue is None:
         config = decrypt_config(payload["owner_id"], payload["config_ciphertext"])
     if job.get("owner_id") and job["owner_id"] != payload["owner_id"]:
         raise ValueError("任务身份不匹配")
     candidate = None
     meter = None
     if job["kind"] in {"section", "outline", "plan"} or (payload.get("spec") or {}).get("renderer") == "gpt":
-        # Reuse existing model config and platform readiness checks, never introduce pricing.
-        import app as api
-        from proposal.supabase_store import request_identity
-        if bool(payload.get("platform")) != (config.get("provider") == "preset"):
-            raise ValueError("任务模型配置与计费方式不一致")
-        if payload.get("platform"):
-            if not api._platform_bundle_ready(require_ledger=False):
-                raise ValueError("平台模型尚未开通或已暂停")
-            from proposal.workbench_metering import WorkbenchMeter
-            meter_store = MeterStore(queue, job) if queue else local_source
-            meter = WorkbenchMeter(meter_store, payload["owner_id"], int(os.environ["WOPALLY_WORKBENCH_API_KEY_ID"]))
+        if queue:
+            # Provider credentials and the user-config encryption key stay in
+            # Vercel. The Worker sends only a leased job and one inference body
+            # to the fixed internal relay; confirmation and metering remain in
+            # the existing server-side path.
             candidate = OllamaAgent(
-                store, tools, base_url=os.environ["WOPALLY_MODEL_BASE_URL"],
-                model="deepseek-v4-flash", provider="openai_compatible",
-                api_key=os.environ["WOPALLY_WORKBENCH_API_KEY"], meter=meter, platform_transport=True,
+                store, tools,
+                base_url="https://worker-proxy.invalid/v1",
+                model="deepseek-v4-flash" if payload.get("platform") else "worker-proxy",
+                provider="openai_compatible",
+                api_key="worker-proxy",
+                platform_transport=bool(payload.get("platform")),
             )
+            candidate.request_opener = queue.model_opener(job)
         else:
-            previous = api.store, api.tools, api.agent
-            api.store, api.tools, api.agent = store, tools, OllamaAgent(store, tools)
-            try:
-                candidate = api._agent_for_config(api.LLMConfigInput(**config), project_id=job["project_id"])
-            finally:
-                api.store, api.tools, api.agent = previous
-        from proposal.material_network import safe_urlopen
-        candidate.request_opener = safe_urlopen
+            # Explicit local-development mode retains the legacy direct
+            # provider path; production jobs always use the Vercel relay above.
+            import app as api
+            if bool(payload.get("platform")) != (config.get("provider") == "preset"):
+                raise ValueError("任务模型配置与计费方式不一致")
+            if payload.get("platform"):
+                if not api._platform_bundle_ready(require_ledger=False):
+                    raise ValueError("平台模型尚未开通或已暂停")
+                from proposal.workbench_metering import WorkbenchMeter
+                meter_store = local_source
+                meter = WorkbenchMeter(
+                    meter_store, payload["owner_id"], int(os.environ["WOPALLY_WORKBENCH_API_KEY_ID"])
+                )
+                candidate = OllamaAgent(
+                    store, tools, base_url=os.environ["WOPALLY_MODEL_BASE_URL"],
+                    model="deepseek-v4-flash", provider="openai_compatible",
+                    api_key=os.environ["WOPALLY_WORKBENCH_API_KEY"], meter=meter, platform_transport=True,
+                )
+                candidate.request_opener = api.wopally_urlopen
+            else:
+                previous = api.store, api.tools, api.agent
+                api.store, api.tools, api.agent = store, tools, OllamaAgent(store, tools)
+                try:
+                    candidate = api._agent_for_config(api.LLMConfigInput(**config), project_id=job["project_id"])
+                finally:
+                    api.store, api.tools, api.agent = previous
+                from proposal.material_network import safe_urlopen
+                candidate.request_opener = safe_urlopen
         candidate.single_attempt = True
         # Check the lease/cancellation before EVERY draft/critic request, including BYOK.
         original_post = candidate._post
@@ -278,7 +374,9 @@ def execute(job, workspace, checkpoint, local_source=None, queue=None):
         else:
             from proposal.workbench_images import generate_image, generate_custom_image
             prompt = image_prompt(spec, payload["project"])
-            if meter:
+            if queue:
+                image = queue.generate_image(job, prompt)
+            elif meter:
                 image = generate_image(prompt, meter)
             elif config.get("provider") == "openai_compatible":
                 reuse = config.get("image_reuse_text", False)
