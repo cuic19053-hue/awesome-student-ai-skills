@@ -94,6 +94,8 @@ def font_path() -> str:
     candidates = [
         os.environ.get("MATERIAL_FONT_PATH", ""),
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+        "/usr/share/fonts/truetype/droid/DroidSansFallback.ttf",
         "/System/Library/Fonts/PingFang.ttc",
         "/System/Library/Fonts/STHeiti Light.ttc",
     ]
