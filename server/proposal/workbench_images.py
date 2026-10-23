@@ -14,6 +14,19 @@ from .wopally_transport import wopally_urlopen
 
 def generate_image(prompt: str, meter: WorkbenchMeter) -> bytes:
     """One bounded image request; only server-side credentials reach the relay."""
+    image, request_id = generate_image_deferred(prompt, meter)
+    meter.settle(request_id, "gpt-image-2")
+    return image
+
+
+def generate_image_deferred(
+    prompt: str, meter: WorkbenchMeter, *, request_timeout: int = 50
+) -> tuple[bytes, str]:
+    """Generate once and return the reservation ID for an external settlement step.
+
+    The cloud Worker proxy uses this form so image generation and usage-log
+    reconciliation can run in separate bounded Vercel requests.
+    """
     # Auto quality can select high; reserve enough for the published 1024px
     # high-quality output plus text input at the fixed official-price FX.
     request_id = meter.reserve("gpt-image-2", 2_000_000)
@@ -31,7 +44,7 @@ def generate_image(prompt: str, meter: WorkbenchMeter) -> bytes:
         method="POST",
     )
     try:
-        with wopally_urlopen(request, timeout=50) as response:
+        with wopally_urlopen(request, timeout=request_timeout) as response:
             body: Any = json.load(response)
     except urllib.error.HTTPError as exc:
         meter.refund(request_id)
@@ -47,11 +60,12 @@ def generate_image(prompt: str, meter: WorkbenchMeter) -> bytes:
             raise ValueError("invalid PNG")
     except (KeyError, IndexError, TypeError, ValueError) as exc:
         raise ModelUnavailable("模型未返回有效 PNG，积分预留待核对。") from exc
-    meter.settle(request_id, "gpt-image-2")
-    return image
+    return image, request_id
 
 
-def generate_custom_image(prompt: str, base_url: str, model: str, api_key: str, *, opener=None) -> bytes:
+def generate_custom_image(
+    prompt: str, base_url: str, model: str, api_key: str, *, opener=None, timeout: int = 60
+) -> bytes:
     """Generate an image using user-supplied OpenAI-compatible image endpoint (0 credits)."""
     endpoint = base_url.rstrip("/") + "/images/generations"
     open_request = opener or urllib.request.urlopen
@@ -74,7 +88,7 @@ def generate_custom_image(prompt: str, base_url: str, model: str, api_key: str, 
         method="POST",
     )
     try:
-        with open_request(request, timeout=60) as response:
+        with open_request(request, timeout=timeout) as response:
             body: Any = json.load(response)
     except urllib.error.HTTPError as exc:
         err_msg = ""

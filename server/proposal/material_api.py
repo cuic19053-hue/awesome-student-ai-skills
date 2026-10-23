@@ -213,6 +213,14 @@ def register_material_api(app, get_store, validate_config):
             job_payload["output_path"] = output
             if payload.kind in {"figure", "export"}:
                 job_payload["upload_url"] = signed_url(store, output, upload=True)
+            if payload.kind == "figure" and spec and spec.renderer == "gpt":
+                # Vercel performs the paid image call with its existing provider
+                # credentials, writes the image to private Storage, and gives
+                # the Worker only a short-lived download URL.
+                image_path = f"{owner}/{project_id}/_material/{identifier}-image.png"
+                job_payload["image_path"] = image_path
+                job_payload["image_upload_url"] = signed_url(store, image_path, upload=True)
+                job_payload["image_download_url"] = signed_url(store, image_path)
             for doc in job_payload["documents"]:
                 needs_file = (payload.kind == "export" and doc["kind"] in {"template", "photo"}) or (
                     spec is not None and spec.renderer == "upload" and spec.document_id == doc["id"])

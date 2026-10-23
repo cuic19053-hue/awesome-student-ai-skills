@@ -7,7 +7,9 @@ import ipaddress
 import logging
 import os
 import re
+import secrets
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 from decimal import Decimal, InvalidOperation
@@ -51,7 +53,7 @@ from proposal.retrieval import ProjectRetriever
 from proposal.storage import CreditRateLimitError, InsufficientCreditsError, PendingUsageError, Store
 from proposal.supabase_store import SupabaseStore, request_identity
 from proposal.workbench_metering import WorkbenchMeter
-from proposal.workbench_images import generate_image, generate_custom_image
+from proposal.workbench_images import generate_image, generate_image_deferred, generate_custom_image
 from proposal.wopally_usage import UsageUnavailable, WopallyUsage
 from proposal.official_pricing import official_v1_charge, official_2x_charge
 from proposal.wopally_transport import wopally_urlopen
@@ -60,6 +62,14 @@ from proposal.jobs import GenerationJobRunner
 from proposal.materials import MaterialConflict, enabled as material_enabled
 from proposal.skills import normalize_skill_id, registry as skill_registry, valid_fact_key
 from proposal.wopally_client import WopallyCardRejected, WopallyClient, WopallyUnavailable
+from proposal.material_worker_proxy import (
+    MaterialWorkerBridge,
+    MaterialWorkerBridgeError,
+    MaterialWorkerMeterStore,
+)
+from proposal.model_config_security import decrypt_config
+from proposal.material_network import safe_urlopen
+from proposal.material_figures import FigureSpec
 
 try:
     from utils.dispatcher import Dispatcher
@@ -90,6 +100,25 @@ class LLMConfigInput(BaseModel):
     image_base_url: str = Field(default="", max_length=500)
     image_api_key: str = Field(default="", max_length=1000)
     image_reuse_text: bool = False
+
+
+class MaterialWorkerProxyInput(BaseModel):
+    job_id: str = Field(pattern=r"^[a-f0-9]{32}$")
+    lease: str = Field(pattern=r"^[a-f0-9]{32}$")
+    request_body: dict[str, Any]
+
+
+class MaterialWorkerImageInput(BaseModel):
+    job_id: str = Field(pattern=r"^[a-f0-9]{32}$")
+    lease: str = Field(pattern=r"^[a-f0-9]{32}$")
+    prompt: str = Field(min_length=1, max_length=2000)
+
+
+class MaterialWorkerSettleInput(BaseModel):
+    job_id: str = Field(pattern=r"^[a-f0-9]{32}$")
+    lease: str = Field(pattern=r"^[a-f0-9]{32}$")
+    request_id: str = Field(pattern=r"^o(?:2x1|90v1)_[a-f0-9]{32}$")
+    model: Literal["deepseek-v4-flash", "gpt-image-2"]
 
 
 class ChatInput(BaseModel):
@@ -296,6 +325,7 @@ async def _require_supabase_session(request: Request, call_next):
         }
         or path.startswith("/static/")
         or path.startswith("/api/auth/proxy/")
+        or path.startswith("/api/material/internal/")
     ):
         return await call_next(request)
 
@@ -2674,3 +2704,308 @@ def _validate_material_config(config):
     return normalized.model_dump()
 
 register_material_api(app, lambda: store, _validate_material_config)
+
+
+def _material_worker_bridge(request: Request, job_id: str, lease: str):
+    if not CLOUD_MODE:
+        raise HTTPException(404, "Worker 内部接口不可用")
+    if (
+        os.environ.get("MATERIAL_PIPELINE_ENABLED", "").lower() != "true"
+        or os.environ.get("MATERIAL_WORKER_READY", "").lower() != "true"
+    ):
+        raise HTTPException(503, "大创 Worker 尚未启用")
+    scheme, _, secret = request.headers.get("authorization", "").partition(" ")
+    if scheme.lower() != "bearer" or len(secret.strip()) < 32:
+        raise HTTPException(401, "Worker 凭据无效")
+    try:
+        bridge = MaterialWorkerBridge(secret.strip(), job_id, lease)
+        context = bridge.context()
+    except MaterialWorkerBridgeError as exc:
+        raise HTTPException(exc.status_code, str(exc)) from None
+    return bridge, context
+
+
+def _worker_context_payload(context: dict[str, Any]) -> dict[str, Any]:
+    payload = context.get("payload")
+    if not isinstance(payload, dict) or payload.get("paid") is not True:
+        raise HTTPException(403, "此任务未确认模型调用")
+    return payload
+
+
+def _worker_storage_url(url: str, *, path: str, upload: bool = False) -> str:
+    try:
+        target = urllib.parse.urlsplit(url)
+        origin = urllib.parse.urlsplit(SUPABASE_URL)
+        decoded_path = urllib.parse.unquote(target.path)
+        expected_route = "/storage/v1/object/"
+        if (
+            target.scheme != "https"
+            or (target.scheme, target.netloc) != (origin.scheme, origin.netloc)
+            or target.username
+            or target.password
+            or target.fragment
+            or not target.path.startswith(expected_route)
+            or path not in decoded_path
+            or (upload and "/upload/sign/" not in decoded_path)
+        ):
+            raise ValueError
+        return url
+    except Exception:
+        raise HTTPException(503, "材料存储签名地址无效") from None
+
+
+def _upload_worker_image(url: str, image: bytes) -> None:
+    request = urllib.request.Request(
+        url,
+        data=image,
+        headers={"Content-Type": "image/png"},
+        method="PUT",
+    )
+    try:
+        from proposal.supabase_http import supabase_urlopen
+        with supabase_urlopen(request, timeout=15):
+            pass
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError):
+        raise HTTPException(502, "图片已生成但暂时无法写入项目存储，请重试导出") from None
+
+
+def _worker_openai_endpoint(base_url: str) -> str:
+    endpoint = base_url.rstrip("/")
+    return endpoint if endpoint.endswith("/chat/completions") else endpoint + "/chat/completions"
+
+
+@app.post("/api/material/internal/model")
+def material_worker_model_proxy(payload: MaterialWorkerProxyInput, request: Request):
+    """Relay one active, user-confirmed model call without exporting Vercel secrets."""
+    bridge, context = _material_worker_bridge(request, payload.job_id, payload.lease)
+    if context.get("kind") not in {"section", "outline", "plan"}:
+        raise HTTPException(403, "任务类型不能调用文本模型")
+    body = dict(payload.request_body)
+    if body.get("stream") is True or not isinstance(body.get("messages"), list):
+        raise HTTPException(422, "模型请求格式不支持")
+    try:
+        body_bytes = json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    except (TypeError, ValueError):
+        raise HTTPException(422, "模型请求格式不支持") from None
+    if len(body_bytes) > 4_000_000:
+        raise HTTPException(413, "本轮模型上下文过大，请减少材料后重试")
+
+    job_payload = _worker_context_payload(context)
+    platform = job_payload.get("platform") is True
+    meter = None
+    request_id = ""
+    if platform:
+        if not _platform_bundle_ready(require_ledger=False):
+            raise HTTPException(503, "平台模型通道尚未就绪")
+        model = "deepseek-v4-flash"
+        base_url = os.environ["WOPALLY_MODEL_BASE_URL"].rstrip("/")
+        api_key = os.environ["WOPALLY_WORKBENCH_API_KEY"]
+        api_key_id = int(os.environ["WOPALLY_WORKBENCH_API_KEY_ID"])
+        body["model"] = model
+        body["thinking"] = {"type": "disabled"}
+        try:
+            max_tokens = int(body.get("max_tokens") or 2048)
+        except (TypeError, ValueError):
+            raise HTTPException(422, "模型请求参数无效") from None
+        if max_tokens < 1:
+            raise HTTPException(422, "模型请求参数无效")
+        body["max_tokens"] = min(max_tokens, 2048)
+        meter = WorkbenchMeter(
+            MaterialWorkerMeterStore(bridge), context["owner_id"], api_key_id, context["project_id"]
+        )
+        opener = wopally_urlopen
+    else:
+        ciphertext = job_payload.get("config_ciphertext")
+        if not ciphertext:
+            raise HTTPException(503, "用户模型配置不可用")
+        try:
+            config = LLMConfigInput(**decrypt_config(context["owner_id"], ciphertext))
+            if config.provider != "openai_compatible":
+                raise ValueError
+            candidate = _agent_for_config(config, project_id=context["project_id"])
+        except Exception:
+            raise HTTPException(503, "用户模型配置无法在云端安全读取，请重新保存配置") from None
+        model = candidate.model
+        base_url = candidate.base_url.rstrip("/")
+        api_key = candidate.api_key
+        body["model"] = model
+        opener = safe_urlopen
+        try:
+            bridge.authorize_byok(secrets.token_hex(16), "text")
+        except MaterialWorkerBridgeError as exc:
+            raise HTTPException(
+                409 if exc.status_code == 403 else 503,
+                "BYOK 本轮调用未获授权或已达到任务调用上限",
+            ) from None
+
+    if not isinstance(body.get("messages"), list) or len(body["messages"]) > 200:
+        raise HTTPException(422, "模型消息数量超出限制")
+    upstream = urllib.request.Request(
+        _worker_openai_endpoint(base_url),
+        data=json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+            **({"User-Agent": "StardustWorkbench/settlement-pending"} if meter else {}),
+        },
+        method="POST",
+    )
+    if meter:
+        try:
+            request_id = meter.reserve(model)
+            upstream.add_header("User-Agent", f"StardustWorkbench/{request_id}")
+        except Exception:
+            raise HTTPException(409, "无法预留本次工作台模型额度，请检查余额或稍后重试") from None
+    try:
+        with opener(upstream, timeout=45) as response:
+            raw = response.read(4_000_001)
+            status = getattr(response, "status", 200)
+        if len(raw) > 4_000_000:
+            # A successful provider response may have been billable. Keep the
+            # reservation for reconciliation instead of blindly refunding it.
+            raise HTTPException(502, "模型响应过大，费用状态需核对")
+    except HTTPException:
+        raise
+    except urllib.error.HTTPError:
+        if meter and request_id:
+            try:
+                meter.refund(request_id)
+            except Exception:
+                pass
+        raise HTTPException(502, "模型服务暂时拒绝了本次请求") from None
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+        # A timeout can happen after the provider accepted the request; keep the
+        # hold so the existing reconciliation path can verify its real charge.
+        raise HTTPException(502, "模型请求结果暂未确认，费用正在核对") from None
+
+    try:
+        decoded = json.loads(raw)
+        choices = decoded.get("choices") or []
+        message = (choices[0].get("message") or {}) if choices else {}
+        if not choices or not (
+            (isinstance(message.get("content"), str) and message["content"].strip())
+            or message.get("tool_calls")
+        ):
+            if meter and request_id:
+                try:
+                    meter.refund(request_id)
+                except Exception:
+                    pass
+            raise ValueError
+    except (TypeError, ValueError, IndexError, json.JSONDecodeError):
+        raise HTTPException(502, "模型未返回可用正文，请稍后重试") from None
+
+    headers = {"Cache-Control": "private, no-store"}
+    if meter and request_id:
+        # The Worker immediately calls the separate settlement endpoint after
+        # receiving the deliverable response; this keeps each Vercel request
+        # comfortably inside the Hobby plan's execution window.
+        headers["X-Material-Usage-Request-ID"] = request_id
+    return Response(raw, status_code=status, media_type="application/json", headers=headers)
+
+
+@app.post("/api/material/internal/settle")
+def material_worker_settle_proxy(payload: MaterialWorkerSettleInput, request: Request):
+    bridge, context = _material_worker_bridge(request, payload.job_id, payload.lease)
+    job_payload = _worker_context_payload(context)
+    if job_payload.get("platform") is not True:
+        raise HTTPException(403, "此任务不使用平台额度")
+    if (payload.model == "deepseek-v4-flash" and context.get("kind") not in {"section", "outline", "plan"}
+        or payload.model == "gpt-image-2" and context.get("kind") != "figure"):
+        raise HTTPException(403, "模型与任务类型不匹配")
+    try:
+        meter = WorkbenchMeter(
+            MaterialWorkerMeterStore(bridge),
+            context["owner_id"],
+            int(os.environ["WOPALLY_WORKBENCH_API_KEY_ID"]),
+            context["project_id"],
+        )
+        result = meter.settle(payload.request_id, payload.model)
+    except Exception:
+        # Keep the existing reserved amount; provider usage can be reconciled
+        # later without issuing a second inference request.
+        return {"settled": False, "status": "needs_review"}
+    return {
+        "settled": bool(result and result.get("status") == "settled"),
+        "status": (result or {}).get("status", "pending"),
+    }
+
+
+@app.post("/api/material/internal/image")
+def material_worker_image_proxy(payload: MaterialWorkerImageInput, request: Request):
+    bridge, context = _material_worker_bridge(request, payload.job_id, payload.lease)
+    job_payload = _worker_context_payload(context)
+    spec_data = job_payload.get("spec") or {}
+    if (
+        context.get("kind") != "figure"
+        or not isinstance(spec_data, dict)
+        or spec_data.get("renderer") != "gpt"
+    ):
+        raise HTTPException(403, "此任务未确认 GPT 图片生成")
+    try:
+        spec = FigureSpec.model_validate(spec_data)
+    except Exception:
+        raise HTTPException(422, "图片配置无效") from None
+    expected_path = (
+        f"{context['owner_id']}/{context['project_id']}/_material/{context['id']}-image.png"
+    )
+    image_path = job_payload.get("image_path")
+    if image_path != expected_path:
+        raise HTTPException(403, "图片资产路径与任务不匹配")
+    upload_url = _worker_storage_url(
+        str(job_payload.get("image_upload_url") or ""), path=expected_path, upload=True
+    )
+    download_url = _worker_storage_url(
+        str(job_payload.get("image_download_url") or ""), path=expected_path
+    )
+
+    request_id = ""
+    if job_payload.get("platform") is True:
+        if not _platform_bundle_ready(require_ledger=False):
+            raise HTTPException(503, "平台图片通道尚未就绪")
+        meter = WorkbenchMeter(
+            MaterialWorkerMeterStore(bridge),
+            context["owner_id"],
+            int(os.environ["WOPALLY_WORKBENCH_API_KEY_ID"]),
+            context["project_id"],
+        )
+        try:
+            image, request_id = generate_image_deferred(
+                payload.prompt, meter, request_timeout=35
+            )
+        except ModelUnavailable as exc:
+            raise HTTPException(502, str(exc)) from None
+    else:
+        ciphertext = job_payload.get("config_ciphertext")
+        if not ciphertext:
+            raise HTTPException(503, "用户图片模型配置不可用")
+        try:
+            config = LLMConfigInput(**decrypt_config(context["owner_id"], ciphertext))
+            if config.provider != "openai_compatible":
+                raise ValueError
+            try:
+                bridge.authorize_byok(secrets.token_hex(16), "image")
+            except MaterialWorkerBridgeError as exc:
+                raise HTTPException(
+                    409 if exc.status_code == 403 else 503,
+                    "BYOK 图片调用未获授权或已达到任务调用上限",
+                ) from None
+            reuse = config.image_reuse_text
+            image = generate_custom_image(
+                payload.prompt,
+                config.base_url if reuse else (config.image_base_url or config.base_url),
+                config.image_model or "gpt-image-2",
+                config.api_key if reuse else (config.image_api_key or config.api_key),
+                opener=safe_urlopen,
+                timeout=40,
+            )
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(502, "用户图片模型调用失败，请检查配置后重试") from None
+
+    _upload_worker_image(upload_url, image)
+    return {
+        "download_url": download_url,
+        "request_id": request_id,
+    }

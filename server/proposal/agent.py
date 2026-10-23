@@ -255,7 +255,9 @@ class OllamaAgent:
         attempts = 1 if getattr(self, "single_attempt", False) else 3
         for attempt in range(attempts):
             try:
-                opener = wopally_urlopen if self.platform_transport else getattr(self, "request_opener", urllib.request.urlopen)
+                opener = getattr(self, "request_opener", None)
+                if opener is None:
+                    opener = wopally_urlopen if self.platform_transport else urllib.request.urlopen
                 with opener(request, timeout=timeout) as response:
                     body = json.loads(response.read().decode("utf-8"))
                 break
@@ -468,7 +470,9 @@ class OllamaAgent:
         usage_info: dict[str, Any] = {}
         for attempt in range(3):
             try:
-                opener = wopally_urlopen if self.platform_transport else urllib.request.urlopen
+                opener = getattr(self, "request_opener", None)
+                if opener is None:
+                    opener = wopally_urlopen if self.platform_transport else urllib.request.urlopen
                 with opener(request, timeout=timeout) as response:
                     for line in response:
                         line_str = line.decode("utf-8").strip()
