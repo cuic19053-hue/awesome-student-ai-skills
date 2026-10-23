@@ -51,9 +51,10 @@ def generate_image(prompt: str, meter: WorkbenchMeter) -> bytes:
     return image
 
 
-def generate_custom_image(prompt: str, base_url: str, model: str, api_key: str) -> bytes:
+def generate_custom_image(prompt: str, base_url: str, model: str, api_key: str, *, opener=None) -> bytes:
     """Generate an image using user-supplied OpenAI-compatible image endpoint (0 credits)."""
     endpoint = base_url.rstrip("/") + "/images/generations"
+    open_request = opener or urllib.request.urlopen
     payload: dict[str, Any] = {
         "model": model or "dall-e-3",
         "prompt": prompt[:2000],
@@ -73,7 +74,7 @@ def generate_custom_image(prompt: str, base_url: str, model: str, api_key: str) 
         method="POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=60) as response:
+        with open_request(request, timeout=60) as response:
             body: Any = json.load(response)
     except urllib.error.HTTPError as exc:
         err_msg = ""
@@ -100,7 +101,7 @@ def generate_custom_image(prompt: str, base_url: str, model: str, api_key: str) 
         elif "url" in item and item["url"]:
             img_url = item["url"]
             img_req = urllib.request.Request(img_url, headers={"User-Agent": "StardustWorkbench/1.0"})
-            with urllib.request.urlopen(img_req, timeout=30) as img_resp:
+            with open_request(img_req, timeout=30) as img_resp:
                 image = img_resp.read()
         else:
             raise ValueError("未返回有效图片数据 (缺少 b64_json 或 url)")

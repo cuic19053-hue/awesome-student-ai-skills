@@ -19,6 +19,7 @@ def valid_fact_key(value: str) -> bool:
     reserved = {
         "confirmed_facts", "fact_sources", "references", "official_sources",
         "initial_request", "outline_confirmed", "template_answer", "template_preference",
+        "planned_items", "material_revision", "material",
     }
     return bool(
         re.fullmatch(r"[a-z][a-z0-9_]{1,63}", key)

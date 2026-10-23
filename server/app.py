@@ -27,7 +27,7 @@ SERVER_DIR = Path(__file__).resolve().parent
 STATIC_DIR = SERVER_DIR / "static"
 ASSET_VERSIONS = {
     name: hashlib.sha256((STATIC_DIR / name).read_bytes()).hexdigest()[:16]
-    for name in ("app.js", "app.css")
+    for name in ("app.js", "app.css", "material.js")
 }
 MICRO_CNY_PER_CREDIT = 100_000  # 1 CNY = 10 workbench credits
 if str(ROOT) not in sys.path:
@@ -57,6 +57,7 @@ from proposal.official_pricing import official_v1_charge, official_2x_charge
 from proposal.wopally_transport import wopally_urlopen
 from proposal.tools import ProposalTools
 from proposal.jobs import GenerationJobRunner
+from proposal.materials import MaterialConflict, enabled as material_enabled
 from proposal.skills import normalize_skill_id, registry as skill_registry, valid_fact_key
 from proposal.wopally_client import WopallyCardRejected, WopallyClient, WopallyUnavailable
 
@@ -150,6 +151,8 @@ class OutlineUpdate(BaseModel):
 
 class SectionUpdate(BaseModel):
     content: str = Field(max_length=30000)
+    expected_revision: int | None = None
+    base_content: str | None = Field(default=None, max_length=30000)
 
 
 class CreateJobInput(BaseModel):
@@ -272,6 +275,11 @@ async def require_supabase_session(request: Request, call_next):
         else:
             response.headers["Cache-Control"] = "public, max-age=0, must-revalidate"
     return response
+
+
+@app.exception_handler(MaterialConflict)
+async def material_conflict(request: Request, exc: MaterialConflict):
+    return JSONResponse({"detail": str(exc)}, status_code=409)
 
 
 async def _require_supabase_session(request: Request, call_next):
@@ -835,7 +843,7 @@ def _card_redemption_enabled() -> bool:
     return required and os.environ.get("WORKBENCH_LOCAL_CARD_REDEMPTION", "").lower() == "true"
 
 
-def _platform_bundle_ready() -> bool:
+def _platform_bundle_ready(*, require_ledger: bool = True) -> bool:
     # Explicit operator gate: a credential alone never opens paid inference.
     url = urllib.parse.urlparse(os.environ.get("WOPALLY_MODEL_BASE_URL", ""))
     key_id = os.environ.get("WOPALLY_WORKBENCH_API_KEY_ID", "")
@@ -850,7 +858,7 @@ def _platform_bundle_ready() -> bool:
         )
         and key_id.isdigit() and int(key_id) > 0
         and url.scheme == "https" and bool(url.hostname)
-        and (not CLOUD_MODE or bool(
+        and (not require_ledger or not CLOUD_MODE or bool(
             os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
             or os.environ.get("WORKBENCH_BACKEND_SECRET", "").strip()
         ))
@@ -1432,7 +1440,7 @@ def get_project(project_id: str) -> dict[str, Any]:
     project = _safe_project(project_id)
     raw_docs = store.list_documents(project_id)
     for d in raw_docs:
-        if not d.get("confirmed") and d.get("extracted_text", "").strip() and d.get("kind") != "template":
+        if not material_enabled(project) and not d.get("confirmed") and d.get("extracted_text", "").strip() and d.get("kind") != "template":
             try:
                 store.update_document_extraction(
                     d["id"],
@@ -1502,7 +1510,8 @@ async def upload_documents(
         try:
             extraction = _extract_uploaded_document(name, content, kind)
             # 自动确认并入库建立检索索引，无需用户手动确认
-            confirmed = True if kind == "template" else bool(extraction.text.strip())
+            confirmed = True if kind == "template" else (
+                bool(extraction.text.strip()) and not material_enabled(_safe_project(project_id)))
             store.update_document_extraction(
                 document_id,
                 extraction.text,
@@ -1680,7 +1689,8 @@ def _process_cloud_document(document: dict[str, Any]) -> dict[str, Any]:
         file_bytes = path.read_bytes()
         extraction = _extract_uploaded_document(document["original_name"], file_bytes, document["kind"])
         # 自动确认并入库建立检索索引，无需用户手动确认
-        confirmed = True if document["kind"] == "template" else bool(extraction.text.strip())
+        confirmed = True if document["kind"] == "template" else (
+            bool(extraction.text.strip()) and not material_enabled(_safe_project(project_id)))
         store.update_document_extraction(
             document["id"],
             extraction.text,
@@ -2039,7 +2049,7 @@ def create_section_job(
     def _run():
         return _metered_invoke(
             cfg, request, f"section:{section_id}", project_id,
-            lambda model: model.generate_section(project_id, section_id),
+            lambda model: model.generate_section(project_id, section_id, persist=False),
         )
 
     runner = _current_job_runner()
@@ -2067,6 +2077,9 @@ def get_section_job(project_id: str, section_id: str, job_id: str) -> dict[str, 
 def cancel_section_job(project_id: str, section_id: str, job_id: str) -> dict[str, Any]:
     _safe_project(project_id)
     runner = _current_job_runner()
+    job = runner.get_job_status(job_id)
+    if not job or job.get("project_id") != project_id or job.get("section_id") != section_id:
+        raise HTTPException(404, "任务不存在")
     cancelled = runner.cancel_job(job_id)
     return {"cancelled": cancelled}
 
@@ -2094,8 +2107,23 @@ def restore_section_version(project_id: str, section_id: str, version_id: str) -
 def generate_section(
     project_id: str, section_id: str, payload: LLMRequest | None = None, request: Request = None
 ) -> dict[str, Any]:
-    _safe_project(project_id)
+    project = _safe_project(project_id)
     try:
+        if material_enabled(project):
+            result = _metered_invoke(
+                payload.llm_config if payload else None, request, f"section:{section_id}", project_id,
+                lambda model: model.generate_section(project_id, section_id, persist=False))
+            try:
+                store.update_project(project_id, expected_revision=project["material_revision"],
+                    sections={**project["sections"], section_id: result["content"]})
+                source = "ai_generated"
+            except MaterialConflict:
+                source = "ai_generated_alternative"
+                result.update(conflict_status="user_edit_preserved",
+                              notice="项目在生成期间发生变化，正文未覆盖，结果已存为备选版本")
+            store.save_section_version(project_id, section_id, result["content"],
+                                       source=source, review_card=result.get("review_card"))
+            return result
         return _metered_invoke(
             payload.llm_config if payload else None, request, f"section:{section_id}", project_id,
             lambda model: model.generate_section(project_id, section_id),
@@ -2139,7 +2167,16 @@ def update_outline(project_id: str, payload: OutlineUpdate) -> dict[str, Any]:
 
 @app.put("/api/projects/{project_id}/sections/{section_id}")
 def update_section(project_id: str, section_id: str, payload: SectionUpdate) -> dict[str, Any]:
-    _safe_project(project_id)
+    project = _safe_project(project_id)
+    if material_enabled(project) and payload.expected_revision is not None:
+        if payload.base_content is not None and project["sections"].get(section_id, "") != payload.base_content:
+            raise HTTPException(409, "该章节已在其他页面修改，请核对版本，未覆盖您的输入")
+        if section_id not in {s["id"] for s in project["outline"]}:
+            raise HTTPException(422, "章节不存在")
+        updated = store.update_project(project_id, expected_revision=payload.expected_revision,
+            sections={**project["sections"], section_id: payload.content})
+        return {"success": True, "section_id": section_id, "character_count": len(payload.content),
+                "material_revision": updated["material_revision"]}
     result = tools.save_section(project_id, section_id, payload.content)
     if result.get("error"):
         raise HTTPException(status_code=400, detail=result["error"])
@@ -2628,3 +2665,12 @@ def get_project_token_stats(project_id: str) -> dict[str, Any]:
 @app.get("/api/token-stats")
 def get_global_token_stats() -> dict[str, Any]:
     return {"stats": store.get_token_stats()}
+
+
+from proposal.material_api import register_material_api
+def _validate_material_config(config):
+    normalized = LLMConfigInput(**config)
+    _agent_for_config(normalized)
+    return normalized.model_dump()
+
+register_material_api(app, lambda: store, _validate_material_config)

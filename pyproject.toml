@@ -13,6 +13,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+worker = [
+    "playwright==1.55.0",
+    "PyMuPDF>=1.24,<2",
+    "Pillow>=11,<13",
+    "matplotlib>=3.7,<4",
+    "pypdfium2>=4.30,<6",
+]
 server = [
     "uvicorn[standard]>=0.30",
     "pypdfium2>=4.30",

@@ -263,7 +263,8 @@ class SupabaseStore:
         result["outline"] = self._json(result.pop("outline_json", None), [])
         result["sections"] = self._json(result.pop("sections_json", None), {})
         result["diagrams"] = self._json(result.pop("diagrams_json", None), [])
-        return result
+        from .materials import attach_material
+        return attach_material(result)
 
     def _document_row(self, row: dict[str, Any], download: bool = False) -> dict[str, Any]:
         result = dict(row)
@@ -311,6 +312,23 @@ class SupabaseStore:
         return self._project_row(rows[0]) if rows else None
 
     def update_project(self, project_id: str, **fields: Any) -> dict[str, Any] | None:
+        from .materials import MaterialConflict, enabled, prepare_update
+        expected = fields.pop("expected_revision", None)
+        if os.environ.get("MATERIAL_PIPELINE_ENABLED", "").lower() == "true" or expected is not None:
+            previous = self.get_project(project_id)
+            if not previous:
+                return None
+            if enabled(previous):
+                revision = previous.get("material_revision", 0)
+                if expected is not None and expected != revision:
+                    raise MaterialConflict("项目已变化，请刷新后重试")
+                result = self._rest("rpc/material_patch", "POST", payload={
+                    "p_project_id": project_id, "p_revision": revision,
+                    "p_fields": prepare_update(previous, fields),
+                })
+                if result and result.get("conflict"):
+                    raise MaterialConflict("项目已变化，请刷新后重试")
+                return self._project_row(result) if result else None
         allowed = {
             "title", "level", "discipline", "school", "state", "outline",
             "sections", "diagrams", "template_document_id",
@@ -496,6 +514,11 @@ class SupabaseStore:
                 "confirmed": confirmed,
             },
         )
+        from .materials import touch_document
+        if os.environ.get("MATERIAL_PIPELINE_ENABLED", "").lower() == "true":
+            document = self.get_document(document_id, download=False)
+            if document:
+                touch_document(self, document)
 
     def set_template_document(self, project_id: str, document_id: str | None) -> None:
         self.update_project(project_id, template_document_id=document_id)
@@ -589,6 +612,8 @@ class SupabaseStore:
         self._rest("documents", "DELETE", params=[("id", f"eq.{document_id}")])
         folder = self.files_dir / document["project_id"]
         (folder / Path(document["stored_path"]).name).unlink(missing_ok=True)
+        from .materials import touch_document
+        touch_document(self, document, deleted=True)
         return document
 
     def delete_project(self, project_id: str) -> bool:
@@ -597,6 +622,19 @@ class SupabaseStore:
             return False
         documents = self.list_documents(project_id, download=False)
         storage_paths = [doc["storage_path"] for doc in documents]
+        if "_material_tracking" in project.get("state", {}):
+            offset = 0
+            while True:
+                rows = self._rest("material_jobs", params={
+                    "project_id": f"eq.{project_id}", "select": "payload",
+                    "limit": "500", "offset": str(offset),
+                })
+                prefix = f"{self._identity()['user_id']}/{project_id}/_material/"
+                storage_paths.extend(row["payload"]["output_path"] for row in rows
+                    if str(row["payload"].get("output_path", "")).startswith(prefix))
+                if len(rows) < 500:
+                    break
+                offset += 500
         storage_paths.extend(
             [
                 value.removeprefix("storage://")
@@ -947,10 +985,27 @@ class SupabaseStore:
         return self._job_store.cancel_generation_job(job_id)
 
     def save_section_version(self, project_id: str, section_id: str, content: str, source: str = "user_edit", review_card: dict[str, Any] | None = None) -> dict[str, Any]:
+        from .materials import enabled
+        if os.environ.get("MATERIAL_PIPELINE_ENABLED", "").lower() == "true" and enabled(self.get_project(project_id) or {}):
+            rows = self._rest("material_revisions", "POST", payload={
+                "project_id": project_id, "section_id": section_id,
+                "content": content, "source": source, "review_card": review_card,
+            })
+            return rows[0]
         return self._job_store.save_section_version(project_id, section_id, content, source, review_card)
 
     def list_section_versions(self, project_id: str, section_id: str, limit: int = 10) -> list[dict[str, Any]]:
+        from .materials import enabled
+        if os.environ.get("MATERIAL_PIPELINE_ENABLED", "").lower() == "true" and enabled(self.get_project(project_id) or {}):
+            return self._rest("material_revisions", params={
+                "project_id": f"eq.{project_id}", "section_id": f"eq.{section_id}",
+                "order": "id.desc", "limit": str(max(1, min(limit, 100))),
+            })
         return self._job_store.list_section_versions(project_id, section_id, limit)
 
     def get_section_version(self, version_id: str) -> dict[str, Any] | None:
+        if os.environ.get("MATERIAL_PIPELINE_ENABLED", "").lower() == "true":
+            if str(version_id).isdigit():
+                rows = self._rest("material_revisions", params={"id": f"eq.{version_id}", "limit": "1"})
+                return rows[0] if rows else None
         return self._job_store.get_section_version(version_id)

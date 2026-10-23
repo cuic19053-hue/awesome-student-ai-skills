@@ -310,6 +310,10 @@ class Store:
                 (TRIAL_REGISTRATION_CUTOFF,),
             )
 
+        with self.connect() as db:
+            if "material_revision" not in {r["name"] for r in db.execute("PRAGMA table_info(projects)")}:
+                db.execute("ALTER TABLE projects ADD COLUMN material_revision INTEGER NOT NULL DEFAULT 0")
+
     @staticmethod
     def _decode_json(value: str, fallback: Any) -> Any:
         try:
@@ -359,26 +363,35 @@ class Store:
             ("diagrams_json", []),
         ):
             result[field.removesuffix("_json")] = self._decode_json(result.pop(field), fallback)
-        return result
+        from .materials import attach_material
+        return attach_material(result)
 
     def update_project(self, project_id: str, **fields: Any) -> dict[str, Any] | None:
-        allowed = {"title", "level", "discipline", "school", "state", "outline", "sections", "diagrams"}
-        updates: list[str] = []
-        values: list[Any] = []
-        for key, value in fields.items():
-            if key not in allowed:
-                continue
-            column = f"{key}_json" if key in {"state", "outline", "sections", "diagrams"} else key
-            updates.append(f"{column}=?")
-            values.append(json.dumps(value, ensure_ascii=False) if column.endswith("_json") else value)
-        if not updates:
-            return self.get_project(project_id)
-        updates.append("updated_at=?")
-        values.extend([utc_now(), project_id])
+        from .materials import MaterialConflict, enabled, prepare_update
+        expected = fields.pop("expected_revision", None)
         with self.connect() as db:
-            cur = db.execute(f"UPDATE projects SET {','.join(updates)} WHERE id=?", values)
-            if not cur.rowcount:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT * FROM projects WHERE id=?", (project_id,)).fetchone()
+            if not row:
                 return None
+            previous = self._project_row(row)
+            if expected is not None and previous["material_revision"] != expected:
+                raise MaterialConflict("项目已变化，请刷新后重试")
+            if enabled(previous) or enabled({**previous, **fields}):
+                fields = prepare_update(previous, fields)
+            allowed = {"title", "level", "discipline", "school", "state", "outline", "sections",
+                       "diagrams", "template_document_id"}
+            fields = {k: v for k, v in fields.items() if k in allowed}
+            if fields:
+                updates, values = [], []
+                for key, value in fields.items():
+                    column = f"{key}_json" if key in {"state", "outline", "sections", "diagrams"} else key
+                    updates.append(f"{column}=?")
+                    values.append(json.dumps(value, ensure_ascii=False) if column.endswith("_json") else value)
+                db.execute(
+                    f"UPDATE projects SET {','.join(updates)}, material_revision=material_revision+1, updated_at=? WHERE id=?",
+                    [*values, utc_now(), project_id],
+                )
         return self.get_project(project_id)
 
     def add_document(
@@ -429,13 +442,13 @@ class Store:
                 extraction_warning=?, low_confidence_count=?, confirmed=? WHERE id=?""",
                 (text, status, warning, low_confidence_count, int(confirmed), document_id),
             )
+        from .materials import touch_document
+        document = self.get_document(document_id)
+        if document:
+            touch_document(self, document)
 
     def set_template_document(self, project_id: str, document_id: str | None) -> None:
-        with self.connect() as db:
-            db.execute(
-                "UPDATE projects SET template_document_id=?, updated_at=? WHERE id=?",
-                (document_id, utc_now(), project_id),
-            )
+        self.update_project(project_id, template_document_id=document_id)
 
     def replace_chunks(self, document_id: str, chunks: list[dict[str, Any]]) -> None:
         with self.connect() as db:
@@ -505,6 +518,8 @@ class Store:
                 "UPDATE projects SET updated_at=? WHERE id=?",
                 (utc_now(), doc["project_id"]),
             )
+        from .materials import touch_document
+        touch_document(self, doc, deleted=True)
         return doc
 
     def delete_project(self, project_id: str) -> bool:
@@ -513,12 +528,12 @@ class Store:
             if not row:
                 return False
             db.execute("DELETE FROM projects WHERE id=?", (project_id,))
+            db.execute("DELETE FROM section_versions WHERE project_id=?", (project_id,))
+            db.execute("DELETE FROM generation_jobs WHERE project_id=?", (project_id,))
         folder = self.files_dir / project_id
         if folder.exists():
-            for path in folder.iterdir():
-                if path.is_file():
-                    path.unlink()
-            folder.rmdir()
+            import shutil
+            shutil.rmtree(folder)
         return True
 
     def record_token_usage(
