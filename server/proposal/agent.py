@@ -1157,13 +1157,25 @@ class OllamaAgent:
 
         from .workflow import AgenticWorkflowEngine, ProjectBlackboard
 
-        from .materials import context_values, requirement_prompt
-        facts, plans = context_values(project)
-        blackboard = ProjectBlackboard(
-            project_name=state.get("project_name") or project["title"],
-            confirmed_facts={k: str(v) for k, v in facts.items()},
-            planned_items={k: str(v) for k, v in plans.items()},
-        )
+        from .materials import context_values, enabled as material_enabled, requirement_prompt
+        pilot_enabled = material_enabled(project)
+        if pilot_enabled:
+            facts, plans = context_values(project)
+            blackboard = ProjectBlackboard(
+                project_name=state.get("project_name") or project["title"],
+                confirmed_facts={k: str(v) for k, v in facts.items()},
+                planned_items={k: str(v) for k, v in plans.items()},
+            )
+        else:
+            # Preserve the previous context contract for every non-pilot skill.
+            blackboard = ProjectBlackboard(
+                project_name=state.get("project_name") or project["title"],
+                problem_statement=state.get("problem", ""),
+                scientific_challenge=state.get("goal", ""),
+                technical_approach=state.get("method", ""),
+                quantitative_targets=state.get("expected_output", ""),
+                team_and_advisor=f"指导教师: {state.get('advisor_name', '待补充')}, 负责人: {state.get('leader_name', '待补充')}",
+            )
         for outline_item in project.get("outline", []):
             oid = outline_item.get("id")
             otitle = outline_item.get("title", "")
@@ -1202,6 +1214,7 @@ class OllamaAgent:
             critic_caller=critic_caller,
             max_retries=2,
             pass_threshold=80.0,
+            extended_grounding=pilot_enabled,
         )
         workflow_res = engine.run_workflow(
             project_context=state,

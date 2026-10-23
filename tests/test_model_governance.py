@@ -11,7 +11,7 @@ from server.proposal.workflow import ContextBudgeter
 
 
 def test_context_budgeter_allocation_bounds():
-    budgeter = ContextBudgeter(max_context_chars=4000)
+    budgeter = ContextBudgeter(max_context_chars=4000, extended_grounding=True)
     huge_bb = "x" * 5000
     huge_guidance = "y" * 6000
     huge_evidence = [{"text": "z" * 1000} for _ in range(10)]
