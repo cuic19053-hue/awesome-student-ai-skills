@@ -132,7 +132,20 @@ def run(argv=None, *, keys=None, api_factory=API, home=HOME):
     args = parser.parse_args(argv)
     home = private_path(home)
     config_path = home / "config.json"
-    keys = keys or Keychain()
+    state_path = home / "state.json"
+    state = {}
+    if args.command == "scheduled-run":
+        state = json.loads(state_path.read_text()) if state_path.exists() else {}
+        if state.get("last_success_slot", "") >= daily_slot(utcnow()):
+            return 0  # Do not even access Keychain/network after today's successful run.
+    try:
+        keys = keys or Keychain()
+    except Exception as exc:
+        code = str(exc) if isinstance(exc, OpsError) else "KEYCHAIN_UNAVAILABLE"
+        if args.command == "scheduled-run":
+            atomic_write(state_path, canonical_state({**state, "last_error_at": utcnow().isoformat(),
+                                                     "status": "failed", "error_code": code}))
+        raise OpsError(code) from None
     if args.command == "init":
         directory = private_path(args.archive_dir)
         if config_path.exists():
@@ -183,8 +196,8 @@ def run(argv=None, *, keys=None, api_factory=API, home=HOME):
     api = None
     def connect():
         return api_factory(config["endpoint"], keys.get("read_capability"))
-    state_path = home / "state.json"
-    state = json.loads(state_path.read_text()) if state_path.exists() else {}
+    if args.command != "scheduled-run":
+        state = json.loads(state_path.read_text()) if state_path.exists() else {}
     if args.command == "scheduled-run":
         slot = daily_slot(utcnow())
         if state.get("last_success_slot", "") >= slot:

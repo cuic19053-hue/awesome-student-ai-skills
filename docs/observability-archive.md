@@ -43,7 +43,8 @@
 
 容量：300 MB 预警（`archive status`），400 MB 停止普通 info 事件，
 450 MB 停止全部入库，回退平台脱敏日志并明确缺口。
-事件表另有 150 MB 安全预算。不强删未归档记录，不自动升级套餐。
+生产启用时将事件表预算统一设为 400 MB，不提前停止普通成功事件。
+不强删未归档记录，不自动升级套餐。
 文件库容量和数据库容量是不同指标；状态命令报告当前数据库及事件表字节数。
 
 ## 运维命令
@@ -85,7 +86,9 @@ OPS="$HOME/Library/Application Support/StardustOps/stardust-ops"
 
 归档目录固定默认为 `$HOME/Private/stardust-log-archive/`，目录 0700、文件 0600。
 禁止配置到 Git 工作区内或经符号链接跳转。密钥和 ops 能力保存在登录钥匙串，
-客户端版本锁定为 keyring 25.7.0，非 macOS 后端一律拒绝；锁定时停机，绝不落明文。
+客户端版本锁定为 keyring 25.7.0，非 macOS 后端一律拒绝。
+该版本忽略 keychain 路径参数，因此程序核验实际默认钥匙串为 login，并在每次读写前
+通过系统 Security API 检查解锁状态；禁止弹出交互解锁窗口，锁定时立即停机，绝不落明文。
 
 ```sh
 "$OPS" key backup /单独安全介质/stardust-recovery.skey
@@ -109,7 +112,9 @@ OPS="$HOME/Library/Application Support/StardustOps/stardust-ops"
 3. 部署 Vercel（stardust-agent / sin1）、独立受控 Linux Worker 和上传代理。
    Worker 镜像构建传 `--build-arg APP_VERSION=完整提交SHA`。
    未定位和验证 Worker 主机前不猜测部署目标，不部署到旧电脑。
-4. 分阶段启用数据库 config.enabled、Vercel/Worker `OBSERVABILITY_ENABLED=true`、
+4. 分阶段启用数据库配置
+   `update observability.config set enabled=true,event_budget_bytes=400000000 where singleton;`、
+   Vercel/Worker `OBSERVABILITY_ENABLED=true`、
    上传代理 `BUSINESS_LOGS_ENABLED=true`；通过合成账号验证日志，不额外调用付费模型。
 5. 在 Mac 执行安装脚本（初次用已有 Python+cryptography 环境运行）：
 
