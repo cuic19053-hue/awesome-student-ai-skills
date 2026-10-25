@@ -138,7 +138,7 @@
   // Lightweight safe Markdown renderer for Stardust Agent message bubbles
   function renderMarkdownSafe(text) {
     if (!text) return "";
-    let escaped = text
+    let escaped = text.replace(/<\/?WritingBlock\b[^<>]*>/gi, "")
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
@@ -889,6 +889,7 @@
     const subscription = state.authClient.auth.onAuthStateChange((event, session) => {
       if (state.authSession?.user?.id && session?.user?.id
           && state.authSession.user.id !== session.user.id) {
+        clearExportArtifacts();
         modelConfigRevision++;
         state.appStarted = false;
         state.llmConfig = { provider: "preset", model: "workbench-bundle", api_key: "", base_url: "" };
@@ -903,6 +904,7 @@
         state.balanceRequestSeq++;
         if ($("#userCreditsValue")) $("#userCreditsValue").textContent = "—";
         if ($("#rechargeModalCredits")) $("#rechargeModalCredits").textContent = "—";
+        clearExportArtifacts();
         state.project = null;
         state.messages = [];
         state.documents = [];
@@ -1066,6 +1068,7 @@
           await api(`/api/projects/${project.id}`, { method: "DELETE" });
           if (state.project?.id === project.id) {
             showWelcomeView();
+            clearExportArtifacts();
             state.project = null;
           }
           await refreshProjects($("#projectSearchInput")?.value || "");
@@ -1129,7 +1132,10 @@
   async function loadProject(projectId) {
     try {
       const project = await api(`/api/projects/${projectId}`);
-      if (state.project?.id !== projectId) $("#uploadResult").classList.add("hidden");
+      if (state.project?.id !== projectId) {
+        $("#uploadResult").classList.add("hidden");
+        clearExportArtifacts();
+      }
       state.project = project;
       try { localStorage.setItem(activeProjectKey, projectId); } catch {}
       state.documents = project.documents || [];
@@ -3553,12 +3559,135 @@
     }
   }
 
-  async function exportDoc() {
-    if (window.MaterialPilot?.active()) {
-      try { await window.MaterialPilot.exportDocument(); }
-      catch (error) { toast(error.message, true); }
-      return;
+  let exportDownloadUrl = null;
+  let exportInProgress = false;
+
+  function clearExportArtifacts() {
+    if (exportDownloadUrl) URL.revokeObjectURL(exportDownloadUrl);
+    exportDownloadUrl = null;
+    $("#exportResult")?.replaceChildren();
+    $("#chatDraftDialog")?.close();
+    $("#chatDraftItems")?.replaceChildren();
+    const save = $("#confirmChatDraftsBtn");
+    if (save) save.onclick = null;
+  }
+
+  async function flushDraftEdits() {
+    const projectId = state.project?.id;
+    if (!projectId) throw new Error("请先打开项目");
+    const edits = [...document.querySelectorAll(".draft-section textarea")].map(area => {
+      const sid = area.closest(".draft-section").id.slice("draft-sec-".length);
+      const base = state.project.sections?.[sid] || "";
+      return { area, sid, base, content: area.value };
+    }).filter(edit => edit.content !== edit.base);
+    if (!edits.length) return;
+    const latest = await api(`/api/projects/${projectId}`);
+    if (state.project?.id !== projectId) throw new Error("项目已切换，请重新操作");
+    for (const edit of edits) {
+      if (!latest.outline?.some(s => s.id === edit.sid) ||
+          (latest.sections?.[edit.sid] || "") !== edit.base)
+        throw new Error("章节已在其他页面变化，未覆盖您的编辑，请先核对版本");
     }
+    state.project.material_revision = latest.material_revision;
+    for (const { area, sid, base, content } of edits) {
+      const saved = await api(`/api/projects/${projectId}/sections/${sid}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content, base_content: base,
+          expected_revision: state.project.material_revision }),
+      });
+      if (state.project?.id !== projectId) throw new Error("项目已切换，请在当前项目重新操作");
+      state.project.sections ||= {};
+      state.project.sections[sid] = content;
+      if (saved.material_revision !== undefined) state.project.material_revision = saved.material_revision;
+      if (area.value !== content) throw new Error("保存期间正文又有修改，请保存最新版本后再导出");
+    }
+  }
+
+  async function showChatDrafts(preview = null, afterSave = null) {
+    const projectId = state.project?.id;
+    if (!projectId) return;
+    await flushDraftEdits();
+    preview ||= await api(`/api/projects/${projectId}/chat-drafts`);
+    if (state.project?.id !== projectId) return;
+    const dialog = $("#chatDraftDialog");
+    const root = $("#chatDraftItems");
+    const save = $("#confirmChatDraftsBtn");
+    root.replaceChildren();
+    $("#chatDraftNotice").textContent = preview.notice;
+    const choices = [];
+    for (const item of preview.items) {
+      const row = document.createElement("section");
+      row.className = "chat-draft-item";
+      const label = document.createElement("label");
+      const check = document.createElement("input");
+      check.type = "checkbox";
+      check.checked = !item.already_saved && !item.conflict;
+      check.disabled = item.already_saved || item.conflict;
+      const title = document.createElement("strong");
+      title.textContent = item.title;
+      label.append(check, title);
+      const note = document.createElement("p");
+      note.textContent = item.already_saved ? "已保存过此版本，保留当前章节及手动修改。"
+        : item.conflict ? "已有不同正文，不会覆盖。请在章节编辑器中手动核对合并。"
+        : "请核对内容、事实和预算建议；勾选后才会保存。";
+      if (item.warnings?.length) note.textContent += ` ${item.warnings.join(" ")}`;
+      const editor = document.createElement("textarea");
+      editor.value = item.content;
+      editor.readOnly = check.disabled;
+      row.append(label, note, editor);
+      root.append(row);
+      choices.push({ item, check, editor });
+    }
+    if (!choices.length) {
+      const note = document.createElement("p");
+      note.textContent = "尚未发现完整的章节草稿。请先在对话中起草，或在章节编辑器中保存正文。";
+      root.append(note);
+    }
+    save.textContent = afterSave ? "确认保存并继续导出" : "确认保存所选章节";
+    save.disabled = !choices.some(c => !c.check.disabled);
+    save.onclick = async () => {
+      if (state.project?.id !== projectId) return;
+      const items = choices.filter(c => c.check.checked && !c.check.disabled)
+        .map(c => ({ id: c.item.id, content: c.editor.value }));
+      if (!items.length) { toast("请至少选择一个待保存章节", true); return; }
+      save.disabled = true;
+      try {
+        const result = await api(`/api/projects/${projectId}/chat-drafts/confirm`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ snapshot: preview.snapshot, items }),
+        });
+        if (state.project?.id !== projectId) return;
+        await loadProject(projectId);
+        dialog.close();
+        root.replaceChildren();
+        save.onclick = null;
+        toast(result.notice);
+        if (afterSave) await afterSave();
+      } catch (error) {
+        $("#chatDraftNotice").textContent = error.message;
+        toast(error.message, true);
+      } finally { save.disabled = false; }
+    };
+    if (!dialog.open) dialog.showModal();
+  }
+
+  async function fetchExportBlob(url, projectId) {
+    if (url !== `/api/projects/${encodeURIComponent(projectId)}/download`)
+      throw new Error("下载地址不属于当前项目");
+    const headers = {};
+    if (state.authSession?.access_token) headers.Authorization = `Bearer ${state.authSession.access_token}`;
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || "Word 文件下载失败，请检查登录状态");
+    }
+    return response.blob();
+  }
+
+  async function exportDoc() {
+    if (exportInProgress || !state.project) return;
+    exportInProgress = true;
+    const projectId = state.project.id;
     const btn = $("#exportBtn");
     const topBtn = $("#quickExportTopBtn");
     const headingBtn = $("#headingExportBtn");
@@ -3570,19 +3699,44 @@
       }
     });
     try {
-      const result = await api(`/api/projects/${state.project.id}/export`, { method: "POST" });
+      await flushDraftEdits();
+      const preview = await api(`/api/projects/${projectId}/chat-drafts`);
+      if (state.project?.id !== projectId) return;
+      if (preview.items.some(item => !item.already_saved && !item.conflict)) {
+        await showChatDrafts(preview, exportDoc);
+        return;
+      }
+      const hasContent = (state.project.outline || state.outline || [])
+        .some(s => (state.project.sections?.[s.id] || "").trim());
+      let allowEmpty = false;
+      if (!hasContent) {
+        allowEmpty = confirm("尚无已保存的正文。是否仅导出空白/待补充草稿？这不会包含聊天里未保存的内容。");
+        if (!allowEmpty) return;
+      }
+      if (window.MaterialPilot?.active()) {
+        await window.MaterialPilot.exportDocument({ allow_empty_draft: allowEmpty });
+        return;
+      }
+      const result = await api(`/api/projects/${projectId}/export`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ allow_empty_draft: allowEmpty }),
+      });
+      const blob = await fetchExportBlob(result.download_url, projectId);
+      if (state.project?.id !== projectId) return;
+      if (exportDownloadUrl) URL.revokeObjectURL(exportDownloadUrl);
+      exportDownloadUrl = URL.createObjectURL(blob);
       $("#exportResult").replaceChildren();
       const text = document.createElement("span");
       text.textContent = result.warnings?.length ? `已生成草稿。${result.warnings.join(" ")}` : "Word 草稿已生成。";
       const link = document.createElement("a");
-      link.href = result.download_url;
+      link.href = exportDownloadUrl;
       link.textContent = "下载 Word 申报书";
       link.download = `${state.project?.state?.skill_name || "申报材料"}草稿.docx`;
       $("#exportResult").append(text, link);
 
       // 自动触发浏览器安全下载
       const autoDownload = document.createElement("a");
-      autoDownload.href = result.download_url;
+      autoDownload.href = exportDownloadUrl;
       autoDownload.download = link.download;
       document.body.appendChild(autoDownload);
       autoDownload.click();
@@ -3595,6 +3749,7 @@
         openRechargeDialog();
       }
     } finally {
+      exportInProgress = false;
       if (btn) {
         btn.disabled = false;
         btn.innerHTML = '生成并下载 Word 申报书 <span>↓</span>';
@@ -3614,6 +3769,7 @@
     if (!state.project || !confirm(`确定删除“${state.project.title}”及其本机材料吗？删除后无法恢复。`)) return;
     try {
       await api(`/api/projects/${state.project.id}`, { method: "DELETE" });
+      clearExportArtifacts();
       state.project = null;
       await refreshProjects();
       $("#workspace").classList.add("hidden");
@@ -3742,6 +3898,10 @@
     $("#homeBreadcrumbBtn")?.addEventListener("click", showWelcomeView);
     $("#quickExportTopBtn")?.addEventListener("click", exportDoc);
     $("#headingExportBtn")?.addEventListener("click", exportDoc);
+    $("#recoverChatDraftsBtn")?.addEventListener("click", () => {
+      showChatDrafts().catch(error => toast(error.message, true));
+    });
+    $("#closeChatDraftsBtn")?.addEventListener("click", () => $("#chatDraftDialog").close());
     $("#renameProjectBtn")?.addEventListener("click", renameCurrentProject);
     $("#projectHeading")?.addEventListener("click", renameCurrentProject);
     $("#closeCreateBtn").addEventListener("click", () => {

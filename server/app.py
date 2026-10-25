@@ -40,6 +40,7 @@ if str(SERVER_DIR) not in sys.path:
 from proposal.agent import ModelUnavailable, OllamaAgent
 from proposal.documents import ALLOWED_EXTENSIONS, MAX_UPLOAD_BYTES, Extraction, extract_file
 from proposal.exporter import export_project
+from proposal.chat_drafts import register_chat_drafts, require_export_content
 from proposal.credit_security import (
     CreditSecurityConfigError,
     card_code_digest,
@@ -182,6 +183,10 @@ class SectionUpdate(BaseModel):
     content: str = Field(max_length=30000)
     expected_revision: int | None = None
     base_content: str | None = Field(default=None, max_length=30000)
+
+
+class ExportInput(BaseModel):
+    allow_empty_draft: bool = False
 
 
 class CreateJobInput(BaseModel):
@@ -726,7 +731,7 @@ def delete_user_model_config():
 
 # 发版标记：凡涉及排版/导出行为的改动 +1。部署后用 /api/ping 核对，
 # 不依赖任何环境变量——CLI 直接部署时 Vercel 不会注入 commit sha。
-LAYOUT_REV = 1
+LAYOUT_REV = 2
 
 
 @app.get("/api/ping")
@@ -2198,7 +2203,7 @@ def update_outline(project_id: str, payload: OutlineUpdate) -> dict[str, Any]:
 @app.put("/api/projects/{project_id}/sections/{section_id}")
 def update_section(project_id: str, section_id: str, payload: SectionUpdate) -> dict[str, Any]:
     project = _safe_project(project_id)
-    if material_enabled(project) and payload.expected_revision is not None:
+    if payload.expected_revision is not None:
         if payload.base_content is not None and project["sections"].get(section_id, "") != payload.base_content:
             raise HTTPException(409, "该章节已在其他页面修改，请核对版本，未覆盖您的输入")
         if section_id not in {s["id"] for s in project["outline"]}:
@@ -2567,8 +2572,12 @@ def simulate_review(project_id: str) -> dict[str, Any]:
 
 
 @app.post("/api/projects/{project_id}/export")
-def export_docx(project_id: str) -> dict[str, Any]:
-    _safe_project(project_id)
+def export_docx(project_id: str, payload: ExportInput | None = None) -> dict[str, Any]:
+    project = _safe_project(project_id)
+    try:
+        require_export_content(project, bool(payload and payload.allow_empty_draft))
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
     preflight = tools.validate_project(project_id)
     output_path = store.files_dir / project_id / "申报书草稿.docx"
     try:
@@ -2704,6 +2713,7 @@ def _validate_material_config(config):
     return normalized.model_dump()
 
 register_material_api(app, lambda: store, _validate_material_config)
+register_chat_drafts(app, lambda: store)
 
 
 def _material_worker_bridge(request: Request, job_id: str, lease: str):

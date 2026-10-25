@@ -284,13 +284,14 @@
     }, box);
     parent.append(box);
   }
-  async function submit(kind, target, paid) {
+  async function submit(kind, target, paid, extra = {}) {
     if (paid && !confirm((kind === "section" ? "本章沿用现有撰写与评审流程，最多六次模型请求。" :
         kind === "figure" ? "本次生成一张图片。" : "本次调用一次文字模型拟定候选方案。") +
         "平台模型按现有积分规则结算，自定义模型由服务商收费；不自动付费重绘。是否确认？")) return null;
     const job = await request("/jobs", "POST", {
       revision: data.context.revision, kind, target, idempotency_key: crypto.randomUUID(),
       llm_config: paid ? { ...host.state.llmConfig } : null, confirm_paid: Boolean(paid),
+      ...extra,
     });
     await refresh(); host.toast("任务已保存，刷新页面后仍可查询。");
     return job;
@@ -348,9 +349,9 @@
       }
     }
   }
-  async function exportDocument() {
+  async function exportDocument(options = {}) {
     await flushEdits();
-    await refresh(); await submit("export", "", false);
+    await refresh(); await submit("export", "", false, options);
   }
   async function outline() {
     await flushEdits();
