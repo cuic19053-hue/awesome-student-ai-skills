@@ -15,7 +15,7 @@ sys.path.insert(0, str(ROOT / "server"))
 sys.path.insert(0, str(ROOT / "ops"))
 from proposal import observability as obs
 from stardust_ops.archive import (
-    Archiver, OpsError, atomic_write, backup_keys, canonical, daily_slot,
+    Archiver, Keychain, OpsError, atomic_write, backup_keys, canonical, daily_slot,
     private_path, restore_keys, seal, sha, unseal,
 )
 from stardust_ops.cli import merge_events, run
@@ -279,6 +279,54 @@ def test_verified_job_binding_enriches_started_http_and_billing_events(monkeypat
         obs.context.reset(token)
 
 
+def test_locked_or_nonlogin_keychain_is_rejected_before_secret_access(tmp_path, monkeypatch):
+    import ctypes
+    keys = Keychain.__new__(Keychain)
+    keys.ctypes, keys.login = ctypes, (tmp_path / "login.keychain-db").resolve()
+    monkeypatch.setattr("stardust_ops.archive.subprocess.run",
+                        lambda *a, **k: SimpleNamespace(stdout=f'"{keys.login}"'))
+    unlocked = False
+    def opened(path, ref):
+        ref._obj.value = 1
+        return 0
+    def status(ref, value):
+        value._obj.value = 1 if unlocked else 0
+        return 0
+    keys.security = SimpleNamespace(SecKeychainOpen=opened, SecKeychainGetStatus=status)
+    keys.cf = SimpleNamespace(CFRelease=lambda ref: None)
+    accessed = []
+    keys.backend = SimpleNamespace(
+        get_password=lambda *a: accessed.append("read") or "synthetic-test-value",
+        set_password=lambda *a: accessed.append("write"))
+    with pytest.raises(OpsError):
+        keys.get("read_capability")
+    with pytest.raises(OpsError):
+        keys.set("archive_key", "synthetic-test-value")
+    assert accessed == []
+    unlocked = True
+    assert keys.get("read_capability") == "synthetic-test-value"
+    assert accessed == ["read"]
+
+    monkeypatch.setattr("stardust_ops.archive.subprocess.run",
+                        lambda *a, **k: SimpleNamespace(stdout='"/different.keychain-db"'))
+    with pytest.raises(OpsError):
+        keys.get("read_capability")
+    assert accessed == ["read"]
+
+
+def test_completed_slot_skips_locked_keychain_but_new_slot_records_failure(tmp_path, monkeypatch):
+    home = private_path(tmp_path / "ops")
+    atomic_write(home / "state.json", canonical({"last_success_slot": "2026-10-25", "status": "ok"}))
+    monkeypatch.setattr("stardust_ops.cli.utcnow", lambda: NOW)
+    monkeypatch.setattr("stardust_ops.cli.Keychain", lambda: (_ for _ in ()).throw(
+        OpsError("KEYCHAIN_LOCKED_OR_UNAVAILABLE")))
+    assert run(["scheduled-run"], home=home) == 0
+    monkeypatch.setattr("stardust_ops.cli.utcnow", lambda: NOW + timedelta(days=1))
+    with pytest.raises(OpsError, match="KEYCHAIN_LOCKED"):
+        run(["scheduled-run"], home=home)
+    assert json.loads((home / "state.json").read_text())["status"] == "failed"
+
+
 def test_ops_http_requires_separate_capability_and_does_not_echo_payload(monkeypatch):
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
@@ -289,6 +337,7 @@ def test_ops_http_requires_separate_capability_and_does_not_echo_payload(monkeyp
     client = TestClient(app)
     calls = []
     def rpc(key, action, args):
+        json.dumps(args)  # Production RPC must be JSON-serializable, not contain closure locals.
         calls.append((key, action, args))
         if key != "synthetic-ops-capability-" + "a" * 32:
             raise urllib.error.HTTPError("https://fixed.test", 403, "denied", {}, None)
@@ -300,3 +349,4 @@ def test_ops_http_requires_separate_capability_and_does_not_echo_payload(monkeyp
     assert client.get("/api/ops/logs/events", headers={
         "Authorization": "Bearer synthetic-ops-capability-" + "a" * 32}).json() == {"events": []}
     assert len(calls) == 2
+    assert calls[-1][2] == {"limit": 200}

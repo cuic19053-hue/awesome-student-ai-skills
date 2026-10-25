@@ -11,6 +11,7 @@ import re
 import secrets
 import shutil
 import struct
+import subprocess
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -86,11 +87,45 @@ class Keychain:
         login = Path.home() / "Library/Keychains/login.keychain-db"
         if not login.is_file():
             raise OpsError("LOGIN_KEYCHAIN_UNAVAILABLE")
-        # Ignore KEYCHAIN_PATH/default-search-list overrides; never switch stores.
-        self.backend = self.backend.with_properties(keychain=str(login))
+        # keyring 25.7 ignores its keychain-path property (#623). Verify the
+        # actual OS default instead of pretending that property selects login.
+        self.login = login.resolve()
+        self.backend = self.backend.with_properties(keychain=None)
+        import ctypes
+        self.ctypes = ctypes
+        self.security = ctypes.CDLL("/System/Library/Frameworks/Security.framework/Security")
+        self.cf = ctypes.CDLL("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation")
+        self.security.SecKeychainOpen.argtypes = [ctypes.c_char_p, ctypes.POINTER(ctypes.c_void_p)]
+        self.security.SecKeychainGetStatus.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint32)]
+        self.security.SecKeychainSetUserInteractionAllowed.argtypes = [ctypes.c_bool]
+        self.cf.CFRelease.argtypes = [ctypes.c_void_p]
+        # A scheduled process must fail, not hang behind a password/unlock UI.
+        if self.security.SecKeychainSetUserInteractionAllowed(False) != 0:
+            raise OpsError("KEYCHAIN_NONINTERACTIVE_UNAVAILABLE")
+        self._require_available()
+
+    def _require_available(self):
+        try:
+            default = subprocess.run(["/usr/bin/security", "default-keychain", "-d", "user"],
+                                     capture_output=True, text=True, check=True, timeout=3).stdout.strip().strip('"')
+            if Path(default).expanduser().resolve() != self.login:
+                raise OpsError("LOGIN_KEYCHAIN_NOT_DEFAULT")
+            ref, status = self.ctypes.c_void_p(), self.ctypes.c_uint32()
+            if self.security.SecKeychainOpen(os.fsencode(self.login), self.ctypes.byref(ref)) != 0:
+                raise OpsError("LOGIN_KEYCHAIN_UNAVAILABLE")
+            try:
+                if self.security.SecKeychainGetStatus(ref, self.ctypes.byref(status)) != 0 or not status.value & 1:
+                    raise OpsError("KEYCHAIN_LOCKED_OR_UNAVAILABLE")
+            finally:
+                self.cf.CFRelease(ref)
+        except OpsError:
+            raise
+        except Exception:
+            raise OpsError("KEYCHAIN_LOCKED_OR_UNAVAILABLE") from None
 
     def get(self, account):
         try:
+            self._require_available()
             value = self.backend.get_password(SERVICE, account)
             if not value:
                 raise OpsError("KEYCHAIN_ITEM_MISSING")
@@ -100,6 +135,7 @@ class Keychain:
 
     def set(self, account, value):
         try:
+            self._require_available()
             self.backend.set_password(SERVICE, account, value)
         except Exception:
             raise OpsError("KEYCHAIN_WRITE_FAILED") from None

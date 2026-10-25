@@ -43,7 +43,7 @@ def register_ops_api(app):
             if exc.code in (401, 403):
                 raise HTTPException(403, "运维凭据无效或权限不足") from None
             raise HTTPException(409 if action == "ack" else 503, "日志服务请求未完成；未绕过归档校验") from None
-        except (TimeoutError, OSError, ValueError, RuntimeError):
+        except (TimeoutError, OSError, ValueError, RuntimeError, TypeError):
             raise HTTPException(503, "日志服务暂不可用；没有执行未经确认的清理") from None
 
     @router.get("")
@@ -59,8 +59,11 @@ def register_ops_api(app):
                after_time: datetime | None = None,
                after_id: str | None = Query(None, pattern=r"^[a-f0-9-]{36}$"),
                limit: int = Query(200, ge=1, le=200)):
-        args = {k: v.isoformat() if isinstance(v, datetime) else v for k, v in locals().items()
-                if k != "authorization" and v is not None}
+        # Never serialize locals(): it includes the closure's `call` function.
+        args = dict(since=since, until=until, operation=operation, job_id=job_id,
+                    owner_id=owner_id, usage_request_id=usage_request_id, error_code=error_code,
+                    level=level, environment=environment, after_time=after_time, after_id=after_id, limit=limit)
+        args = {k: v.isoformat() if isinstance(v, datetime) else v for k, v in args.items() if v is not None}
         return call(authorization, "list", args)
 
     @router.get("/traces/{trace_id}")
