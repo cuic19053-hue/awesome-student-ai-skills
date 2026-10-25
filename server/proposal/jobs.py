@@ -19,6 +19,8 @@ from contextvars import copy_context
 from threading import Lock
 from typing import Any, Callable, Dict, Optional
 
+from . import observability as obs
+
 logger = logging.getLogger("proposal_agent.jobs")
 
 
@@ -69,6 +71,9 @@ class GenerationJobRunner:
             base_version=base_ver,
         )
         job_id = job["id"]
+        state = obs.context.get() or {}
+        obs.bind(trace_id=obs.correlated("job", state.get("owner_id") or "local", job_id), job_id=job_id)
+        obs.emit("task.submitted", stage="queued", status="accepted", job_id=job_id)
 
         # 4. 派发至后台线程池
         future = self.executor.submit(
@@ -99,7 +104,21 @@ class GenerationJobRunner:
     # 内部执行与状态流转
     # ------------------------------------------------------------------
 
-    def _execute_job(
+    def _execute_job(self, job_id, project_id, section_id, base_version, invoke_fn):
+        with obs.background_scope(job_id, project_id):
+            obs.emit("task.execution", stage="invoke", status="started", job_id=job_id)
+            self._execute_job_inner(job_id, project_id, section_id, base_version, invoke_fn)
+            try:
+                result = self.store.get_generation_job(job_id) or {}
+                failed = result.get("status") == "failed"
+                obs.emit("task.execution", stage="result_saved", job_id=job_id,
+                         status="failed" if failed else "cancelled" if result.get("status") == "cancelled" else "completed",
+                         level="error" if failed else "info", code="TASK_EXECUTION_FAILED" if failed else None)
+            except Exception:
+                obs.emit("task.observation", stage="result_saved", status="pending",
+                         level="warning", job_id=job_id, code="TASK_OBSERVATION_UNAVAILABLE")
+
+    def _execute_job_inner(
         self,
         job_id: str,
         project_id: str,

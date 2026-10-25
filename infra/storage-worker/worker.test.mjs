@@ -2,6 +2,61 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { handleRequest } from "./worker.mjs";
 
+test("business telemetry uses verified IDs, no JWT, filename or session, and never retries uploads", async () => {
+  const uid = "00000000-0000-0000-0000-000000000001";
+  const enabled = { ...env, BUSINESS_LOGS_ENABLED: "true",
+    OBSERVABILITY_UPLOAD_KEY: "synthetic-upload-capability-" + "z".repeat(32) };
+  const pending = [], events = [];
+  const ctx = { waitUntil: promise => pending.push(promise) };
+  let storageRequests = 0;
+  const u = upstream({ user: uid });
+  const fetcher = async (url, init) => {
+    if (url === "https://agent.stardust.website/api/ops/logs/ingest") {
+      assert.equal(init.redirect, "manual");
+      assert.equal(init.headers.Authorization, `Bearer ${enabled.OBSERVABILITY_UPLOAD_KEY}`);
+      assert.ok(!init.body.includes("alice-jwt"));
+      assert.ok(!init.body.includes("upstream"));
+      assert.ok(!init.body.includes(".pdf"));
+      events.push(JSON.parse(init.body));
+      return Response.json({ written: 1 });
+    }
+    if (url.includes("/storage/v1/upload/")) storageRequests++;
+    return u.fetcher(url, init);
+  };
+  const result = await handleRequest(creation({}, object.replace("alice/", `${uid}/`)),
+    enabled, fetcher, ctx);
+  assert.equal(result.status, 201);
+  await Promise.all(pending);
+  assert.equal(storageRequests, 1);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].owner_id, uid);
+  assert.equal(events[0].project_id, project);
+  assert.equal(events[0].event, "upload.started");
+  const expected = await crypto.subtle.digest("SHA-256",
+    new TextEncoder().encode(`upload:${uid}:${doc}`));
+  assert.equal(events[0].trace_id, Buffer.from(expected).toString("hex").slice(0, 32));
+});
+
+test("telemetry failure cannot fail an upload or leak exception text", async () => {
+  const pending = [], warnings = [];
+  const original = console.warn;
+  console.warn = value => warnings.push(value);
+  try {
+    const u = upstream();
+    const fetcher = (url, init) => url.includes("/api/ops/logs/ingest")
+      ? Promise.reject(new Error("secret raw response")) : u.fetcher(url, init);
+    const result = await handleRequest(creation(),
+      { ...env, BUSINESS_LOGS_ENABLED: "true", OBSERVABILITY_UPLOAD_KEY: "x".repeat(40) },
+      fetcher, { waitUntil: p => pending.push(p) });
+    await Promise.all(pending);
+    assert.equal(result.status, 201);
+    assert.ok(warnings.join("").includes("observability_gap"));
+    assert.ok(!warnings.join("").includes("secret"));
+  } finally {
+    console.warn = original;
+  }
+});
+
 const env = {
   APP_ORIGIN: "https://agent.example.test",
   SUPABASE_URL: "https://fixed.supabase.co",

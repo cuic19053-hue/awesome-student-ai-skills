@@ -40,6 +40,8 @@ if str(SERVER_DIR) not in sys.path:
 from proposal.agent import ModelUnavailable, OllamaAgent
 from proposal.documents import ALLOWED_EXTENSIONS, MAX_UPLOAD_BYTES, Extraction, extract_file
 from proposal.exporter import export_project
+from proposal import observability
+from proposal.ops_api import register_ops_api
 from proposal.chat_drafts import register_chat_drafts, require_export_content
 from proposal.credit_security import (
     CreditSecurityConfigError,
@@ -288,6 +290,8 @@ app = FastAPI(
 )
 logger = logging.getLogger("proposal_agent.credits")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+observability.configure(lambda: store)
+register_ops_api(app)
 
 @app.exception_handler(RequestValidationError)
 async def validation_error(request: Request, exc: RequestValidationError):
@@ -331,6 +335,7 @@ async def _require_supabase_session(request: Request, call_next):
         or path.startswith("/static/")
         or path.startswith("/api/auth/proxy/")
         or path.startswith("/api/material/internal/")
+        or path.startswith("/api/ops/logs")
     ):
         return await call_next(request)
 
@@ -356,6 +361,7 @@ async def _require_supabase_session(request: Request, call_next):
         user_id = verified_user.get("id")
         if not user_id:
             return JSONResponse({"detail": "无法确认登录用户。"}, status_code=401)
+        observability.bind(owner_id=str(user_id))
     except Exception:
         return JSONResponse({"detail": "暂时无法验证登录状态，请稍后重试。"}, status_code=503)
 
@@ -473,6 +479,7 @@ def _safe_project(project_id: str) -> dict[str, Any]:
     project = store.get_project(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="项目不存在")
+    observability.bind(project_id=project_id)
     return project
 
 
@@ -561,7 +568,9 @@ async def auth_login(payload: AuthLoginInput, request: Request) -> dict[str, Any
         except Exception:
             raw_msg = ""
         raise HTTPException(status_code=resp.status_code, detail=_friendly_auth_error(raw_msg))
-    return resp.json()
+    result = resp.json()
+    observability.identify_auth(result)
+    return result
 
 
 @app.post("/api/auth/signup")
@@ -597,7 +606,9 @@ async def auth_signup(payload: AuthSignupInput, request: Request) -> dict[str, A
         except Exception:
             raw_msg = ""
         raise HTTPException(status_code=resp.status_code, detail=_friendly_auth_error(raw_msg))
-    return resp.json()
+    result = resp.json()
+    observability.identify_auth(result)
+    return result
 
 
 @app.api_route("/api/auth/proxy/{path:path}", methods=["GET", "POST", "PUT"])
@@ -626,6 +637,12 @@ async def auth_proxy(path: str, request: Request):
                 params=list(request.query_params.multi_items()),
                 content=body, headers=headers,
             )
+        if upstream.is_success and path in {"token", "signup", "verify", "user"}:
+            try:
+                identity = upstream.json()
+                observability.identify_auth(identity)
+            except (ValueError, AttributeError, TypeError):
+                pass
         return Response(
             upstream.content, status_code=upstream.status_code,
             media_type="application/json",
@@ -945,14 +962,20 @@ def _metered_invoke(
         else _agent_for_config(config)
     )
     reservation = _maybe_deduct_credits(config, request, action, project_id)
+    observability.emit("model.execution", stage="invoke", status="started")
     try:
-        return invoke(candidate)
+        result = invoke(candidate)
+        observability.emit("model.execution", stage="result_returned")
+        return result
     except InsufficientCreditsError as exc:
+        observability.emit("model.execution", stage="invoke", status="failed", level="warning", code="INSUFFICIENT_CREDITS")
         detail = "积分不足，请充值后继续，或使用自带 API Key。" if action == "chat" else str(exc)
         raise HTTPException(status_code=402, detail=detail) from exc
     except PendingUsageError as exc:
+        observability.emit("model.execution", stage="invoke", status="pending", level="warning", code="BILLING_RECONCILIATION_PENDING")
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except BaseException:
+        observability.emit("model.execution", stage="invoke", status="failed", level="error", code="MODEL_EXECUTION_FAILED")
         if reservation:
             store.add_credits(
                 reservation["user_id"], reservation["deducted"],
@@ -1676,6 +1699,8 @@ def delete_leader_photo(project_id: str) -> dict[str, Any]:
 @app.post("/api/projects/{project_id}/documents/from-storage")
 def register_cloud_upload(project_id: str, payload: StorageDocumentInput) -> dict[str, Any]:
     _safe_project(project_id)
+    owner = request_identity.get() or {}
+    observability.bind(trace_id=observability.correlated("upload", owner.get("user_id", "local"), payload.document_id))
     if not hasattr(store, "register_document"):
         raise HTTPException(status_code=400, detail="此接口仅用于云端直传材料。")
     try:
@@ -1715,6 +1740,9 @@ def register_cloud_upload(project_id: str, payload: StorageDocumentInput) -> dic
 def _process_cloud_document(document: dict[str, Any]) -> dict[str, Any]:
     """Processing is separate from upload/registration, and can be retried by ID."""
     document_id = document["id"]
+    owner = request_identity.get() or {}
+    observability.bind(project_id=document["project_id"],
+                       trace_id=observability.correlated("upload", owner.get("user_id", "local"), document_id))
     project_id = document["project_id"]
     try:
         loaded = store.get_document(document_id)
@@ -1722,7 +1750,10 @@ def _process_cloud_document(document: dict[str, Any]) -> dict[str, Any]:
         if path.stat().st_size > MAX_UPLOAD_BYTES:
             raise ValueError("单个文件最大支持 50 MB。")
         file_bytes = path.read_bytes()
+        observability.emit("upload.parsing", stage="extract", status="started", metadata={"file_bytes": len(file_bytes)})
         extraction = _extract_uploaded_document(document["original_name"], file_bytes, document["kind"])
+        observability.emit("upload.parsing", stage="extract", status="failed" if extraction.status == "error" else "completed",
+                           code="MATERIAL_PARSE_FAILED" if extraction.status == "error" else None)
         # 自动确认并入库建立检索索引，无需用户手动确认
         confirmed = True if document["kind"] == "template" else (
             bool(extraction.text.strip()) and not material_enabled(_safe_project(project_id)))
@@ -1759,6 +1790,7 @@ def _process_cloud_document(document: dict[str, Any]) -> dict[str, Any]:
             "note": "材料已上传并自动建立检索。",
         }
     except Exception as exc:
+        observability.emit("upload.parsing", stage="extract", status="failed", level="error", error=exc)
         warning = _document_extraction_error(exc)
         store.update_document_extraction(document_id, "", "error", warning, 0, confirmed=False)
         return {"documents": [{
@@ -1970,23 +2002,31 @@ def chat(project_id: str, payload: ChatInput, request: Request) -> dict[str, Any
             )
 
         def sse_event_generator():
+            observability.emit("model.stream", stage="invoke", status="started")
             try:
                 for event in stream_candidate.chat_stream(project_id, text):
+                    if event.get("type") in {"done", "error"}:
+                        failed = event["type"] == "error"
+                        observability.emit("model.stream", stage="result_returned", status="failed" if failed else "completed",
+                                           level="error" if failed else "info", code="MODEL_EXECUTION_FAILED" if failed else None)
                     event["setup_updated"] = bool(fields)
                     event["free_chat"] = is_free
                     event["free_chats_remaining"] = remaining_free if is_free else int(store.get_workbench_credit_balance(user_id).get("free_chat_count", 0))
                     yield f"event: {event['type']}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
             except InsufficientCreditsError:
+                observability.emit("model.stream", stage="invoke", status="failed", level="error", code="MODEL_EXECUTION_FAILED")
                 if is_free:
                     store.refund_free_chat(user_id)
                 err = {"type": "error", "error": "积分不足，请充值后继续，或使用自带 API Key。"}
                 yield f"event: error\ndata: {json.dumps(err, ensure_ascii=False)}\n\n"
             except ModelUnavailable as exc:
+                observability.emit("model.stream", stage="invoke", status="failed", level="error", code="MODEL_EXECUTION_FAILED")
                 if is_free:
                     store.refund_free_chat(user_id)
                 err = {"type": "error", "error": str(exc)}
                 yield f"event: error\ndata: {json.dumps(err, ensure_ascii=False)}\n\n"
             except Exception as exc:
+                observability.emit("model.stream", stage="invoke", status="failed", level="error", code="MODEL_EXECUTION_FAILED")
                 if is_free:
                     store.refund_free_chat(user_id)
                 err = {"type": "error", "error": str(exc)}
@@ -2011,7 +2051,9 @@ def chat(project_id: str, payload: ChatInput, request: Request) -> dict[str, Any
                 meter=None,
                 platform_transport=True,
             )
+            observability.emit("model.execution", stage="invoke", status="started", metadata={"billable": False})
             result = candidate.chat(project_id, text)
+            observability.emit("model.execution", stage="result_returned", metadata={"billable": False})
             result["free_chat"] = True
             result["free_chats_remaining"] = remaining_free
         else:
@@ -2732,6 +2774,8 @@ def _material_worker_bridge(request: Request, job_id: str, lease: str):
         context = bridge.context()
     except MaterialWorkerBridgeError as exc:
         raise HTTPException(exc.status_code, str(exc)) from None
+    observability.bind(owner_id=context.get("owner_id"), project_id=context.get("project_id"), job_id=job_id,
+                       trace_id=observability.correlated("job", context.get("owner_id"), job_id))
     return bridge, context
 
 
@@ -2866,6 +2910,7 @@ def material_worker_model_proxy(payload: MaterialWorkerProxyInput, request: Requ
             upstream.add_header("User-Agent", f"StardustWorkbench/{request_id}")
         except Exception:
             raise HTTPException(409, "无法预留本次工作台模型额度，请检查余额或稍后重试") from None
+    observability.emit("model.worker_relay", stage="invoke", status="started", usage_request_id=request_id)
     try:
         with opener(upstream, timeout=45) as response:
             raw = response.read(4_000_001)
@@ -2875,8 +2920,12 @@ def material_worker_model_proxy(payload: MaterialWorkerProxyInput, request: Requ
             # reservation for reconciliation instead of blindly refunding it.
             raise HTTPException(502, "模型响应过大，费用状态需核对")
     except HTTPException:
+        observability.emit("model.worker_relay", stage="invoke", status="pending", level="warning",
+                           usage_request_id=request_id, code="MODEL_RESULT_UNCONFIRMED")
         raise
-    except urllib.error.HTTPError:
+    except urllib.error.HTTPError as exc:
+        observability.emit("model.worker_relay", stage="invoke", status="failed", level="error",
+                           usage_request_id=request_id, http_status=exc.code, code="UPSTREAM_FAILED")
         if meter and request_id:
             try:
                 meter.refund(request_id)
@@ -2884,6 +2933,8 @@ def material_worker_model_proxy(payload: MaterialWorkerProxyInput, request: Requ
                 pass
         raise HTTPException(502, "模型服务暂时拒绝了本次请求") from None
     except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+        observability.emit("model.worker_relay", stage="invoke", status="pending", level="warning",
+                           usage_request_id=request_id, code="MODEL_RESULT_UNCONFIRMED")
         # A timeout can happen after the provider accepted the request; keep the
         # hold so the existing reconciliation path can verify its real charge.
         raise HTTPException(502, "模型请求结果暂未确认，费用正在核对") from None
@@ -2903,8 +2954,12 @@ def material_worker_model_proxy(payload: MaterialWorkerProxyInput, request: Requ
                     pass
             raise ValueError
     except (TypeError, ValueError, IndexError, json.JSONDecodeError):
+        observability.emit("model.worker_relay", stage="upstream_validated", status="failed", level="error",
+                           usage_request_id=request_id, code="MODEL_EMPTY_RESULT")
         raise HTTPException(502, "模型未返回可用正文，请稍后重试") from None
 
+    observability.record_model_usage(decoded, request_id)
+    observability.emit("model.worker_relay", stage="upstream_validated", usage_request_id=request_id)
     headers = {"Cache-Control": "private, no-store"}
     if meter and request_id:
         # The Worker immediately calls the separate settlement endpoint after
@@ -3015,7 +3070,12 @@ def material_worker_image_proxy(payload: MaterialWorkerImageInput, request: Requ
             raise HTTPException(502, "用户图片模型调用失败，请检查配置后重试") from None
 
     _upload_worker_image(upload_url, image)
+    observability.emit("model.image", stage="artifact_stored", usage_request_id=request_id)
     return {
         "download_url": download_url,
         "request_id": request_id,
     }
+
+
+# Last registration makes tracing wrap authentication failures as well as successful responses.
+app.add_middleware(observability.ObservabilityMiddleware)

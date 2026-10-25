@@ -75,6 +75,33 @@ function upstreamUrl(value, origin) {
   return url;
 }
 
+async function report(info, event, status, env, fetcher, ctx) {
+  if (env.BUSINESS_LOGS_ENABLED !== "true" || !info.owner_id) return;
+  const work = async () => {
+    try {
+      if (!ctx?.waitUntil || typeof env.OBSERVABILITY_UPLOAD_KEY !== "string"
+          || env.OBSERVABILITY_UPLOAD_KEY.length < 32) throw new Error();
+      const digest = await crypto.subtle.digest("SHA-256", enc.encode(
+        `upload:${info.owner_id}:${info.document_id}`));
+      const trace = [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
+      const response = await fetcher("https://agent.stardust.website/api/ops/logs/ingest", {
+        method: "POST", redirect: "manual", signal: AbortSignal.timeout(5000),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.OBSERVABILITY_UPLOAD_KEY}` },
+        body: JSON.stringify({ event_id: crypto.randomUUID(), trace_id: trace,
+          owner_id: info.owner_id, project_id: info.project_id, occurred_at: new Date().toISOString(),
+          event: `upload.${event}`, stage: "transfer", status: event, http_status: status,
+          metadata: { file_bytes: info.total, mime_type: info.mime } }),
+      });
+      if (!response.ok || (await response.json()).written !== 1) throw new Error();
+    } catch {
+      console.warn('{"observability_gap":"UPLOAD_EVENT_UNAVAILABLE"}');
+    }
+  };
+  // Never await logging in the transfer path; never retry the storage request.
+  if (ctx?.waitUntil) ctx.waitUntil(work());
+  else console.warn('{"observability_gap":"UPLOAD_CONTEXT_UNAVAILABLE"}');
+}
+
 async function hasCreationBytes(request) {
   if (Number(request.headers.get("Content-Length") || "0") !== 0) return true;
   if (!request.body) return false;
@@ -95,7 +122,7 @@ async function hasCreationBytes(request) {
   }
 }
 
-async function handle(request, env, fetcher) {
+async function handle(request, env, fetcher, info) {
   const url = new URL(request.url);
   if (url.origin !== env.APP_ORIGIN || !url.pathname.startsWith(PREFIX))
     return failure(404, "上传地址不存在");
@@ -158,6 +185,8 @@ async function handle(request, env, fetcher) {
     if (!project.ok) return failure(503, "暂时无法校验项目权限");
     const rows = await project.json();
     if (!Array.isArray(rows) || rows.length !== 1) return failure(403, "项目不存在或不属于当前用户");
+    Object.assign(info, { owner_id: user.id, project_id: match[2], document_id: match[3],
+      total, mime: MIME[match[4]] });
     target = new URL(TUS_PATH, sb.origin);
     headers.set("Tus-Resumable", "1.0.0");
     headers.set("Upload-Length", String(total));
@@ -172,6 +201,10 @@ async function handle(request, env, fetcher) {
     if (!session || session.uid !== user.id) return failure(403, "续传会话无效、已过期或不属于当前用户");
     if (!Number.isSafeInteger(session.total) || session.total <= 0 || session.total > maxBytes)
       return failure(413, "文件大小超出限制");
+    // Signed legacy sessions without correlation IDs remain usable (no invented identity).
+    if (/^[a-f0-9]{32}$/.test(session.project_id) && /^[a-f0-9]{32}$/.test(session.document_id))
+      Object.assign(info, { owner_id: user.id, project_id: session.project_id,
+        document_id: session.document_id, total: session.total, mime: session.mime });
     target = upstreamUrl(session.upstream, sb.origin);
     headers.set("Tus-Resumable", "1.0.0");
     if (method === "PATCH") {
@@ -205,7 +238,8 @@ async function handle(request, env, fetcher) {
   if (isCreate && response.status === 201) {
     target = upstreamUrl(response.headers.get("Location") || "", sb.origin);
     const token = await seal({
-      uid: user.id, total, upstream: target.pathname, exp: Date.now() + 24 * 3600_000,
+      uid: user.id, total, project_id: info.project_id, document_id: info.document_id,
+      mime: info.mime, upstream: target.pathname, exp: Date.now() + 24 * 3600_000,
     }, env.UPLOAD_SESSION_SECRET);
     const result = new Headers({ "Location": `${env.APP_ORIGIN}${PREFIX}resumable/${token}`,
       "Tus-Resumable": "1.0.0", "Cache-Control": "private, no-store" });
@@ -221,12 +255,23 @@ async function handle(request, env, fetcher) {
   return new Response(method === "HEAD" ? null : response.body, { status: response.status, headers: result });
 }
 
-export async function handleRequest(request, env, fetcher = fetch) {
-  try { return await handle(request, env, fetcher); }
+export async function handleRequest(request, env, fetcher = fetch, ctx) {
+  const info = {};
+  let result;
+  try { result = await handle(request, env, fetcher, info); }
   catch (error) {
-    if (error.message === "上传信息无效") return failure(400, error.message);
-    return failure(502, "文件通道暂不可用，请稍后重试");
+    result = error.message === "上传信息无效" ? failure(400, error.message)
+      : failure(502, "文件通道暂不可用，请稍后重试");
   }
+  if (info.owner_id) {
+    if (result.status >= 400) report(info, "failed", result.status, env, fetcher, ctx);
+    else if (request.method === "POST" && result.status === 201)
+      report(info, "started", result.status, env, fetcher, ctx);
+    else if (request.method === "PATCH" && result.ok
+        && Number(result.headers.get("Upload-Offset")) === info.total)
+      report(info, "completed", result.status, env, fetcher, ctx);
+  }
+  return result;
 }
 
-export default { fetch: (request, env) => handleRequest(request, env) };
+export default { fetch: (request, env, ctx) => handleRequest(request, env, fetch, ctx) };

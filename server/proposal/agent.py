@@ -14,6 +14,7 @@ from .storage import Store
 from .tools import ProposalTools
 from .wopally_transport import wopally_urlopen
 from .materials import requirement_prompt
+from . import observability as obs
 
 SYSTEM_PROMPT = """你是“大学生申报材料 AI 助手”。用简体中文回答，像耐心的导师或材料顾问，但不擅自评审或打击学生。
 
@@ -126,6 +127,8 @@ class OllamaAgent:
         if not response or "usage" not in response:
             return
         u = response["usage"]
+        obs.bind(project_id=project_id)
+        obs.record_model_usage(response)
         self.store.record_token_usage(
             project_id=project_id,
             task_type=task_type,
