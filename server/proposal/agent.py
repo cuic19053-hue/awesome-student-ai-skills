@@ -128,9 +128,7 @@ class OllamaAgent:
             return
         u = response["usage"]
         obs.bind(project_id=project_id)
-        obs.emit("model.usage_recorded", stage="response_received",
-                 metadata={"prompt_tokens": u.get("prompt_tokens", 0),
-                           "completion_tokens": u.get("completion_tokens", 0)})
+        obs.record_model_usage(response)
         self.store.record_token_usage(
             project_id=project_id,
             task_type=task_type,

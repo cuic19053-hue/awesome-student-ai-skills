@@ -2774,7 +2774,7 @@ def _material_worker_bridge(request: Request, job_id: str, lease: str):
         context = bridge.context()
     except MaterialWorkerBridgeError as exc:
         raise HTTPException(exc.status_code, str(exc)) from None
-    observability.bind(owner_id=context.get("owner_id"), project_id=context.get("project_id"),
+    observability.bind(owner_id=context.get("owner_id"), project_id=context.get("project_id"), job_id=job_id,
                        trace_id=observability.correlated("job", context.get("owner_id"), job_id))
     return bridge, context
 
@@ -2910,6 +2910,7 @@ def material_worker_model_proxy(payload: MaterialWorkerProxyInput, request: Requ
             upstream.add_header("User-Agent", f"StardustWorkbench/{request_id}")
         except Exception:
             raise HTTPException(409, "无法预留本次工作台模型额度，请检查余额或稍后重试") from None
+    observability.emit("model.worker_relay", stage="invoke", status="started", usage_request_id=request_id)
     try:
         with opener(upstream, timeout=45) as response:
             raw = response.read(4_000_001)
@@ -2919,8 +2920,12 @@ def material_worker_model_proxy(payload: MaterialWorkerProxyInput, request: Requ
             # reservation for reconciliation instead of blindly refunding it.
             raise HTTPException(502, "模型响应过大，费用状态需核对")
     except HTTPException:
+        observability.emit("model.worker_relay", stage="invoke", status="pending", level="warning",
+                           usage_request_id=request_id, code="MODEL_RESULT_UNCONFIRMED")
         raise
-    except urllib.error.HTTPError:
+    except urllib.error.HTTPError as exc:
+        observability.emit("model.worker_relay", stage="invoke", status="failed", level="error",
+                           usage_request_id=request_id, http_status=exc.code, code="UPSTREAM_FAILED")
         if meter and request_id:
             try:
                 meter.refund(request_id)
@@ -2928,6 +2933,8 @@ def material_worker_model_proxy(payload: MaterialWorkerProxyInput, request: Requ
                 pass
         raise HTTPException(502, "模型服务暂时拒绝了本次请求") from None
     except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+        observability.emit("model.worker_relay", stage="invoke", status="pending", level="warning",
+                           usage_request_id=request_id, code="MODEL_RESULT_UNCONFIRMED")
         # A timeout can happen after the provider accepted the request; keep the
         # hold so the existing reconciliation path can verify its real charge.
         raise HTTPException(502, "模型请求结果暂未确认，费用正在核对") from None
@@ -2947,8 +2954,12 @@ def material_worker_model_proxy(payload: MaterialWorkerProxyInput, request: Requ
                     pass
             raise ValueError
     except (TypeError, ValueError, IndexError, json.JSONDecodeError):
+        observability.emit("model.worker_relay", stage="upstream_validated", status="failed", level="error",
+                           usage_request_id=request_id, code="MODEL_EMPTY_RESULT")
         raise HTTPException(502, "模型未返回可用正文，请稍后重试") from None
 
+    observability.record_model_usage(decoded, request_id)
+    observability.emit("model.worker_relay", stage="upstream_validated", usage_request_id=request_id)
     headers = {"Cache-Control": "private, no-store"}
     if meter and request_id:
         # The Worker immediately calls the separate settlement endpoint after
@@ -3059,6 +3070,7 @@ def material_worker_image_proxy(payload: MaterialWorkerImageInput, request: Requ
             raise HTTPException(502, "用户图片模型调用失败，请检查配置后重试") from None
 
     _upload_worker_image(upload_url, image)
+    observability.emit("model.image", stage="artifact_stored", usage_request_id=request_id)
     return {
         "download_url": download_url,
         "request_id": request_id,

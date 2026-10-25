@@ -59,11 +59,11 @@ def correlated(kind, owner, identifier):
 
 
 @no_throw
-def bind(owner_id=None, project_id=None, trace_id=None):
+def bind(owner_id=None, project_id=None, trace_id=None, job_id=None):
     state = context.get()
     if state is None:
         return
-    for key, value in (("owner_id", owner_id), ("project_id", project_id)):
+    for key, value in (("owner_id", owner_id), ("project_id", project_id), ("job_id", job_id)):
         if value and ID.fullmatch(str(value)):
             state[key] = str(value)
     if trace_id and ID.fullmatch(str(trace_id)):
@@ -150,7 +150,7 @@ def emit(event, *, stage="", status="completed", level="info", job_id=None,
         "event_id": str(uuid.uuid4()), "trace_id": state["trace_id"],
         "http_request_id": state.get("http_request_id"),
         "owner_id": state.get("owner_id"), "project_id": state.get("project_id"),
-        "job_id": job_id if job_id and ID.fullmatch(str(job_id)) else None,
+        "job_id": job_id if job_id and ID.fullmatch(str(job_id)) else state.get("job_id"),
         "usage_request_id": usage_request_id if usage_request_id and USAGE.fullmatch(usage_request_id) else None,
         "occurred_at": datetime.now(timezone.utc).isoformat(), "event": event,
         "operation": event.split(".")[0], "stage": stage[:64] if re.fullmatch(r"[a-z_]{0,64}", stage) else "",
@@ -169,6 +169,19 @@ def emit(event, *, stage="", status="completed", level="info", job_id=None,
             fallback([item], "EVENT_BUFFER_LIMIT")
     else:
         send_events([item])
+
+
+@no_throw
+def record_model_usage(response, usage_request_id=None):
+    # API and detached legacy jobs have a request context. Production document
+    # Workers use the lease-verified collector; their Vercel relay records usage.
+    if context.get() is None:
+        return
+    usage = response.get("usage")
+    usage = usage if isinstance(usage, dict) else {}
+    emit("model.usage_recorded", stage="response_received", usage_request_id=usage_request_id,
+         metadata={"prompt_tokens": usage.get("prompt_tokens"),
+                   "completion_tokens": usage.get("completion_tokens")})
 
 
 def fallback(events, reason):
@@ -197,6 +210,7 @@ def enrich(events, state):
     for event in events:
         event["owner_id"] = event.get("owner_id") or state.get("owner_id")
         event["project_id"] = event.get("project_id") or state.get("project_id")
+        event["job_id"] = event.get("job_id") or state.get("job_id")
     return events
 
 
@@ -215,7 +229,7 @@ def send_events(events):
 def background_scope(job_id, project_id):
     parent = context.get() or {}
     owner = parent.get("owner_id")
-    state = {"trace_id": correlated("job", owner or "local", job_id), "owner_id": owner,
+    state = {"trace_id": correlated("job", owner or "local", job_id), "owner_id": owner, "job_id": job_id,
              "project_id": project_id, "http_request_id": None, "events": []}
     token = context.set(state)
     try:
@@ -236,6 +250,8 @@ def operation(path, method):
         return "download.served"
     if method not in {"POST", "PUT", "DELETE"}:
         return None
+    if path.startswith("/api/material/internal/"):
+        return "billing.http" if path.endswith("/settle") else "model.http"
     if "redeem" in path or path.startswith("/api/pay/"):
         return "billing.recharge"
     if "/chat" in path:

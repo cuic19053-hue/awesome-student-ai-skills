@@ -193,7 +193,7 @@ def register_material_api(app, get_store, validate_config):
         platform = model_call and config.get("provider") == "preset"
         identifier = job_id()
         owner = store._identity()["user_id"] if queue.cloud else "local_user"
-        obs.bind(owner_id=owner, project_id=project_id,
+        obs.bind(owner_id=owner, project_id=project_id, job_id=identifier,
                  trace_id=obs.correlated("job", owner, identifier))
         job_payload = {
             "job_id": identifier, "owner_id": owner, "project": copy.deepcopy(project),
@@ -326,7 +326,7 @@ def register_material_api(app, get_store, validate_config):
     def download(project_id: str, identifier: str, name: str):
         store, _ = project_for(project_id)
         owner = store._identity()["user_id"] if hasattr(store, "_identity") else "local_user"
-        obs.bind(owner_id=owner, project_id=project_id,
+        obs.bind(owner_id=owner, project_id=project_id, job_id=identifier,
                  trace_id=obs.correlated("job", owner, identifier))
         if not re.fullmatch(r"(proposal\.(docx|pdf)|figure\.png|base\.png|source\.(svg|html)|spec\.json|report\.json|page-\d{3}\.png)", name):
             raise HTTPException(404, "文件不存在")

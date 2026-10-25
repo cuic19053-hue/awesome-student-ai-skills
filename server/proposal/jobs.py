@@ -72,7 +72,7 @@ class GenerationJobRunner:
         )
         job_id = job["id"]
         state = obs.context.get() or {}
-        obs.bind(trace_id=obs.correlated("job", state.get("owner_id") or "local", job_id))
+        obs.bind(trace_id=obs.correlated("job", state.get("owner_id") or "local", job_id), job_id=job_id)
         obs.emit("task.submitted", stage="queued", status="accepted", job_id=job_id)
 
         # 4. 派发至后台线程池
