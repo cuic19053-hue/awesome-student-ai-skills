@@ -83,6 +83,11 @@ class Keychain:
         self.backend = keyring.get_keyring()
         if not isinstance(self.backend, Keyring):
             raise OpsError("MAC_KEYCHAIN_REQUIRED")
+        login = Path.home() / "Library/Keychains/login.keychain-db"
+        if not login.is_file():
+            raise OpsError("LOGIN_KEYCHAIN_UNAVAILABLE")
+        # Ignore KEYCHAIN_PATH/default-search-list overrides; never switch stores.
+        self.backend = self.backend.with_properties(keychain=str(login))
 
     def get(self, account):
         try:
