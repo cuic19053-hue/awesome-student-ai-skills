@@ -306,11 +306,25 @@ def test_locked_or_nonlogin_keychain_is_rejected_before_secret_access(tmp_path, 
     unlocked = True
     assert keys.get("read_capability") == "synthetic-test-value"
     assert accessed == ["read"]
+
     monkeypatch.setattr("stardust_ops.archive.subprocess.run",
                         lambda *a, **k: SimpleNamespace(stdout='"/different.keychain-db"'))
     with pytest.raises(OpsError):
         keys.get("read_capability")
     assert accessed == ["read"]
+
+
+def test_completed_slot_skips_locked_keychain_but_new_slot_records_failure(tmp_path, monkeypatch):
+    home = private_path(tmp_path / "ops")
+    atomic_write(home / "state.json", canonical({"last_success_slot": "2026-10-25", "status": "ok"}))
+    monkeypatch.setattr("stardust_ops.cli.utcnow", lambda: NOW)
+    monkeypatch.setattr("stardust_ops.cli.Keychain", lambda: (_ for _ in ()).throw(
+        OpsError("KEYCHAIN_LOCKED_OR_UNAVAILABLE")))
+    assert run(["scheduled-run"], home=home) == 0
+    monkeypatch.setattr("stardust_ops.cli.utcnow", lambda: NOW + timedelta(days=1))
+    with pytest.raises(OpsError, match="KEYCHAIN_LOCKED"):
+        run(["scheduled-run"], home=home)
+    assert json.loads((home / "state.json").read_text())["status"] == "failed"
 
 
 def test_ops_http_requires_separate_capability_and_does_not_echo_payload(monkeypatch):
