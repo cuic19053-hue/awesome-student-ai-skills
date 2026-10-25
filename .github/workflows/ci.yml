@@ -92,3 +92,20 @@ jobs:
 
       - name: 运行测试
         run: python -m pytest tests -q -rs
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 前端导出鉴权、状态轮询与上传代理回归
+        run: node --test tests/js/*.test.js infra/storage-worker/worker.test.mjs
+
+      - name: 隔离 PostgreSQL 存储配置、CAS、RLS 与计费回归
+        if: matrix.python-version == '3.12'
+        timeout-minutes: 5
+        run: |
+          docker pull postgres:15-alpine
+          RUN_POSTGRES_POLICY_TESTS=1 python -m pytest \
+            tests/test_material_postgres.py \
+            tests/test_trial_policy_postgres.py \
+            tests/test_user_model_config.py -q
