@@ -4043,6 +4043,14 @@
     $("#closeUsageBtn")?.addEventListener("click", () => $("#usageDialog")?.close());
     $("#refreshUsageBtn")?.addEventListener("click", openUsageDialog);
     $("#submitRedeemBtn")?.addEventListener("click", handleRedeemCode);
+    const openContactDialog = () => $("#contactDevDialog")?.showModal();
+    $("#contactDevBtn")?.addEventListener("click", openContactDialog);
+    $("#sidebarContactDevBtn")?.addEventListener("click", openContactDialog);
+    $("#rechargeContactDevBtn")?.addEventListener("click", () => {
+      $("#rechargeDialog")?.close();
+      openContactDialog();
+    });
+    $("#closeContactDevBtn")?.addEventListener("click", () => $("#contactDevDialog")?.close());
     $("#helpGuideBtn")?.addEventListener("click", openOnboardingDialog);
     $("#closeOnboardingBtn")?.addEventListener("click", closeOnboardingDialog);
     $("#prevOnboardingBtn")?.addEventListener("click", () => setOnboardingStep(currentOnboardingStep - 1));

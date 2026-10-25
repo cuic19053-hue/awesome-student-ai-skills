@@ -4256,3 +4256,142 @@ button:disabled {
 .chat-draft-item textarea { width: 100%; min-height: 180px; margin-top: 8px; padding: 10px; font: inherit; line-height: 1.6; box-sizing: border-box; }
 .chat-draft-item label { display: flex; gap: 8px; align-items: center; }
 .chat-draft-item p { font-size: 13px; color: var(--text-muted); }
+
+/* ==================== 售后咨询与进群交流弹窗 ==================== */
+.contact-dialog {
+  width: min(92vw, 460px);
+  max-height: 90vh;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  background: var(--bg-surface);
+  color: var(--text-main);
+  box-shadow: var(--shadow-xl);
+  overflow-y: auto;
+}
+.contact-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+.contact-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 14px;
+}
+.contact-qr-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: #f8fafc;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+}
+.contact-qr-img {
+  width: 190px;
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+.contact-qr-caption {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--text-heading);
+}
+.contact-qr-caption p {
+  margin: 3px 0 0;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.contact-channels {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.contact-channel-item {
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  transition: border-color 0.15s ease;
+}
+.contact-channel-item:hover {
+  border-color: var(--stardust-primary-light);
+}
+.contact-channel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.contact-channel-header strong {
+  font-size: 12.5px;
+  color: var(--text-heading);
+}
+.contact-channel-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+.badge-group {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+.badge-support {
+  background: #fef3c7;
+  color: #b45309;
+}
+.badge-collab {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+.contact-channel-item p {
+  margin: 0;
+  color: var(--text-muted);
+}
+.sidebar-contact-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 7px 10px;
+  border: 1px dashed var(--border-light);
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+  color: var(--stardust-primary-dark);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+.sidebar-contact-btn:hover {
+  border-color: var(--stardust-primary);
+  background: var(--bg-active);
+  color: var(--stardust-primary);
+}
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--stardust-primary);
+  font-size: inherit;
+  font-family: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 4px;
+}
+.link-btn:hover {
+  color: var(--stardust-primary-dark);
+}

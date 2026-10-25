@@ -60,6 +60,9 @@
       <div class="sidebar-footer">
         <div class="local-badge"><span class="pulse"></span> 本地优先 · 私有项目</div>
         <p>项目与材料安全保存在本地，可根据需要随时导出为 Word。</p>
+        <button type="button" id="sidebarContactDevBtn" class="sidebar-contact-btn" title="售后咨询与进群交流">
+          💬 售后咨询/进群交流
+        </button>
       </div>
     </aside>
 
@@ -88,6 +91,9 @@
           <span id="freeChatsTopbarBadge" class="free-chats-badge hidden">🎁 免费对话剩 3 次</span>
           <button type="button" id="openRechargeBtn" class="button button-small button-primary topbar-recharge-btn">
             ＋ <span class="recharge-cta-label">充值积分</span>
+          </button>
+          <button type="button" id="contactDevBtn" class="model-settings-button" title="售后咨询与进群交流">
+            <span class="chat-icon">💬</span> 售后咨询/进群交流
           </button>
           <button type="button" id="helpGuideBtn" class="model-settings-button" title="新手使用教程与快速上手">
             <span class="book-icon">📖</span> 教程指引
@@ -730,7 +736,7 @@
       </div>
     </div>
     <div class="recharge-footer-note">
-      仅余额码可增加积分；订阅码、并发码和已使用的卡密不能兑换。
+      仅余额码可增加积分；订阅码、并发码和已使用的卡密不能兑换。遇到充值问题？<button type="button" id="rechargeContactDevBtn" class="link-btn">联系售后/开发者微信</button>
     </div>
   </dialog>
 
@@ -944,6 +950,53 @@
     </div>
     <div class="lightbox-body">
       <img id="lightboxImage" src="" alt="大图预览">
+    </div>
+  </dialog>
+
+  <!-- 售后咨询与进群交流弹窗 -->
+  <dialog id="contactDevDialog" class="contact-dialog" aria-labelledby="contactDevTitle">
+    <div class="model-settings-head">
+      <div>
+        <div class="eyebrow"><span class="sparkle">✦</span> SUPPORT & COMMUNITY</div>
+        <h2 id="contactDevTitle">售后咨询 / 进群交流</h2>
+      </div>
+      <button type="button" id="closeContactDevBtn" class="icon-button" aria-label="关闭">×</button>
+    </div>
+
+    <div class="contact-dialog-body">
+      <div class="contact-qr-card">
+        <img src="/static/contact_qr.png" alt="开发者微信二维码" class="contact-qr-img">
+        <div class="contact-qr-caption">
+          <strong>星尘</strong> · 开发者微信
+          <p>扫二维码，添加我为朋友</p>
+        </div>
+      </div>
+
+      <div class="contact-channels">
+        <div class="contact-channel-item">
+          <div class="contact-channel-header">
+            <span class="contact-channel-badge badge-group">进群交流</span>
+            <strong>大学生科创交流群</strong>
+          </div>
+          <p>大创 / 挑战杯 / 互联网+ 备赛答疑、AI 辅助申报与专家格式规范探讨（添加请备注：<b>进群</b>）</p>
+        </div>
+
+        <div class="contact-channel-item">
+          <div class="contact-channel-header">
+            <span class="contact-channel-badge badge-support">售后咨询</span>
+            <strong>卡密充值 & 账号问题</strong>
+          </div>
+          <p>卡密购买兑换疑问、积分流水核对、功能建议与体验反馈（添加请备注：<b>售后</b>）</p>
+        </div>
+
+        <div class="contact-channel-item">
+          <div class="contact-channel-header">
+            <span class="contact-channel-badge badge-collab">深度合作</span>
+            <strong>赛事辅导 & 商业计划重构</strong>
+          </div>
+          <p>国家级项目打磨、答辩演练、技术路线图重构、1v1 辅导（添加请备注：<b>合作+需求</b>）</p>
+        </div>
+      </div>
     </div>
   </dialog>
 
