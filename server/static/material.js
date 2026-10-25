@@ -284,13 +284,14 @@
     }, box);
     parent.append(box);
   }
-  async function submit(kind, target, paid) {
+  async function submit(kind, target, paid, extra = {}) {
     if (paid && !confirm((kind === "section" ? "本章沿用现有撰写与评审流程，最多六次模型请求。" :
         kind === "figure" ? "本次生成一张图片。" : "本次调用一次文字模型拟定候选方案。") +
         "平台模型按现有积分规则结算，自定义模型由服务商收费；不自动付费重绘。是否确认？")) return null;
     const job = await request("/jobs", "POST", {
       revision: data.context.revision, kind, target, idempotency_key: crypto.randomUUID(),
       llm_config: paid ? { ...host.state.llmConfig } : null, confirm_paid: Boolean(paid),
+      ...extra,
     });
     await refresh(); host.toast("任务已保存，刷新页面后仍可查询。");
     return job;
@@ -348,9 +349,44 @@
       }
     }
   }
-  async function exportDocument() {
+  async function exportDocument(options = {}) {
     await flushEdits();
-    await refresh(); await submit("export", "", false);
+    await refresh();
+    const job = await submit("export", "", false, options);
+    const id = projectId;
+    let lastStep;
+    // Observe the existing durable job only. Never retry/resubmit model work.
+    for (let attempt = 0; attempt < 80; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 2500));
+      if (host.state.project?.id !== id) {
+        host.toast("导出仍在后台执行，可返回原项目查看任务。");
+        return;
+      }
+      const current = await request(`/jobs/${job.id}`);
+      if (host.state.project?.id !== id) return;
+      if (current.status === "completed") {
+        await refresh();
+        if (host.state.project?.id !== id) return;
+        const url = await blobUrl(path(`/jobs/${job.id}/files/proposal.docx`));
+        if (host.state.project?.id !== id) return;
+        const link = el("a");
+        link.href = url;
+        link.download = "大创创新训练申报书草稿.docx";
+        document.body.append(link); link.click(); link.remove();
+        host.toast("Word 草稿已生成并下载；缺项与排版提示请在任务区核对。");
+        return;
+      }
+      if (["failed", "cancelled", "needs_review"].includes(current.status)) {
+        await refresh();
+        throw new Error(current.error || "导出未完成，请查看任务记录；不会自动重复生成或扣费。");
+      }
+      if (current.step !== lastStep) {
+        host.toast(`Word 后台导出：${jobStep[current.step] || "处理中"}…`);
+        lastStep = current.step;
+      }
+    }
+    await refresh();
+    host.toast("导出仍在后台执行，请稍后刷新任务区，不必重复生成正文。");
   }
   async function outline() {
     await flushEdits();

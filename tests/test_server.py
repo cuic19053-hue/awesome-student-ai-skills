@@ -146,7 +146,7 @@ def test_leader_photo_upload_delete_and_export(client):
     assert state.get("leader_photo") == photo_doc_id
     assert state.get("confirmed_facts", {}).get("leader_photo") == photo_doc_id
 
-    export_res = client.post(f"/api/projects/{p_id}/export")
+    export_res = client.post(f"/api/projects/{p_id}/export", json={"allow_empty_draft": True})
     assert export_res.status_code == 200
     dl_url = export_res.json()["download_url"]
     dl = client.get(dl_url)
@@ -718,7 +718,7 @@ def test_sensitive_endpoints_are_never_cached_or_echo_invalid_secrets(client, mo
     assert '/static/app.css?v=' in response.text
     body = client.get('/api/ping').json()
     assert body['status'] == 'ok'
-    assert body.get('layout_rev') == 1  # 发版标记，用于部署后核对线上版本
+    assert body.get('layout_rev') == 2  # 发版标记，用于部署后核对线上版本
 
 
 def test_auth_sdk_proxy_is_fixed_upstream_preserves_jwt_and_errors(client, monkeypatch):

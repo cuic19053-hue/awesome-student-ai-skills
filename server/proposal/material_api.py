@@ -20,6 +20,7 @@ from .materials import (
     MaterialConflict, Requirement, RULES, TRACKING, enabled, material_view, digest, prepare_update,
 )
 from .model_config_security import encrypt_config
+from .chat_drafts import require_export_content
 
 
 class RequirementsInput(BaseModel):
@@ -45,6 +46,7 @@ class JobInput(BaseModel):
     idempotency_key: str = Field(min_length=1, max_length=120)
     llm_config: dict | None = None
     confirm_paid: bool = False
+    allow_empty_draft: bool = False
 
 
 def signed_url(store, path: str, *, upload=False) -> str:
@@ -154,6 +156,11 @@ def register_material_api(app, get_store, validate_config):
         existing = queue.find(project_id, payload.idempotency_key)
         if existing:
             return existing
+        if payload.kind == "export":
+            try:
+                require_export_content(project, payload.allow_empty_draft)
+            except ValueError as exc:
+                raise HTTPException(422, str(exc)) from None
         if payload.revision != project.get("material_revision", 0):
             raise HTTPException(409, "项目已变化，请刷新后重试")
         spec = None
