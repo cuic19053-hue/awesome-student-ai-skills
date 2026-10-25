@@ -67,6 +67,38 @@ test("20 MiB upload creates a same-origin signed continuation URL", async () => 
   assert.equal(call.init.headers.get("x-upsert"), "false");
   assert.match(call.init.headers.get("Upload-Metadata"), /contentType YXBwbGljYXRpb24vcGRm/);
 });
+for (const [label, body] of [["empty string", ""], ["zero-byte array", new Uint8Array(0)]]) {
+  test(`25 KB creation accepts a non-null ${label} request body`, async () => {
+    const u = upstream();
+    const req = new Request(creation({ "Content-Length": "0", "Upload-Length": "24570" },
+      object.replace(".pdf", ".docx")), { body });
+    assert.notEqual(req.body, null);
+    const res = await handleRequest(req, env, u.fetcher);
+    assert.equal(res.status, 201, await res.text());
+    assert.equal(u.calls.at(-1).init.body, undefined);
+    assert.equal(u.calls.at(-1).init.headers.get("Upload-Length"), "24570");
+  });
+}
+test("creation accepts an empty stream without trusting Content-Length", async () => {
+  const body = new ReadableStream({ start(controller) {
+    controller.enqueue(new Uint8Array(0));
+    controller.close();
+  } });
+  const req = new Request(creation(), { body, duplex: "half" });
+  assert.equal(req.headers.has("Content-Length"), false);
+  const res = await handleRequest(req, env, upstream().fetcher);
+  assert.equal(res.status, 201, await res.text());
+});
+for (const declaredLength of [undefined, "0", "1"]) {
+  test(`creation rejects real bytes with Content-Length ${declaredLength ?? "absent"}`, async () => {
+    const u = upstream();
+    const extra = declaredLength === undefined ? {} : { "Content-Length": declaredLength };
+    const req = new Request(creation(extra), { body: new Uint8Array([1]) });
+    const res = await handleRequest(req, env, u.fetcher);
+    assert.equal(res.status, 400);
+    assert.ok(u.calls.every(call => call.url.endsWith("/auth/v1/user")));
+  });
+}
 test("file limit, empty files, invalid metadata and another user's directory are rejected", async () => {
   const u = upstream();
   assert.equal((await handleRequest(creation({ "Upload-Length": "50000001" }), env, u.fetcher)).status, 413);

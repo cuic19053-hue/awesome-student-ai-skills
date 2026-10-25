@@ -75,6 +75,26 @@ function upstreamUrl(value, origin) {
   return url;
 }
 
+async function hasCreationBytes(request) {
+  if (Number(request.headers.get("Content-Length") || "0") !== 0) return true;
+  if (!request.body) return false;
+  // Workers can expose a non-null stream for a browser's zero-byte POST.
+  // Check actual bytes, not stream presence, and never buffer an upload.
+  const reader = request.body.getReader();
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) return false;
+      if (value.byteLength) {
+        await reader.cancel();
+        return true;
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 async function handle(request, env, fetcher) {
   const url = new URL(request.url);
   if (url.origin !== env.APP_ORIGIN || !url.pathname.startsWith(PREFIX))
@@ -124,7 +144,7 @@ async function handle(request, env, fetcher) {
     if (!Number.isSafeInteger(total) || total <= 0 || total > maxBytes)
       return failure(413, `单个文件最大支持 ${Math.floor(maxBytes / 1_000_000)} MB`);
     // Creation never carries bytes: every PATCH can then be checked independently.
-    if (Number(request.headers.get("Content-Length") || "0") !== 0 || request.body)
+    if (await hasCreationBytes(request))
       return failure(400, "请先创建上传，再发送文件分片");
     const fields = metadata(request.headers.get("Upload-Metadata"));
     const match = OBJECT_RE.exec(fields.objectName || "");
