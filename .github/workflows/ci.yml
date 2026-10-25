@@ -107,5 +107,6 @@ jobs:
           docker pull postgres:15-alpine
           RUN_POSTGRES_POLICY_TESTS=1 python -m pytest \
             tests/test_material_postgres.py \
+            tests/test_observability_postgres.py \
             tests/test_trial_policy_postgres.py \
             tests/test_user_model_config.py -q
