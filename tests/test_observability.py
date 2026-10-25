@@ -15,7 +15,7 @@ sys.path.insert(0, str(ROOT / "server"))
 sys.path.insert(0, str(ROOT / "ops"))
 from proposal import observability as obs
 from stardust_ops.archive import (
-    Archiver, OpsError, atomic_write, backup_keys, canonical, daily_slot,
+    Archiver, Keychain, OpsError, atomic_write, backup_keys, canonical, daily_slot,
     private_path, restore_keys, seal, sha, unseal,
 )
 from stardust_ops.cli import merge_events, run
@@ -277,6 +277,40 @@ def test_verified_job_binding_enriches_started_http_and_billing_events(monkeypat
         assert all(e["job_id"] == "b" * 32 and e["trace_id"] == "e" * 32 for e in events)
     finally:
         obs.context.reset(token)
+
+
+def test_locked_or_nonlogin_keychain_is_rejected_before_secret_access(tmp_path, monkeypatch):
+    import ctypes
+    keys = Keychain.__new__(Keychain)
+    keys.ctypes, keys.login = ctypes, (tmp_path / "login.keychain-db").resolve()
+    monkeypatch.setattr("stardust_ops.archive.subprocess.run",
+                        lambda *a, **k: SimpleNamespace(stdout=f'"{keys.login}"'))
+    unlocked = False
+    def opened(path, ref):
+        ref._obj.value = 1
+        return 0
+    def status(ref, value):
+        value._obj.value = 1 if unlocked else 0
+        return 0
+    keys.security = SimpleNamespace(SecKeychainOpen=opened, SecKeychainGetStatus=status)
+    keys.cf = SimpleNamespace(CFRelease=lambda ref: None)
+    accessed = []
+    keys.backend = SimpleNamespace(
+        get_password=lambda *a: accessed.append("read") or "synthetic-test-value",
+        set_password=lambda *a: accessed.append("write"))
+    with pytest.raises(OpsError):
+        keys.get("read_capability")
+    with pytest.raises(OpsError):
+        keys.set("archive_key", "synthetic-test-value")
+    assert accessed == []
+    unlocked = True
+    assert keys.get("read_capability") == "synthetic-test-value"
+    assert accessed == ["read"]
+    monkeypatch.setattr("stardust_ops.archive.subprocess.run",
+                        lambda *a, **k: SimpleNamespace(stdout='"/different.keychain-db"'))
+    with pytest.raises(OpsError):
+        keys.get("read_capability")
+    assert accessed == ["read"]
 
 
 def test_ops_http_requires_separate_capability_and_does_not_echo_payload(monkeypatch):

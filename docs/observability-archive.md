@@ -85,7 +85,9 @@ OPS="$HOME/Library/Application Support/StardustOps/stardust-ops"
 
 归档目录固定默认为 `$HOME/Private/stardust-log-archive/`，目录 0700、文件 0600。
 禁止配置到 Git 工作区内或经符号链接跳转。密钥和 ops 能力保存在登录钥匙串，
-客户端版本锁定为 keyring 25.7.0，非 macOS 后端一律拒绝；锁定时停机，绝不落明文。
+客户端版本锁定为 keyring 25.7.0，非 macOS 后端一律拒绝。
+该版本忽略 keychain 路径参数，因此程序核验实际默认钥匙串为 login，并在每次读写前
+通过系统 Security API 检查解锁状态；禁止弹出交互解锁窗口，锁定时立即停机，绝不落明文。
 
 ```sh
 "$OPS" key backup /单独安全介质/stardust-recovery.skey
