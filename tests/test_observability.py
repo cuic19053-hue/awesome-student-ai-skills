@@ -323,6 +323,7 @@ def test_ops_http_requires_separate_capability_and_does_not_echo_payload(monkeyp
     client = TestClient(app)
     calls = []
     def rpc(key, action, args):
+        json.dumps(args)  # Production RPC must be JSON-serializable, not contain closure locals.
         calls.append((key, action, args))
         if key != "synthetic-ops-capability-" + "a" * 32:
             raise urllib.error.HTTPError("https://fixed.test", 403, "denied", {}, None)
@@ -334,3 +335,4 @@ def test_ops_http_requires_separate_capability_and_does_not_echo_payload(monkeyp
     assert client.get("/api/ops/logs/events", headers={
         "Authorization": "Bearer synthetic-ops-capability-" + "a" * 32}).json() == {"events": []}
     assert len(calls) == 2
+    assert calls[-1][2] == {"limit": 200}
