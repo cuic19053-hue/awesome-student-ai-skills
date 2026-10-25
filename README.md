@@ -403,3 +403,6 @@ MIT License —— 随便用、随便改，但请保留原作者署名和免责�
 ---
 
 *用这个项目写出了好申报书，或者踩了什么坑，欢迎提 Issue 分享 —— 让后面的人少走弯路。*
+
+- [DoomPay](https://github.com/doomsday-network/doom-pay) - Non-custodial 3-line Web3 checkout widget, REST API, and remote MCP payment receipt verifier (`wDOOM` on Base Mainnet & `DOOM` Layer-1).
+- [BountyGuard](https://github.com/doomsday-network/bounty-guard) - Zero-dependency MCP security server & CLI auditor that verifies on-chain bounty escrow before AI agents start work.
