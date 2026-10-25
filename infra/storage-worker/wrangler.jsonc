@@ -11,6 +11,7 @@
     }
   ],
   "vars": {
+    "BUSINESS_LOGS_ENABLED": "false",
     "APP_ORIGIN": "https://agent.stardust.website",
     "SUPABASE_URL": "https://jcenwtgwbsmaufskxgup.supabase.co",
     "MAX_UPLOAD_BYTES": "50000000"

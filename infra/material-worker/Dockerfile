@@ -12,6 +12,8 @@ ENV PYTHONPATH=/app:/app/server
 COPY infra/material-worker/requirements.txt /tmp/worker-requirements.txt
 RUN pip install --no-cache-dir -r /tmp/worker-requirements.txt \
     && useradd --create-home --uid 10001 worker
+ARG APP_VERSION=unknown
+ENV APP_VERSION=$APP_VERSION
 COPY server /app/server
 COPY utils /app/utils
 COPY subskills /app/subskills

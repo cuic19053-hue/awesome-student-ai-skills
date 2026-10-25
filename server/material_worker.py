@@ -28,6 +28,7 @@ from proposal.material_export import export_material, check_pages
 from proposal.materials import MaterialConflict
 from proposal.storage import Store
 from proposal.model_config_security import decrypt_config
+from proposal.observability import error_code
 
 log = logging.getLogger("material_worker")
 
@@ -48,6 +49,17 @@ class CloudQueue:
         with supabase_urlopen(request, timeout=20) as response:
             body = response.read()
             return json.loads(body) if body else None
+
+    def observe(self, job, event):
+        from proposal.supabase_http import supabase_urlopen
+        request = urllib.request.Request(self.url + "/rest/v1/rpc/observability_worker_event",
+            data=json.dumps({"p_secret": self.secret, "p_job_id": job["id"],
+                             "p_lease": job["lease"], "p_event": event}).encode(),
+            headers={"apikey": self.key, "Authorization": "Bearer " + self.key,
+                     "Content-Type": "application/json"}, method="POST")
+        with supabase_urlopen(request, timeout=3) as response:
+            if json.load(response) is not True:
+                log.warning("observability_gap=WORKER_EVENT_NOT_PERSISTED")
 
     def _internal_request(self, path, job, body, *, timeout):
         import httpx
@@ -419,6 +431,20 @@ def run_one(local_store=None, queue=None):
     def update(action, **args):
         if lost.is_set():
             raise MaterialConflict("任务租约已失效")
+        if action == "checkpoint":
+            args["partial"] = {**args.get("partial", {}), "worker_version": os.environ.get("APP_VERSION", "unknown")}
+        if queue and hasattr(queue, "observe") and os.environ.get("OBSERVABILITY_ENABLED", "").lower() == "true" and action in {"checkpoint", "finish"}:
+            try:
+                result = args.get("result", {})
+                queue.observe(job, {"event": "task.checkpoint" if action == "checkpoint" else
+                    "task.execution_failed" if args.get("status") in {"failed","needs_review"} else "task.execution_finished",
+                    "stage": args.get("step", "execution_finished"), "status": "failed" if args.get("status") in {"failed", "needs_review"} else "completed",
+                    "level": "error" if args.get("status") in {"failed", "needs_review"} else "info", "version": os.environ.get("APP_VERSION", "unknown"),
+                    "environment": "preview" if job["payload"].get("environment") == "preview" else "production",
+                    "error_code": result.get("error_code"), "http_status": result.get("http_status"),
+                    "metadata": {"billable": bool(job["payload"].get("paid"))}})
+            except Exception:
+                log.warning("observability_gap=WORKER_EVENT_UNAVAILABLE job=%s", job["id"])
         return repository.worker_local(job, action, **args) if repository else queue.call(action, job, **args)
 
     def heartbeat():
@@ -435,7 +461,8 @@ def run_one(local_store=None, queue=None):
         with tempfile.TemporaryDirectory(prefix="material-job-") as temp:
             workspace = Path(temp)
             result = execute(job, workspace, lambda step, **extra: update("checkpoint", step=step, **extra), local_store, queue)
-            update("checkpoint", step="saving_artifacts")
+            update("checkpoint", step="saving_artifacts",
+                   partial={"worker_version": os.environ.get("APP_VERSION", "unknown")})
             output = workspace / "output"
             bundle = workspace / "bundle.zip"
             with zipfile.ZipFile(bundle, "w", zipfile.ZIP_DEFLATED) as archive:
@@ -450,7 +477,8 @@ def run_one(local_store=None, queue=None):
             update("finish", status="completed", result=result)
     except Exception as exc:
         # Do not expose provider keys, signed URLs, raw responses or project materials.
-        log.warning("job=%s error_type=%s", job["id"], type(exc).__name__)
+        code, status = error_code(exc)
+        log.warning("job=%s error_code=%s upstream_status=%s", job["id"], code, status)
         public_errors = {
             "中文字体不可用，拒绝生成可能乱码的图片",
             "指定字体缺少图表所需字形，请更换有授权的完整中文字体",
@@ -458,6 +486,7 @@ def run_one(local_store=None, queue=None):
         }
         try:
             update("finish", status="needs_review" if job["payload"].get("paid") else "failed",
+                   result={"error_code": code, "http_status": status, "worker_version": os.environ.get("APP_VERSION", "unknown")},
                    error=str(exc) if str(exc) in public_errors else
                    "执行未完成，请核对该步骤；已发生的模型调用按原规则结算，不自动重复调用")
         except Exception:
