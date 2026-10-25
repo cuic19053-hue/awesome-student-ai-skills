@@ -21,7 +21,7 @@ def test_archive_mime_migration_is_private_size_preserving_and_idempotent(sql):
       insert into storage.buckets values
         ('stardust-project-files',false,50000000,array['application/pdf','image/png']),
         ('unrelated',false,100,array['text/plain']);""")
-    migration = (ROOT / "supabase/migrations/20261025080421_allow_material_export_archives.sql").read_text()
+    migration = next((ROOT / "supabase/migrations").glob("*_allow_material_export_archives.sql")).read_text()
     sql(migration)
     sql(migration)
     result = sql("""select public||'|'||file_size_limit||'|'||array_to_string(allowed_mime_types,',')

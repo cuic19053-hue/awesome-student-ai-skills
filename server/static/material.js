@@ -351,7 +351,42 @@
   }
   async function exportDocument(options = {}) {
     await flushEdits();
-    await refresh(); await submit("export", "", false, options);
+    await refresh();
+    const job = await submit("export", "", false, options);
+    const id = projectId;
+    let lastStep;
+    // Observe the existing durable job only. Never retry/resubmit model work.
+    for (let attempt = 0; attempt < 80; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 2500));
+      if (host.state.project?.id !== id) {
+        host.toast("导出仍在后台执行，可返回原项目查看任务。");
+        return;
+      }
+      const current = await request(`/jobs/${job.id}`);
+      if (host.state.project?.id !== id) return;
+      if (current.status === "completed") {
+        await refresh();
+        if (host.state.project?.id !== id) return;
+        const url = await blobUrl(path(`/jobs/${job.id}/files/proposal.docx`));
+        if (host.state.project?.id !== id) return;
+        const link = el("a");
+        link.href = url;
+        link.download = "大创创新训练申报书草稿.docx";
+        document.body.append(link); link.click(); link.remove();
+        host.toast("Word 草稿已生成并下载；缺项与排版提示请在任务区核对。");
+        return;
+      }
+      if (["failed", "cancelled", "needs_review"].includes(current.status)) {
+        await refresh();
+        throw new Error(current.error || "导出未完成，请查看任务记录；不会自动重复生成或扣费。");
+      }
+      if (current.step !== lastStep) {
+        host.toast(`Word 后台导出：${jobStep[current.step] || "处理中"}…`);
+        lastStep = current.step;
+      }
+    }
+    await refresh();
+    host.toast("导出仍在后台执行，请稍后刷新任务区，不必重复生成正文。");
   }
   async function outline() {
     await flushEdits();
