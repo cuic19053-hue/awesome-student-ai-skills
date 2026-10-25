@@ -14,6 +14,22 @@ OTHER = "00000000-0000-0000-0000-000000000002"
 JOB = "a" * 32
 
 
+def test_archive_mime_migration_is_private_size_preserving_and_idempotent(sql):
+    sql("""create schema storage;
+      create table storage.buckets(id text primary key,public boolean,
+        file_size_limit bigint,allowed_mime_types text[]);
+      insert into storage.buckets values
+        ('stardust-project-files',false,50000000,array['application/pdf','image/png']),
+        ('unrelated',false,100,array['text/plain']);""")
+    migration = (ROOT / "supabase/migrations/20261025080421_allow_material_export_archives.sql").read_text()
+    sql(migration)
+    sql(migration)
+    result = sql("""select public||'|'||file_size_limit||'|'||array_to_string(allowed_mime_types,',')
+      from storage.buckets where id='stardust-project-files'""")
+    assert result == "false|50000000|application/pdf,image/png,application/zip"
+    assert sql("select array_to_string(allowed_mime_types,',') from storage.buckets where id='unrelated'") == "text/plain"
+
+
 @pytest.fixture
 def sql():
     if os.environ.get("RUN_POSTGRES_POLICY_TESTS") != "1":

@@ -16,6 +16,27 @@ for path in (str(SERVER), str(ROOT)):
 from proposal.supabase_store import SupabaseStore, request_identity  # noqa: E402
 
 
+def test_explicit_revision_uses_atomic_cas_even_for_legacy_type(monkeypatch, tmp_path):
+    monkeypatch.delenv("MATERIAL_PIPELINE_ENABLED", raising=False)
+    store = SupabaseStore("https://example.supabase.co", "public-test", tmp_path)
+    p = {"id": "a" * 32, "state": {"skill_id": "national-scholarship"},
+         "material_revision": 4, "sections": {}, "outline": []}
+    monkeypatch.setattr(store, "get_project", lambda _: p)
+    calls = []
+    monkeypatch.setattr(store, "_project_row", lambda row: row)
+    def rest(table, method, payload):
+        calls.append((table, method, payload))
+        return {"material_revision": 5}
+    monkeypatch.setattr(store, "_rest", rest)
+    assert store.update_project(p["id"], expected_revision=4, sections={"a": "正文"})["material_revision"] == 5
+    assert calls[0][0] == "rpc/material_patch"
+    assert calls[0][2]["p_revision"] == 4
+    from proposal.materials import MaterialConflict
+    with pytest.raises(MaterialConflict):
+        store.update_project(p["id"], expected_revision=3, sections={})
+    assert len(calls) == 1
+
+
 def test_rest_requests_forward_the_current_user_jwt_and_insert_owner(monkeypatch, tmp_path):
     captured = {}
     user_id = "b1d96922-0042-47c5-a1ec-f82c16bf226e"

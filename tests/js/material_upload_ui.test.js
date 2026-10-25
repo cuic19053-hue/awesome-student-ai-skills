@@ -26,6 +26,9 @@ class Element {
     };
   }
   append(...children) { this.children.push(...children); }
+  appendChild(child) { this.append(child); }
+  removeChild(child) { this.children = this.children.filter(c => c !== child); }
+  click() { this.clicked = true; return this.listeners.click?.(); }
   replaceChildren(...children) { this.children = children; this.textContent = ""; }
   setAttribute(name, value) { this.attributes[name] = value; }
   addEventListener(name, callback) { this.listeners[name] = callback; }
@@ -42,14 +45,16 @@ function harness() {
   const requests = [];
   const timers = new Map();
   let nextTimer = 1;
+  let draftAreas = [];
   const document = {
     querySelector(selector) {
       if (!elements.has(selector)) elements.set(selector, new Element());
       return elements.get(selector);
     },
-    querySelectorAll: () => [],
+    querySelectorAll: (selector) => selector === ".draft-section textarea" ? draftAreas : [],
     createElement: (tag) => new Element(tag),
     addEventListener() {},
+    body: new Element("body"),
   };
   const storage = new Map();
   const session = new Map();
@@ -86,6 +91,7 @@ function harness() {
       syncAuthControls, initializeCloudAuth, submitAuthForm,
       readPublicCache, writePublicCache, sameOriginAuthFetch, storeLlmConfig, loadCloudModelConfig, saveSelectedLlmConfig,
       sendChat, syncChatControls,
+      exportDoc, fetchExportBlob, flushDraftEdits, showChatDrafts, clearExportArtifacts,
       setApi(fn) { api = fn; },
       setLoadProject(fn) { loadProject = fn; },
       setChatRefresh(fn) { refreshProjects = fn; loadUserBalance = fn; },
@@ -95,6 +101,7 @@ function harness() {
   return {
     ui: context.ui, context, requests, revoked, created, timers,
     element: (selector) => document.querySelector(selector),
+    setDraftAreas: (areas) => { draftAreas = areas; },
   };
 }
 
@@ -106,6 +113,126 @@ const doc = {
   kind: "source",
   confirmed: false,
 };
+
+function exportingProject(h) {
+  h.ui.state.project = { id: "a".repeat(32), material_revision: 2,
+    outline: [{ id: "purpose", title: "项目目的" }], sections: { purpose: "已保存正文" },
+    state: { skill_name: "测试材料" } };
+  h.ui.state.authSession = { access_token: "fake-session-jwt" };
+}
+
+test("legacy export fetches private file with bearer and links only a blob", async () => {
+  const h = harness(); exportingProject(h);
+  const calls = [];
+  const download = `/api/projects/${h.ui.state.project.id}/download`;
+  h.ui.setApi(async (url, options) => {
+    calls.push({ url, options });
+    return url.endsWith("/chat-drafts") ? { items: [] } : { download_url: download };
+  });
+  await h.ui.exportDoc();
+  assert.equal(calls.filter(c => c.url.endsWith("/export")).length, 1);
+  assert.equal(h.requests[0].url, download);
+  assert.equal(h.requests[0].options.headers.Authorization, "Bearer fake-session-jwt");
+  assert.equal(h.element("#exportResult").children[1].href, "blob:preview-1");
+  h.ui.clearExportArtifacts();
+  assert.deepEqual(h.revoked, ["blob:preview-1"]);
+});
+
+test("download rejects foreign destination without sending the token", async () => {
+  const h = harness(); exportingProject(h);
+  await assert.rejects(h.ui.fetchExportBlob("https://evil.invalid/collect", h.ui.state.project.id), /当前项目/);
+  assert.equal(h.requests.length, 0);
+});
+
+test("download failure is not reported as a started download", async () => {
+  const h = harness(); exportingProject(h);
+  h.ui.setApi(async url => url.endsWith("/chat-drafts") ? { items: [] } : {
+    download_url: `/api/projects/${h.ui.state.project.id}/download`,
+  });
+  h.context.fetch = async () => ({ ok: false, json: async () => ({ detail: "登录过期" }) });
+  await h.ui.exportDoc();
+  assert.equal(h.element("#toast").textContent, "登录过期");
+  assert.equal(h.created.length, 0);
+  assert.equal(h.element("#exportBtn").disabled, false);
+});
+
+test("export flushes the latest editor text with CAS before submitting", async () => {
+  const h = harness(); exportingProject(h);
+  const area = new Element("textarea"); area.value = "最新手写正文";
+  area.closest = () => ({ id: "draft-sec-purpose" });
+  h.setDraftAreas([area]);
+  const calls = [];
+  h.ui.setApi(async (url, options = {}) => {
+    calls.push({ url, options });
+    if (url.endsWith("/sections/purpose")) return { material_revision: 4 };
+    if (url.endsWith("/chat-drafts")) return { items: [] };
+    if (url.endsWith("/export")) return { download_url: `/api/projects/${h.ui.state.project.id}/download` };
+    return { ...h.ui.state.project, material_revision: 3 };
+  });
+  await h.ui.exportDoc();
+  const put = calls.find(c => c.options.method === "PUT");
+  assert.equal(JSON.parse(put.options.body).content, "最新手写正文");
+  assert.equal(JSON.parse(put.options.body).base_content, "已保存正文");
+  assert.equal(JSON.parse(put.options.body).expected_revision, 3);
+  assert.ok(calls.indexOf(put) < calls.findIndex(c => c.url.endsWith("/export")));
+  assert.equal(h.ui.state.project.sections.purpose, "最新手写正文");
+});
+
+test("concurrent chapter edit stops export without losing visible input", async () => {
+  const h = harness(); exportingProject(h);
+  const area = new Element("textarea"); area.value = "我的手写内容";
+  area.closest = () => ({ id: "draft-sec-purpose" }); h.setDraftAreas([area]);
+  const calls = [];
+  h.ui.setApi(async url => {
+    calls.push(url);
+    return { ...h.ui.state.project, sections: { purpose: "另一页面的内容" } };
+  });
+  await h.ui.exportDoc();
+  assert.equal(calls.length, 1);
+  assert.equal(area.value, "我的手写内容");
+  assert.match(h.element("#toast").textContent, /未覆盖/);
+});
+
+test("chat draft recovery requires explicit selection and never auto-exports", async () => {
+  const h = harness(); exportingProject(h);
+  const calls = [];
+  const preview = { snapshot: "f".repeat(64), notice: "不扣积分", items: [{
+    id: "e".repeat(64), title: "<script>不执行</script>", content: "预算为建议，不是事实",
+    already_saved: false, conflict: false,
+  }] };
+  h.ui.setApi(async (url, options) => {
+    calls.push({ url, options });
+    return url.endsWith("/chat-drafts") ? preview : { notice: "已保存" };
+  });
+  h.ui.setLoadProject(async () => {});
+  await h.ui.showChatDrafts();
+  assert.equal(calls.length, 1);
+  assert.equal(h.element("#chatDraftDialog").open, true);
+  const row = h.element("#chatDraftItems").children[0];
+  assert.equal(row.children[0].children[1].textContent, "<script>不执行</script>");
+  row.children[2].value = "用户核对后的文字";
+  await h.element("#confirmChatDraftsBtn").onclick();
+  assert.equal(calls.length, 2);
+  const body = JSON.parse(calls[1].options.body);
+  assert.equal(body.items[0].content, "用户核对后的文字");
+  assert.ok(calls[1].url.endsWith("/chat-drafts/confirm"));
+});
+
+test("export opens recovery instead of exporting a cover-only document", async () => {
+  const h = harness(); exportingProject(h);
+  h.ui.state.project.outline = []; h.ui.state.project.sections = {};
+  const calls = [];
+  h.ui.setApi(async url => {
+    calls.push(url);
+    return { snapshot: "f".repeat(64), notice: "请确认", items: [{
+      id: "e".repeat(64), title: "项目目的", content: "聊天正文", already_saved: false, conflict: false,
+    }] };
+  });
+  await h.ui.exportDoc();
+  assert.equal(calls.length, 1);
+  assert.equal(h.element("#chatDraftDialog").open, true);
+  assert.equal(h.element("#confirmChatDraftsBtn").textContent, "确认保存并继续导出");
+});
 
 test("persistent results show success, per-file errors, and preview actions", () => {
   const h = harness();

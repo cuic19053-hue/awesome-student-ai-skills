@@ -318,7 +318,7 @@ class SupabaseStore:
             previous = self.get_project(project_id)
             if not previous:
                 return None
-            if enabled(previous):
+            if enabled(previous) or expected is not None:
                 revision = previous.get("material_revision", 0)
                 if expected is not None and expected != revision:
                     raise MaterialConflict("项目已变化，请刷新后重试")

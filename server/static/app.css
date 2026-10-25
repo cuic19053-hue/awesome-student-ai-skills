@@ -4251,3 +4251,8 @@ button:disabled {
 .material-job img { display: block; max-width: 100%; margin: 12px 0; border: 1px solid #e2e8f0; }
 .material-warning { color: #9a3412; }
 .material-pages { max-height: 700px; overflow-y: auto; }
+.chat-draft-items { max-height: 65vh; overflow-y: auto; margin-bottom: 16px; }
+.chat-draft-item { padding: 12px 0; border-bottom: 1px solid var(--border-color, #ddd); }
+.chat-draft-item textarea { width: 100%; min-height: 180px; margin-top: 8px; padding: 10px; font: inherit; line-height: 1.6; box-sizing: border-box; }
+.chat-draft-item label { display: flex; gap: 8px; align-items: center; }
+.chat-draft-item p { font-size: 13px; color: var(--text-muted); }

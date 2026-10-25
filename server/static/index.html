@@ -435,6 +435,7 @@
                 </div>
                 <div class="draft-panel-top-actions">
                   <span id="draftStatsBadge" class="draft-stats-badge">共 0 字</span>
+                  <button type="button" id="recoverChatDraftsBtn" class="button button-small button-secondary">从对话整理草稿</button>
                   <button type="button" id="toggleAllSectionsBtn" class="button button-small button-quiet">展开全部</button>
                   <button type="button" id="batchGenerateSectionsBtn" class="button button-small button-primary">⚡ 批量生成所有章节</button>
                 </div>
@@ -907,6 +908,16 @@
         <button type="button" id="finishOnboardingBtn" class="button button-primary hidden">开始使用工作台 🚀</button>
       </div>
     </div>
+  </dialog>
+
+  <dialog id="chatDraftDialog" class="document-preview-dialog" aria-labelledby="chatDraftTitle">
+    <div class="model-settings-head">
+      <h2 id="chatDraftTitle">核对并保存对话草稿</h2>
+      <button type="button" id="closeChatDraftsBtn" class="icon-button" aria-label="关闭草稿核对">×</button>
+    </div>
+    <p id="chatDraftNotice" class="model-settings-intro" role="status"></p>
+    <div id="chatDraftItems" class="chat-draft-items"></div>
+    <button type="button" id="confirmChatDraftsBtn" class="button button-primary">确认保存所选章节</button>
   </dialog>
 
   <dialog id="documentPreviewDialog" class="document-preview-dialog" aria-labelledby="documentPreviewTitle">
