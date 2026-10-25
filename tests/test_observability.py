@@ -265,6 +265,20 @@ def test_error_classification_preserves_business_error_body():
     assert error.read() == raw
 
 
+def test_verified_job_binding_enriches_started_http_and_billing_events(monkeypatch):
+    monkeypatch.setenv("OBSERVABILITY_ENABLED", "true")
+    state = {"trace_id": "a" * 32, "http_request_id": "d" * 32, "events": []}
+    token = obs.context.set(state)
+    try:
+        obs.emit("task.operation", status="started")
+        obs.bind(job_id="b" * 32, owner_id="c" * 32, trace_id="e" * 32)
+        obs.emit("billing.reserved", usage_request_id="o2x1_" + "f" * 32)
+        events = obs.enrich(state["events"], state)
+        assert all(e["job_id"] == "b" * 32 and e["trace_id"] == "e" * 32 for e in events)
+    finally:
+        obs.context.reset(token)
+
+
 def test_ops_http_requires_separate_capability_and_does_not_echo_payload(monkeypatch):
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
