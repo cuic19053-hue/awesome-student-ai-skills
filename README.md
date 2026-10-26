@@ -1,5 +1,7 @@
 # Awesome Student AI Skills
 
+[![AgentShield Security](https://merx.help/badge/A+.svg)](https://merx.help/shield)
+
 ### 35 个大学生申报书 AI Skill · 一句话生成可直接提交的规范 Word 文档
 
 [![GitHub Stars](https://img.shields.io/github/stars/cuic19053-hue/awesome-student-ai-skills?style=social&label=Star)](https://github.com/cuic19053-hue/awesome-student-ai-skills/stargazers)
