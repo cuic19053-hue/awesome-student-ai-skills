@@ -1,13 +1,18 @@
-# Awesome Student AI Skills
+<div align="center">
+  <a href="https://agent.stardust.website">
+    <img src="./assets/logo.png" width="96" height="96" alt="Awesome Student AI Skills Logo">
+  </a>
+  <h1>Awesome Student AI Skills</h1>
+  <p><b>35 College Application & Grant Proposal AI Skills · One Sentence to Submission-Ready .docx</b></p>
 
-[![Awesome](https://awesome.re/badge.svg)](https://awesome.re)
-[![Agent Skills](https://img.shields.io/badge/Agent_Skills-Compatible-6e3bf0)](https://agentskills.io/specification)
-[![Douyin Likes](https://img.shields.io/badge/Douyin_Likes-8000+-ff0050?style=flat&logo=tiktok&logoColor=white)](https://www.douyin.com/video/7692700167341985051)
-[![Douyin Bookmarks](https://img.shields.io/badge/Bookmarks-6100+-f5a623?style=flat)](https://www.douyin.com/video/7692700167341985051)
-[![Shares](https://img.shields.io/badge/Shares-1400+-1890ff?style=flat)](https://www.douyin.com/video/7692700167341985051)
-[![Online Demo](https://img.shields.io/badge/Online_Demo-agent.stardust.website-brightgreen)](https://agent.stardust.website)
-[![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue)](#)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
+  <p>
+    <a href="https://awesome.re"><img src="https://awesome.re/badge.svg" alt="Awesome"></a>
+    <a href="https://github.com/cuic19053-hue/awesome-student-ai-skills/stargazers"><img src="https://img.shields.io/github/stars/cuic19053-hue/awesome-student-ai-skills?style=social&label=Star" alt="GitHub Stars"></a>
+    <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-green" alt="License: MIT"></a>
+    <a href="https://agent.stardust.website"><img src="https://img.shields.io/badge/Online_Demo-agent.stardust.website-brightgreen" alt="Online Demo"></a>
+    <a href="https://agentskills.io/specification"><img src="https://img.shields.io/badge/Agent_Skills-Compatible-6e3bf0" alt="Agent Skills"></a>
+  </p>
+</div>
 
 > *“An Enterprise-Grade LLM Agent Workflow Framework for academic & grant proposals. Born from real-world National Gold Award competition teams and validated by over 8,000+ university students. Features intent routing, chapter-by-chapter co-authoring, strict anti-hallucination constraints, and native `.docx` document rendering.”*
 

@@ -1,11 +1,17 @@
-# Awesome Student AI Skills
+<div align="center">
+  <a href="https://agent.stardust.website">
+    <img src="./assets/logo.png" width="96" height="96" alt="Awesome Student AI Skills Logo">
+  </a>
+  <h1>Awesome Student AI Skills</h1>
+  <p><b>35 个大学生申报书 AI Skill · 一句话生成可直接提交的规范 Word 文档</b></p>
 
-### 35 个大学生申报书 AI Skill · 一句话生成可直接提交的规范 Word 文档
-
-[![GitHub Stars](https://img.shields.io/github/stars/cuic19053-hue/awesome-student-ai-skills?style=social&label=Star)](https://github.com/cuic19053-hue/awesome-student-ai-skills/stargazers)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
-[![Online Demo](https://img.shields.io/badge/🌐_在线直接用-免安装-brightgreen)](https://agent.stardust.website)
-[![Agent Skills](https://img.shields.io/badge/Agent_Skills-Compatible-6e3bf0)](https://agentskills.io/specification)
+  <p>
+    <a href="https://github.com/cuic19053-hue/awesome-student-ai-skills/stargazers"><img src="https://img.shields.io/github/stars/cuic19053-hue/awesome-student-ai-skills?style=social&label=Star" alt="GitHub Stars"></a>
+    <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"></a>
+    <a href="https://agent.stardust.website"><img src="https://img.shields.io/badge/🌐_在线直接用-免安装-brightgreen" alt="Online Demo"></a>
+    <a href="https://agentskills.io/specification"><img src="https://img.shields.io/badge/Agent_Skills-Compatible-6e3bf0" alt="Agent Skills"></a>
+  </p>
+</div>
 
 > 大创、挑战杯、互联网+、国奖、励志奖学金、保研推免、三下乡、入团申请书……
 >
