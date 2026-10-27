@@ -309,7 +309,10 @@ async def require_supabase_session(request: Request, call_next):
         response.headers["Pragma"] = "no-cache"
     elif request.url.path.startswith("/static/"):
         name = request.url.path.removeprefix("/static/")
-        if name in ASSET_VERSIONS and request.query_params.get("v") == ASSET_VERSIONS[name]:
+        if (
+            name.startswith("vendor/")
+            or (name in ASSET_VERSIONS and request.query_params.get("v") == ASSET_VERSIONS[name])
+        ):
             response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         else:
             response.headers["Cache-Control"] = "public, max-age=0, must-revalidate"
@@ -490,9 +493,10 @@ def home() -> str:
     if not index.exists():
         return "<h1>大创 Agent</h1><p>前端正在初始化，请稍后重试。</p>"
     html = index.read_text(encoding="utf-8")
-    for filename in ("app.js", "app.css"):
-        digest = ASSET_VERSIONS[filename]
-        html = html.replace(f'/static/{filename}"', f'/static/{filename}?v={digest}"')
+    for filename in ("app.js", "app.css", "material.js"):
+        digest = ASSET_VERSIONS.get(filename, "")
+        if digest:
+            html = html.replace(f'/static/{filename}"', f'/static/{filename}?v={digest}"')
     return HTMLResponse(html, headers={"Cache-Control": "no-cache, must-revalidate"})
 
 

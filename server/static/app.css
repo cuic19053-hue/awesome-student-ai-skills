@@ -326,6 +326,10 @@ button:disabled {
   color: var(--text-heading);
 }
 
+.project-item:active {
+  transform: scale(0.98);
+}
+
 .project-item.active {
   background: var(--bg-active);
   color: var(--stardust-primary-dark);
@@ -539,8 +543,10 @@ button:disabled {
   position: sticky;
   top: 0;
   z-index: 20;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 .topbar-left {
@@ -670,13 +676,28 @@ button:disabled {
   padding: 7px 13px;
   font-weight: 500;
   font-size: 12.5px;
-  transition: all 0.15s ease;
+  transition: transform 0.08s ease, filter 0.08s ease, background-color 0.12s ease, border-color 0.12s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   line-height: 1.4;
   text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.button:active,
+button[type="button"]:active,
+button[type="submit"]:active,
+.quick-tag-btn:active,
+.workspace-tab-btn:active,
+.placeholder-btn:active,
+.mode-switch-btn:active,
+.fold-toggle-btn:active {
+  transform: scale(0.96) translateY(1px) !important;
+  filter: brightness(0.92);
 }
 
 .button-primary {

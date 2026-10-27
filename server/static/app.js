@@ -1084,7 +1084,12 @@
 
       item.title = `${project.title || "项目"} (${project.state?.skill_name || "申报材料"})`;
       item.append(body, delBtn);
-      item.addEventListener("click", () => loadProject(project.id));
+      item.dataset.id = project.id;
+      item.addEventListener("click", () => {
+        $$(".project-item").forEach(el => el.classList.remove("active"));
+        item.classList.add("active");
+        loadProject(project.id);
+      });
       list.append(item);
     }
   }
@@ -1135,6 +1140,9 @@
 
   async function loadProject(projectId) {
     try {
+      $$(".project-item").forEach(el => {
+        el.classList.toggle("active", el.dataset.id === projectId);
+      });
       const project = await api(`/api/projects/${projectId}`);
       if (state.project?.id !== projectId) {
         $("#uploadResult").classList.add("hidden");
@@ -1164,8 +1172,8 @@
       renderDiagrams();
       renderMessages();
       updateTemplateQuickActions(project);
-      await refreshProjects();
-      if (state.llmConfig.provider === "preset") await loadUserBalance();
+      void refreshProjects();
+      if (state.llmConfig.provider === "preset") void loadUserBalance();
     } catch (error) {
       toast(error.message, true);
     }
@@ -2951,24 +2959,39 @@
         }
       });
       save.addEventListener("click", async () => {
+        const previousContent = state.project.sections?.[section.id] || "";
+        const currentVal = editor.value;
+        save.disabled = true;
+        save.textContent = "保存中…";
+        statusPill.className = "section-status-pill saved";
+        statusPill.textContent = "✓ 保存中…";
+        state.project.sections = state.project.sections || {};
+        state.project.sections[section.id] = currentVal;
+        updateDraftStats();
         try {
           const saved = await api(`/api/projects/${state.project.id}/sections/${section.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ content: editor.value,
+            body: JSON.stringify({ content: currentVal,
               ...(window.MaterialPilot?.active() ? { expected_revision: state.project.material_revision,
-                base_content: state.project.sections?.[section.id] || "" } : {}) }),
+                base_content: previousContent } : {}) }),
           });
           if (saved.material_revision !== undefined) state.project.material_revision = saved.material_revision;
-          state.project.sections = state.project.sections || {};
-          state.project.sections[section.id] = editor.value;
-          if (window.MaterialPilot?.active()) await window.MaterialPilot.refresh();
           statusPill.className = "section-status-pill saved";
           statusPill.textContent = "✓ 已保存";
-          updateDraftStats();
+          save.textContent = "已保存";
+          setTimeout(() => {
+            save.textContent = "保存";
+            save.disabled = false;
+          }, 800);
+          if (window.MaterialPilot?.active()) void window.MaterialPilot.refresh();
           toast(`已保存“${section.title}”。`);
         } catch (error) {
-          toast(error.message, true);
+          save.disabled = false;
+          save.textContent = "保存";
+          statusPill.className = "section-status-pill unsaved";
+          statusPill.textContent = "● 未保存";
+          toast(`保存失败：${error.message}`, true);
         }
       });
 
@@ -3566,6 +3589,9 @@
   }
 
   async function validate() {
+    const btn = $("#validateBtn");
+    const oldText = btn ? btn.textContent : "";
+    if (btn) { btn.disabled = true; btn.textContent = "检查中…"; }
     try {
       const result = await api(`/api/projects/${state.project.id}/validate`, { method: "POST" });
       const box = $("#validationResult");
@@ -3612,6 +3638,8 @@
       }
     } catch (error) {
       toast(error.message, true);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = oldText || "基础检查"; }
     }
   }
 
@@ -3906,7 +3934,7 @@
       });
       const targetPanel = $(`#${targetId}`);
       if (targetPanel) {
-        targetPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+        targetPanel.scrollIntoView({ block: "start" });
       }
     }
   }

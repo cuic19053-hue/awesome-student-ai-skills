@@ -6,5 +6,16 @@
       "maxDuration": 60,
       "excludeFiles": "{.agent-data/**,.agents/**,outputs/**,tests/**,scripts/**,examples/**,.pytest_cache/**,**/__pycache__/**,mcp_server.py,server/mcp_server.py}"
     }
-  }
+  },
+  "headers": [
+    {
+      "source": "/static/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ]
 }
