@@ -101,7 +101,7 @@ def test_source_change_marks_outputs_and_cas_preserves_edit(pilot):
     file = store.files_dir / p["id"] / "source.txt"
     file.write_text("真实依据", encoding="utf-8")
     doc = store.add_document(p["id"], "source.txt", str(file), "source", "text/plain")
-    store.update_document_extraction(doc["id"], "真实依据", "ready", confirmed=True)
+    store.update_document_extraction(doc["id"], "真实依据", "ready", confirmed=True, confirmed_by_user=True)
     latest = store.get_project(p["id"])
     assert material_view(latest)["stale"]
     with pytest.raises(MaterialConflict):

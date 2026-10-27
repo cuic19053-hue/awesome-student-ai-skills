@@ -43,8 +43,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 try:
     from .hybrid_router import SkillVectors, configured_decider, normalize
+    from .skill_cards import infer_honor_variant
 except ImportError:  # python utils/dispatcher.py
     from hybrid_router import SkillVectors, configured_decider, normalize
+    from skill_cards import infer_honor_variant
 
 # ============================================================================
 # 路径常量
@@ -119,13 +121,13 @@ DECISION_TREE: Dict[str, Dict[str, Any]] = {
         "question": "你要评的是哪种荣誉？",
         "prompt_hint": "看面向群体（在校生/毕业生/班干部/毕设评优）",
         "options": [
-            {"label": "优秀学生 / 三好学生（在校生学年评优）", "value": "student",
+            {"label": "优秀学生 / 三好学生 / 优秀团员（在校生学年评优）", "value": "student",
              "skills": ["outstanding-student"]},
             {"label": "优秀毕业生（应届毕业生，看四年综合）", "value": "graduate",
              "skills": ["outstanding-graduate"]},
-            {"label": "优秀学生干部 / 优秀班干部", "value": "cadre",
+            {"label": "优秀学生干部 / 优秀班干部 / 优秀团干部", "value": "cadre",
              "skills": ["outstanding-cadre"]},
-            {"label": "文明大学生 / 优秀团员", "value": "civilized",
+            {"label": "文明大学生", "value": "civilized",
              "skills": ["civilized-student"]},
             {"label": "优秀班集体（班级集体申报）", "value": "collective",
              "skills": ["class-collective"]},
@@ -487,7 +489,20 @@ class Dispatcher:
         if not user_input.strip():
             return {"selected": None, "needs_clarification": True, "candidates": [], "method": "empty"}
         negated = self._negated_skills(user_input)
-        specific = {k: v for k, v in self._specific_matches(user_input).items() if k not in negated}
+        # A negated generic alias such as “大创” must not override a later,
+        # explicitly positive and more specific skill name.
+        specific = self._specific_matches(user_input)
+        normalized = normalize(user_input)
+        for name, alias in list(specific.items()):
+            position = normalized.find(alias)
+            clause = re.split(r"[，,。;；!！?？]", normalized[:position])[-1]
+            prefix = clause[-8:]
+            if re.search(r"(?:不想|不要|不报|不申请|不是|不考虑|不参加|别)(?:.{0,4})$", prefix):
+                specific.pop(name)
+            elif name in negated and not re.search(r"(?:我要|我想|我打算|我选择|请帮我|而是|要申请|要做|要写)", clause):
+                specific.pop(name)
+            elif name in negated:
+                negated.discard(name)
         lexical = {item["name"]: item for item in self.keyword_match(user_input) if item["name"] not in negated}
         semantic = self.semantic_scorer(user_input)
         filtered_semantic = {k: v for k, v in semantic.items() if k not in negated}
@@ -524,6 +539,22 @@ class Dispatcher:
         selected = None
         method = "hybrid"
         comparison = any(word in normalize(user_input) for word in ("区别", "对比", "比较", "哪个好"))
+        if re.search(r"或者|或是|还是|或|和|与|及|、", normalize(user_input)):
+            if (any(term in user_input for term in ("优秀团员", "优秀共青团员"))
+                    and any(term in user_input for term in ("优秀学生", "三好学生"))
+                    and infer_honor_variant(user_input) is None):
+                comparison = True
+        # Generic aliases cannot by themselves choose a skill, but they must
+        # still count as one side of an explicit either/or request.
+        parts = re.split(r"或者|或是|还是|或", normalize(user_input))
+        alternatives = set()
+        if len(parts) > 1:
+            for part in parts:
+                for skill in self.skills:
+                    display = normalize(skill.get("display_name", ""))
+                    if display and display in part and skill["name"] not in negated:
+                        alternatives.add(skill["name"])
+        comparison = comparison or len(alternatives) > 1
         if len(specific) == 1 and not comparison:
             selected = next(iter(specific))
             method = "hard_rule"
@@ -762,17 +793,17 @@ _FALLBACK_SKILLS: List[Dict[str, Any]] = [
      "category": "scholarship", "triggers": ["助学金", "国家助学金", "贫困生"],
      "description": "家庭经济困难认定后申请，无需成绩排名"},
     {"name": "outstanding-student", "display_name": "优秀学生/三好学生",
-     "category": "honor", "triggers": ["优秀学生", "三好学生", "学年评优"],
+     "category": "honor", "triggers": ["优秀学生", "三好学生", "学年评优", "优秀团员", "优秀共青团员"],
      "description": "在校生学年评优，思想+学习+身体三方面"},
     {"name": "outstanding-graduate", "display_name": "优秀毕业生",
      "category": "honor", "triggers": ["优秀毕业生", "省优", "校优"],
      "description": "毕业前最高荣誉，看四年综合"},
     {"name": "outstanding-cadre", "display_name": "优秀学生干部",
-     "category": "honor", "triggers": ["优秀班干部", "优秀学生干部", "班干部"],
+     "category": "honor", "triggers": ["优秀班干部", "优秀学生干部", "班干部", "优秀团干部"],
      "description": "面向班干部的评优"},
-    {"name": "civilized-student", "display_name": "文明大学生/优秀团员",
-     "category": "honor", "triggers": ["文明大学生", "优秀团员", "文明素养"],
-     "description": "侧重文明素养与团员先进性"},
+    {"name": "civilized-student", "display_name": "文明大学生",
+     "category": "honor", "triggers": ["文明大学生", "文明素养"],
+     "description": "侧重文明素养与道德事例"},
     {"name": "class-collective", "display_name": "优秀班集体",
      "category": "honor", "triggers": ["优秀班集体", "班集体", "先进班级"],
      "description": "班级集体申报的荣誉"},

@@ -68,7 +68,7 @@ ollama pull bge-m3
 
 上传、确认材料、引用和事实核验等机制沿用原大创 Agent 的安全边界：未确认材料不进入检索，缺少依据处标为“待补充/待验证”，正式提交前需要人工核对。
 
-未确认材料不进入 RAG。缺少依据的内容应保留“待补充/待验证”；论文元数据或摘要不等于已阅读全文。导出文件始终是草稿，正式提交前需要人工核对学校通知、数据和引用。
+非模板材料上传后请在材料卡片点击“核对并确认入库”；未确认材料不进入 RAG。旧版自动确认但无明确确认记录的材料保留原文，升级后需重新确认。明确的资格、金额、排名或截止问题只使用范围匹配的官方依据，不以项目指南猜测。缺少依据的内容应保留“待补充/待验证”；论文元数据或摘要不等于已阅读全文。导出文件始终是草稿，正式提交前需要人工核对学校通知、数据和引用。公共资料、模型配置及未完成事项见 [RAG 状态与运行说明](../docs/rag-status.md)。
 
 ## Agent 与工具
 
@@ -83,6 +83,7 @@ MCP 服务复用同一 `ProposalTools` 实现，当前提供：
 - `confirm_project_material`
 - `get_writing_guidance`
 - `search_project_materials`
+- `search_public_knowledge`
 - `search_papers`
 - `search_official_notices`
 - `fetch_official_notice`

@@ -10,6 +10,7 @@ awesome-student-ai-skills · Model Context Protocol (MCP) Server
 提供的核心工具：
   - list_student_skills: 列出全部 35 个申报赛道及分类
   - route_student_skill: 根据用户诉求智能路由推荐最佳赛道
+  - search_student_knowledge: 检索当前赛道公共指南及范围匹配的官方资料
   - get_skill_info: 获取指定赛道详情与元数据
   - get_skill_requirements: 获取指定赛道的信息采集字段清单与撰写指南
   - generate_student_doc: 渲染生成规范排版的 Word (.docx) 申报材料文档
@@ -126,14 +127,77 @@ def route_student_skill(query: str, top_n: int = 3) -> Dict[str, Any]:
       top_n: 返回推荐赛道的数量（默认 3）
     """
     try:
-        matches = _dispatcher.dispatch(query, top_n=top_n)
+        routing = _dispatcher.route(query, top_n=top_n)
         return {
             "query": query,
-            "recommended_skills": matches,
-            "note": "匹配得分越高越精准。如需该赛道的具体撰写指南，可调用 get_skill_requirements 工具。"
+            "recommended_skills": routing["candidates"],
+            "selected": routing["selected"],
+            "needs_clarification": routing["needs_clarification"],
+            "method": routing["method"],
+            "note": "候选分数不是资格判断；不确定时请向用户确认，不要强制选择。",
         }
     except Exception as e:
         return {"error": str(e)}
+
+
+@server.tool()
+def search_student_knowledge(
+    skill_name: str,
+    query: str,
+    school: str = "",
+    application_year: Optional[int] = None,
+    education_level: str = "",
+    college: str = "",
+    political_stage: str = "",
+    skill_variant: str = "",
+    top_k: int = 6,
+    include_examples: bool = False,
+) -> Dict[str, Any]:
+    """本机检索赛道公共资料；学校、年度和其他范围必须由用户明确提供。
+
+    返回的来源不证明用户符合条件；用户须自行核对原始通知及当前有效性。
+    非官方指南不是政策，已授权范文只提供结构摘要，不包含范文事实。
+    不向云模型发送查询；可选向量与重排仅使用本机回环 Ollama。
+    """
+    try:
+        from server.proposal.knowledge import PublicKnowledgeRetriever
+        from server.proposal.skills import model_safe_guidance
+        normalized = _normalize_skill_id(skill_name)
+        if not any(item.get("name") == normalized for item in _dispatcher.skills):
+            return {"error": "赛道不存在。", "results": []}
+        if not query.strip() or len(query) > 300:
+            return {"error": "检索问题须为 1–300 字。", "results": []}
+        if application_year is not None and not 1900 <= application_year <= 2199:
+            return {"error": "申报年度无效。", "results": []}
+        if education_level not in {"", "本科", "硕士", "博士"}:
+            return {"error": "学历阶段无效。", "results": []}
+        if political_stage not in {"", "入党积极分子", "预备党员"}:
+            return {"error": "党组织考察阶段无效。", "results": []}
+        if skill_variant and (normalized != "outstanding-student"
+                              or skill_variant not in {"outstanding_student", "outstanding_youth_league"}):
+            return {"error": "赛道子类别无效。", "results": []}
+        result = PublicKnowledgeRetriever(object()).search(
+            normalized, query, school=school.strip(), year=application_year,
+            variant=skill_variant,
+            filters={"education_level": education_level, "college": college.strip(),
+                     "political_stage": political_stage},
+            top_k=max(1, min(int(top_k), 10)),
+            include_examples=include_examples is True,
+        )
+        for item in result.get("results", []):
+            if item.get("kind") in {"example", "institution_report"}:
+                item["content"] = item.get("example_structure") or "仅参考结构，具体范文事实未发送给模型。"
+                item["model_content_restricted"] = True
+                if item.get("kind") == "example":
+                    item.pop("attribution", None)
+                    item["attribution_notice"] = "作者署名与授权信息见来源；再分发时须遵守许可。"
+            elif item.get("kind") == "skill_guidance":
+                item["content"] = model_safe_guidance(str(item.get("content") or ""))
+                item["model_content_restricted"] = True
+        result["scope_notice"] = "学校、年度及对象信息由调用者提供，必须经用户确认；返回资料不代表资格已核实。"
+        return result
+    except (TypeError, ValueError) as exc:
+        return {"error": f"检索参数或资料无效：{exc}", "results": []}
 
 
 @server.tool()
@@ -163,15 +227,15 @@ def get_skill_requirements(skill_name: str) -> Dict[str, Any]:
       skill_name: 赛道名称（如 'innovation-research', 'national-scholarship'）
     """
     norm_name = _normalize_skill_id(skill_name)
-    skill_dir = SUBSKILLS_DIR / norm_name
-    if not skill_dir.exists():
-        skill_dir = SUBSKILLS_DIR / norm_name.replace("-", "_")
-
-    skill_md = skill_dir / "SKILL.md"
-    if not skill_md.exists():
+    skill = next((item for item in _dispatcher.skills if item.get("name") == norm_name), None)
+    if not skill:
+        return {"error": f"找不到赛道 '{skill_name}'。"}
+    skill_md = (PROJECT_DIR / skill.get("skill_md_path", "")).resolve()
+    if not skill_md.is_relative_to(SUBSKILLS_DIR.resolve()) or not skill_md.is_file():
         return {"error": f"找不到赛道 '{skill_name}' 的 SKILL.md 文档"}
 
-    content = skill_md.read_text(encoding="utf-8")
+    from server.proposal.skills import model_safe_guidance
+    content = model_safe_guidance(skill_md.read_text(encoding="utf-8"))
 
     # 尝试提取信息采集清单章节与注意事项
     sections = {}
@@ -200,7 +264,7 @@ def get_skill_requirements(skill_name: str) -> Dict[str, Any]:
         "file_path": str(skill_md),
         "total_length": len(content),
         "key_sections": relevant_sections or {"full_preview": content[:4000]},
-        "summary": f"已成功提取 {norm_name} 的材料采集与撰写规范，请根据清单向用户收集真实数据。"
+        "summary": f"已提取 {norm_name} 的写作参考；数值性示例已过滤，政策须查验官方来源。"
     }
 
 
@@ -250,12 +314,11 @@ def generate_student_doc(
       demo: 是否使用内置示例数据快速体验生成
     """
     norm_name = _normalize_skill_id(skill_name)
-    skill_dir = SUBSKILLS_DIR / norm_name
-    if not skill_dir.exists():
-        skill_dir = SUBSKILLS_DIR / norm_name.replace("-", "_")
-
-    build_py = skill_dir / "build.py"
-    if not build_py.exists():
+    skill = next((item for item in _dispatcher.skills if item.get("name") == norm_name), None)
+    if not skill:
+        return {"error": f"赛道 '{skill_name}' 不存在。"}
+    build_py = (PROJECT_DIR / skill.get("build_py_path", "")).resolve()
+    if not build_py.is_relative_to(SUBSKILLS_DIR.resolve()) or not build_py.is_file():
         return {"error": f"赛道 '{skill_name}' 暂未找到 build.py 构建脚本: {build_py}"}
 
     if not output_path:

@@ -15,6 +15,7 @@ import os
 import re
 import unicodedata
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections import Counter
 from pathlib import Path
@@ -227,19 +228,18 @@ class HybridIntentDecider:
 
 
 def configured_decider() -> HybridIntentDecider | None:
-    """根据环境变量自适应构建双轨意图裁决器。"""
+    """Configure only a local decider; never infer cloud consent from API keys."""
     ollama_model = os.environ.get("ROUTER_INTENT_MODEL", os.environ.get("OLLAMA_MODEL", "")).strip()
     ollama_host = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434").strip()
 
-    cloud_key = os.environ.get("ROUTER_API_KEY", os.environ.get("OPENAI_API_KEY", "")).strip()
-    cloud_model = os.environ.get("ROUTER_CLOUD_MODEL", "gpt-4o-mini").strip()
-    cloud_base = os.environ.get("ROUTER_API_BASE", os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1")).strip()
-
-    local_decider = OllamaIntentDecider(ollama_model, ollama_host) if ollama_model else None
-    cloud_decider = CloudIntentDecider(cloud_model, cloud_key, cloud_base) if cloud_key else None
-
-    if local_decider or cloud_decider:
-        return HybridIntentDecider(local_decider=local_decider, cloud_decider=cloud_decider)
+    parsed = urllib.parse.urlsplit(ollama_host)
+    local_allowed = (
+        parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1", "::1"}
+        and not parsed.username and not parsed.password and not parsed.query and not parsed.fragment
+    )
+    local_decider = OllamaIntentDecider(ollama_model, ollama_host) if ollama_model and local_allowed else None
+    if local_decider:
+        return HybridIntentDecider(local_decider=local_decider)
     return None
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import urllib.error
 import urllib.parse
@@ -268,6 +269,8 @@ class SupabaseStore:
 
     def _document_row(self, row: dict[str, Any], download: bool = False) -> dict[str, Any]:
         result = dict(row)
+        if result.get("kind") != "template" and result.get("confirmation_origin") != "user":
+            result["confirmed"] = False
         path = self.files_dir / str(result["project_id"]) / Path(result["storage_path"]).name
         path.parent.mkdir(parents=True, exist_ok=True)
         result["stored_path"] = str(path)
@@ -501,6 +504,7 @@ class SupabaseStore:
         warning: str = "",
         low_confidence_count: int = 0,
         confirmed: bool = False,
+        confirmed_by_user: bool = False,
     ) -> None:
         self._rest(
             "documents",
@@ -512,6 +516,7 @@ class SupabaseStore:
                 "extraction_warning": warning,
                 "low_confidence_count": low_confidence_count,
                 "confirmed": confirmed,
+                "confirmation_origin": "user" if confirmed and confirmed_by_user else "",
             },
         )
         from .materials import touch_document
@@ -523,37 +528,76 @@ class SupabaseStore:
     def set_template_document(self, project_id: str, document_id: str | None) -> None:
         self.update_project(project_id, template_document_id=document_id)
 
-    def replace_chunks(self, document_id: str, chunks: list[dict[str, Any]]) -> None:
-        documents = self._rest(
-            "documents",
-            params=[
-                ("select", "project_id,original_name"),
-                ("id", f"eq.{document_id}"),
-                ("limit", "1"),
-            ],
-        )
-        if not documents:
+    def replace_chunks(self, document_id: str, chunks: list[dict[str, Any]], *, expected_text: str | None = None) -> None:
+        if not chunks:
+            # Revocation must also work while the document is unconfirmed.
+            self._rest("chunks", "DELETE", params=[("document_id", f"eq.{document_id}")])
             return
-        document = documents[0]
-        self._rest("chunks", "DELETE", params=[("document_id", f"eq.{document_id}")])
-        if chunks:
+        if expected_text is None:
+            raise ValueError("云端索引需要提供已确认材料的原始文字。")
+        rows = []
+        for item in chunks:
+            row = {"id": new_id(), "source_ref": item["source_ref"], "content": item["content"]}
+            embedding = item.get("embedding", [])
+            revision = item.get("embedding_revision", "")
+            if item.get("embedding_model") == "bge-m3" and revision and len(embedding) == 1024:
+                row.update(embedding=embedding, embedding_model="bge-m3", embedding_revision=revision)
+            rows.append(row)
+        try:
             self._rest(
-                "chunks",
-                "POST",
-                payload=[
-                    {
-                        "id": new_id(),
-                        "project_id": document["project_id"],
-                        "document_id": document_id,
-                        "source_name": document["original_name"],
-                        "source_ref": item["source_ref"],
-                        "content": item["content"],
-                        "embedding_json": item.get("embedding", []),
-                        "created_at": utc_now(),
-                    }
-                    for item in chunks
-                ],
+                "rpc/rag_replace_project_chunks", "POST",
+                payload={"p_document_id": document_id,
+                         "p_expected_sha256": hashlib.sha256(expected_text.encode("utf-8")).hexdigest(),
+                         "p_chunks": rows},
             )
+        except RuntimeError as exc:
+            if isinstance(exc.__cause__, urllib.error.HTTPError) and exc.__cause__.code == 409:
+                from .materials import MaterialConflict
+                raise MaterialConflict("材料在索引期间发生变化，请重新核对后确认。") from None
+            raise
+
+    def search_project_chunks(
+        self, project_id: str, terms: list[str], embedding: list[float] | None, model: str, model_revision: str = ""
+    ) -> list[dict[str, Any]]:
+        """Run under the request JWT, never the privileged service role."""
+        self._identity()
+        return self._rest(
+            "rpc/rag_project_search",
+            "POST",
+            payload={
+                "p_project_id": project_id,
+                "p_terms": terms[:80],
+                "p_embedding": embedding if embedding and len(embedding) == 1024 else None,
+                "p_model": model,
+                "p_model_revision": model_revision,
+                "p_limit": 30,
+            },
+        )
+
+    def search_public_knowledge(
+        self, skill_id: str, school: str, year: int | None,
+        terms: list[str], embedding: list[float] | None, embedding_revision: str = "", variant: str = "",
+        filters: dict[str, str] | None = None, official_only: bool = False, include_examples: bool = False,
+    ) -> list[dict[str, Any]]:
+        """Read only published public sources under the current user's JWT."""
+        self._identity()
+        return self._rest(
+            "rpc/rag_search_public_knowledge",
+            "POST",
+            payload={
+                "p_skill_id": skill_id,
+                "p_school": school,
+                "p_year": year,
+                "p_terms": terms[:80],
+                "p_embedding": embedding if embedding and len(embedding) == 1024 else None,
+                "p_embedding_revision": embedding_revision,
+                "p_variant": variant,
+                "p_filters": filters or {},
+                "p_official_only": official_only,
+                "p_include_examples": include_examples,
+                "p_limit": 30,
+            },
+        )
 
     def chunks_for_project(self, project_id: str) -> list[dict[str, Any]]:
         rows = self._rest(
@@ -561,7 +605,9 @@ class SupabaseStore:
             params=[
                 ("select", "*,documents!inner(confirmed,kind)"),
                 ("project_id", f"eq.{project_id}"),
+                ("documents.project_id", f"eq.{project_id}"),
                 ("documents.confirmed", "eq.true"),
+                ("documents.confirmation_origin", "eq.user"),
                 ("documents.kind", "neq.template"),
             ],
         )

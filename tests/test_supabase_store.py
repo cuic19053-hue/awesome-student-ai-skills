@@ -169,3 +169,38 @@ def test_cloud_registration_is_idempotent_and_can_skip_downloading(monkeypatch, 
         request_identity.reset(context)
     assert calls == [("HEAD", path), "insert"]
     assert not Path(result["stored_path"]).exists()
+
+
+def test_cloud_chunk_replace_is_single_atomic_rpc_with_text_hash(monkeypatch, tmp_path):
+    import hashlib
+    store = SupabaseStore("https://example.supabase.co", "public-test", tmp_path)
+    calls = []
+    def rest(table, method="GET", params=None, payload=None):
+        calls.append((table, method, params, payload))
+        return 1
+    monkeypatch.setattr(store, "_rest", rest)
+    text = "用户确认的原始文字"
+    chunks = [{"source_ref": "第 1 段", "content": "原始文字", "embedding": [0.1] * 1024,
+               "embedding_model": "bge-m3", "embedding_revision": "test-revision"}]
+    store.replace_chunks("doc-1", chunks, expected_text=text)
+    assert len(calls) == 1 and calls[0][0:2] == ("rpc/rag_replace_project_chunks", "POST")
+    payload = calls[0][3]
+    assert payload["p_expected_sha256"] == hashlib.sha256(text.encode()).hexdigest()
+    assert payload["p_chunks"][0]["embedding_revision"] == "test-revision"
+    assert len(payload["p_chunks"][0]["embedding"]) == 1024
+    with pytest.raises(ValueError, match="原始文字"):
+        store.replace_chunks("doc-1", chunks)
+
+
+def test_cloud_chunk_replace_maps_conflict_without_overwrite(monkeypatch, tmp_path):
+    import urllib.error
+    from proposal.materials import MaterialConflict
+    store = SupabaseStore("https://example.supabase.co", "public-test", tmp_path)
+    def conflict(*_args, **_kwargs):
+        try:
+            raise urllib.error.HTTPError("https://example.supabase.co/rpc", 409, "conflict", {}, None)
+        except urllib.error.HTTPError as exc:
+            raise RuntimeError("云端数据请求失败") from exc
+    monkeypatch.setattr(store, "_rest", conflict)
+    with pytest.raises(MaterialConflict):
+        store.replace_chunks("doc-1", [{"source_ref":"第 1 段", "content":"内容"}], expected_text="内容")

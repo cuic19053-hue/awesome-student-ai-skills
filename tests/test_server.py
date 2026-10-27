@@ -95,23 +95,87 @@ def test_material_preview_and_persistent_upload_result_are_available(client):
     assert "查看识别文字" in page.text
 
 
-def test_uploaded_material_original_is_available_for_preview_with_auto_indexing(client):
+def test_uploaded_material_original_requires_confirmation_for_indexing(client):
     project = client.post(
         "/api/projects", json={"title": "上传预览回归", "skill_id": "innovation-research"}
     ).json()
-    content = "这是已上传并自动入库的材料。".encode("utf-8")
+    content = "这是上传后需要核对的材料。".encode("utf-8")
     result = client.post(
         f"/api/projects/{project['id']}/documents?kind=source",
         files={"files": ("材料.txt", content, "text/plain")},
     )
     assert result.status_code == 200
     document = result.json()["documents"][0]["document"]
-    assert document["confirmed"] is True
+    assert document["confirmed"] is False
+    assert result.json()["documents"][0]["needs_confirmation"] is True
     original = client.get(f"/api/documents/{document['id']}/file")
     assert original.status_code == 200
     assert original.content == content
     assert original.headers["content-type"].startswith("text/plain")
+    assert client.get(f"/api/projects/{project['id']}").json()["documents"][0]["confirmed"] is False
+    confirmed = client.patch(f"/api/documents/{document['id']}/confirm", json={"confirmed": True})
+    assert confirmed.status_code == 200
     assert client.get(f"/api/projects/{project['id']}").json()["documents"][0]["confirmed"] is True
+
+
+def test_failed_reconfirmation_never_reveals_stale_chunks(client, monkeypatch):
+    import app as server_app
+    project = client.post("/api/projects", json={"title": "材料重确认"}).json()
+    uploaded = client.post(
+        f"/api/projects/{project['id']}/documents?kind=source",
+        files={"files": ("事实.txt", "旧版材料包含珍贵原始数据".encode(), "text/plain")},
+    ).json()["documents"][0]["document"]
+    doc_id = uploaded["id"]
+    assert client.patch(f"/api/documents/{doc_id}/confirm", json={"confirmed": True}).status_code == 200
+    assert server_app.tools.search_project_materials(project["id"], "珍贵原始数据")["results"]
+    monkeypatch.setattr(server_app.retriever, "index_document",
+                        lambda *a, **kw: (_ for _ in ()).throw(RuntimeError("index failure")))
+    with pytest.raises(RuntimeError, match="index failure"):
+        client.patch(f"/api/documents/{doc_id}/confirm",
+                     json={"confirmed": True, "corrected_text": "新内容不包含原始数据"})
+    assert not server_app.store.get_document(doc_id)["confirmed"]
+    assert server_app.tools.search_project_materials(project["id"], "珍贵原始数据")["results"] == []
+    assert client.get(f"/api/projects/{project['id']}").json()["documents"][0]["confirmed"] is False
+
+
+def test_concurrent_newer_confirmation_is_not_overwritten(client, monkeypatch):
+    import app as server_app
+    from proposal.materials import MaterialConflict
+    project = client.post("/api/projects", json={"title": "并发材料"}).json()
+    uploaded = client.post(
+        f"/api/projects/{project['id']}/documents?kind=source",
+        files={"files": ("事实.txt", "最初文本".encode(), "text/plain")},
+    ).json()["documents"][0]["document"]
+    doc_id = uploaded["id"]
+    def concurrent_update(*_args, **_kwargs):
+        server_app.store.update_document_extraction(
+            doc_id, "另一个请求更新的文本", "ready", confirmed=True, confirmed_by_user=True
+        )
+        raise MaterialConflict("材料已更改")
+    monkeypatch.setattr(server_app.retriever, "index_document", concurrent_update)
+    response = client.patch(f"/api/documents/{doc_id}/confirm",
+                            json={"confirmed": True, "corrected_text": "本次提交的文本"})
+    assert response.status_code == 409
+    current = server_app.store.get_document(doc_id)
+    assert current["extracted_text"] == "另一个请求更新的文本"
+    assert current["confirmed"]
+
+
+def test_legacy_automatic_confirmations_require_fresh_user_action(client, tmp_path):
+    import app as server_app
+    project = client.post("/api/projects", json={"title": "旧资料"}).json()
+    file_path = tmp_path / "old.txt"
+    file_path.write_text("旧系统自动提取的研究材料", encoding="utf-8")
+    document = server_app.store.add_document(project["id"], "old.txt", str(file_path), "source", "text/plain")
+    server_app.store.update_document_extraction(
+        document["id"], "旧系统自动提取的研究材料", "ready", confirmed=True
+    )
+    # Simulate chunks produced by the former auto-confirming implementation.
+    server_app.store.replace_chunks(document["id"], [{"content": "旧系统自动提取的研究材料", "source_ref": "段落 1"}])
+    assert server_app.tools.search_project_materials(project["id"], "自动提取")["results"] == []
+    assert client.get(f"/api/projects/{project['id']}").json()["documents"][0]["confirmed"] is False
+    assert client.patch(f"/api/documents/{document['id']}/confirm", json={"confirmed": True}).status_code == 200
+    assert server_app.tools.search_project_materials(project["id"], "自动提取")["results"]
 
 
 def test_leader_photo_upload_delete_and_export(client):
@@ -352,7 +416,8 @@ def test_cloud_registration_does_not_download_or_parse_and_processing_can_retry(
     monkeypatch.setattr(server_app, "_extract_uploaded_document", original_extract)
     retried = client.post(f"/api/documents/{document_id}/process", headers=headers)
     assert retried.status_code == 200
-    assert retried.json()["documents"][0]["document"]["confirmed"] is True
+    assert retried.json()["documents"][0]["document"]["confirmed"] is False
+    assert retried.json()["documents"][0]["needs_confirmation"] is True
     assert "这是已上传材料" in retried.json()["documents"][0]["document"]["extracted_text"]
 
 
@@ -470,6 +535,170 @@ def test_ambiguous_route_requests_clarification(client):
     assert response.status_code == 200
     assert response.json()["needs_clarification"] is True
     assert response.json()["selected"] is None
+
+
+def test_skill_cards_and_route_expose_task_metadata(client):
+    cards = client.get("/api/skill-cards")
+    assert cards.status_code == 200
+    assert cards.json()["total"] == 35
+    assert all(card["id"] and card["aliases"] for card in cards.json()["cards"])
+    result = client.post("/api/route", json={"query": "国家奖学金和励志奖学金有什么区别"}).json()
+    assert result["task_type"] == "compare"
+    assert result["selected"] is None
+    assert result["method"]
+
+
+def test_public_skill_cards_do_not_require_cloud_login(client, monkeypatch):
+    import app as server_app
+    monkeypatch.setattr(server_app, "CLOUD_MODE", True)
+    response = client.get("/api/skill-cards")
+    assert response.status_code == 200
+    assert response.json()["total"] == 35
+
+
+def test_public_knowledge_respects_confirmed_school_and_year(client):
+    project = client.post("/api/projects", json={
+        "title": "励志奖学金", "school": "无锡学院",
+        "skill_id": "motivation-scholarship",
+    }).json()
+    project_id = project["id"]
+    def search():
+        return client.post(
+            f"/api/projects/{project_id}/search/knowledge", json={"query": "申报条件 奖励标准"}
+        ).json()
+    assert not search()["official_evidence_found"]
+    response = client.put(f"/api/projects/{project_id}/facts", json={"application_year": "2026", "education_level": "本科"})
+    assert response.status_code == 200
+    result = search()
+    assert result["official_evidence_found"]
+    assert all(row["school"] == "无锡学院" for row in result["results"] if row["kind"] == "official")
+    assert client.put(f"/api/projects/{project_id}/facts", json={"application_year": "not-a-year"}).status_code == 422
+    assert client.put(f"/api/projects/{project_id}/facts", json={"application_year": ""}).status_code == 200
+    assert not search()["official_evidence_found"]
+
+
+def test_outstanding_youth_league_uses_correct_skill_and_variant(client):
+    query = "我要申报优秀团员"
+    route = client.post("/api/route", json={"query": query}).json()
+    assert route["selected"]["id"] == "outstanding-student"
+    project = client.post("/api/projects", json={
+        "title": "团员评优", "skill_id": route["selected"]["id"], "initial_request": query,
+    }).json()
+    assert project["state"]["skill_variant"] == "outstanding_youth_league"
+    assert project["state"]["skill_name"] == "优秀团员"
+    from proposal.agent import _system_prompt
+    assert "category 必须使用 outstanding_youth_league" in _system_prompt(project)
+
+
+def test_policy_chat_never_uses_unverified_guidance_or_model(client, monkeypatch):
+    import app as server_app
+    monkeypatch.setattr(server_app.agent, "_post", lambda *a, **kw: pytest.fail("must not invoke model"))
+    project = client.post("/api/projects", json={
+        "title": "国奖材料", "skill_id": "national-scholarship", "school": "无锡学院",
+    }).json()
+    project_id = project["id"]
+    query = "国家奖学金评选时学业排名有何要求"
+    before_wallet = server_app.store.get_workbench_credit_balance("local_user")
+    response = client.post(f"/api/projects/{project_id}/chat", json={
+        "message": query, "llm_config": {"provider": "preset"}
+    })
+    assert response.status_code == 200
+    assert "暂未检索到适用于当前项目的官方依据" in response.json()["message"]
+    assert "8000" not in response.json()["message"]
+    assert response.json()["model"] == "evidence-only"
+    after_wallet = server_app.store.get_workbench_credit_balance("local_user")
+    assert after_wallet["free_chat_count"] == before_wallet["free_chat_count"]
+    assert after_wallet["balance_micro_cny"] == before_wallet["balance_micro_cny"]
+
+    client.put(f"/api/projects/{project_id}/facts", json={"application_year": "2026", "education_level": "本科"})
+    response = client.post(f"/api/projects/{project_id}/chat", json={"message": query})
+    assert response.status_code == 200
+    assert "无锡学院2026年本科生国家奖学金" in response.json()["message"]
+    assert "https://xgc.cwxu.edu.cn/info/1129/3307.htm" in response.json()["message"]
+    assert "8000" not in response.json()["message"]
+    assert response.json()["free_chat"] is False
+    other_year = client.post(f"/api/projects/{project_id}/chat",
+                             json={"message": "2027年国家奖学金评选排名条件是什么"}).json()["message"]
+    assert "年度" in other_year and "不一致" in other_year
+    assert "无锡学院2026年本科生国家奖学金" not in other_year
+    other_school = client.post(f"/api/projects/{project_id}/chat",
+                               json={"message": "河南大学国家奖学金评选排名条件是什么"}).json()["message"]
+    assert "学校" in other_school and "不一致" in other_school
+    assert "无锡学院2026年本科生国家奖学金" not in other_school
+    unfamiliar_school = client.post(f"/api/projects/{project_id}/chat",
+                                    json={"message": "武汉理工大学国家奖学金评选条件是什么"}).json()["message"]
+    assert "其他学校" in unfamiliar_school
+    assert "无锡学院2026年本科生国家奖学金" not in unfamiliar_school
+
+    streamed = client.post(f"/api/projects/{project_id}/chat",
+                           json={"message": query, "stream": True})
+    assert streamed.status_code == 200
+    assert "event: done" in streamed.text and "evidence-only" in streamed.text
+
+
+def test_uploaded_notice_requires_confirmation_and_is_not_claimed_verified(client, monkeypatch):
+    import app as server_app
+    monkeypatch.setattr(server_app.agent, "_post", lambda *a, **kw: pytest.fail("must not invoke model"))
+    project = client.post("/api/projects", json={"title": "通知核对", "skill_id": "national-scholarship"}).json()
+    project_id = project["id"]
+    uploaded = client.post(
+        f"/api/projects/{project_id}/documents?kind=official",
+        files={"files": ("通知.txt", "国家奖学金评选排名条件：以本学院通知为准。".encode(), "text/plain")},
+    ).json()["documents"][0]["document"]
+    query = "国家奖学金评选排名条件是什么"
+    before = client.post(f"/api/projects/{project_id}/chat", json={"message": query}).json()["message"]
+    assert "暂未检索到适用于当前项目的官方依据" in before
+    assert client.patch(f"/api/documents/{uploaded['id']}/confirm", json={"confirmed": True}).status_code == 200
+    after = client.post(f"/api/projects/{project_id}/chat", json={"message": query}).json()["message"]
+    assert "用户标记为通知" in after
+    assert "尚未独立核验" in after
+    assert "本学院通知为准" in after
+
+
+def test_policy_stream_preserves_verified_cloud_identity(client, monkeypatch):
+    import httpx
+    import app as server_app
+    from proposal.agent import OllamaAgent
+    from proposal.supabase_store import request_identity
+    from proposal.tools import ProposalTools
+
+    backing = server_app.store
+    project = backing.create_project(title="隔离测试", school="")
+
+    class IdentityStore:
+        def __getattr__(self, name):
+            value = getattr(backing, name)
+            if not callable(value):
+                return value
+            def checked(*args, **kwargs):
+                assert request_identity.get()["user_id"] == "verified-owner"
+                return value(*args, **kwargs)
+            return checked
+
+    class Auth:
+        async def get(self, *_args, **_kwargs):
+            return httpx.Response(200, json={"id": "verified-owner"})
+
+    from contextlib import asynccontextmanager
+    @asynccontextmanager
+    async def auth_http():
+        yield Auth()
+
+    scoped_store = IdentityStore()
+    scoped_tools = ProposalTools(scoped_store, server_app.retriever)
+    monkeypatch.setattr(server_app, "CLOUD_MODE", True)
+    monkeypatch.setattr(server_app, "auth_http", auth_http)
+    monkeypatch.setattr(server_app, "store", scoped_store)
+    monkeypatch.setattr(server_app, "tools", scoped_tools)
+    monkeypatch.setattr(server_app, "agent", OllamaAgent(scoped_store, scoped_tools))
+    response = client.post(
+        f"/api/projects/{project['id']}/chat",
+        headers={"Authorization": "Bearer scoped-token"},
+        json={"message": "国家奖学金申请条件是什么", "stream": True},
+    )
+    assert response.status_code == 200
+    assert "event: done" in response.text
+    assert "暂未检索到适用于当前项目的官方依据" in response.text
 
 
 def test_project_can_start_in_a_non_innovation_skill(client):

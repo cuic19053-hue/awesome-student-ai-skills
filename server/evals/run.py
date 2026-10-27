@@ -43,6 +43,7 @@ def run_case(case: dict[str, Any], root: Path, model: str) -> dict[str, Any]:
             source["text"],
             "ready",
             confirmed=True,
+            confirmed_by_user=True,
         )
         retriever.index_document(document["id"], source["text"])
 

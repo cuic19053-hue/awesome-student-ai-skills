@@ -208,7 +208,8 @@ def hydrate(job, folder, local_source=None):
         store.add_document(project_id, doc["original_name"], str(target), doc["kind"], doc.get("content_type",""),
                            document_id=doc["id"])
         store.update_document_extraction(doc["id"], doc.get("extracted_text",""), doc.get("extraction_status","ready"),
-            doc.get("extraction_warning",""), doc.get("low_confidence_count",0), confirmed=bool(doc.get("confirmed")))
+            doc.get("extraction_warning",""), doc.get("low_confidence_count",0), confirmed=bool(doc.get("confirmed")),
+            confirmed_by_user=doc.get("confirmation_origin") == "user")
     with store.connect() as db:
         db.execute("UPDATE projects SET template_document_id=? WHERE id=?", (project.get("template_document_id"),project_id))
     for message in payload.get("messages", []):

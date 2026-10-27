@@ -10,6 +10,43 @@ INDEX_PATH = ROOT / "index.json"
 SUBSKILLS_DIR = ROOT / "subskills"
 
 
+def redact_source_contacts(text: str) -> str:
+    """Remove obvious contact and identity numbers before model context."""
+    text = re.sub(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", "【邮箱已隐藏】", text)
+    text = re.sub(r"(?<!\d)1[3-9]\d{9}(?!\d)", "【电话已隐藏】", text)
+    return re.sub(r"(?<!\d)\d{17}[\dXx](?!\d)", "【证件号已隐藏】", text)
+
+
+def model_safe_guidance(text: str) -> str:
+    """Keep writing structure while excluding unverified examples and numeric rules.
+
+    This is a guardrail, not evidence validation. Official requirements still
+    have to come from a scope-matched source or the user's confirmed notice.
+    """
+    text = redact_source_contacts(text)
+    lines = text.splitlines()
+    if lines and lines[0].strip() == "---":
+        end = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), None)
+        if end is not None:
+            lines = lines[end + 1:]
+    result = []
+    fenced = False
+    for line in lines:
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
+        if re.search(r"(?:案例|例如|示例|样例|范文示范)", line):
+            continue
+        if re.search(r"\d+(?:\.\d+)?\s*[%％]", line):
+            continue
+        if re.search(r"\d[\d,]*(?:\.\d+)?\s*(?:万元|万|元|人|天|个月|年|小时|篇|张|项|次|字|分|岁)", line):
+            continue
+        result.append(line)
+    return "\n".join(result) + "\n【示例、代码和数值性要求已过滤；申报规则须核对适用官方来源。】"
+
+
 def normalize_skill_id(value: str) -> str:
     return str(value or "").strip().replace("_", "-").lower()
 
@@ -69,8 +106,14 @@ class SkillRegistry:
         skill = self.get(skill_id)
         if not skill:
             return ""
-        text = skill["skill_path"].read_text(encoding="utf-8")
+        text = redact_source_contacts(skill["skill_path"].read_text(encoding="utf-8"))
         return text[:max_chars]
+
+    def model_guidance(self, skill_id: str, max_chars: int = 14000) -> str:
+        skill = self.get(skill_id)
+        if not skill:
+            return ""
+        return model_safe_guidance(skill["skill_path"].read_text(encoding="utf-8"))[:max_chars]
 
 
 registry = SkillRegistry()

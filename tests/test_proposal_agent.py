@@ -329,7 +329,7 @@ def test_default_project_title_is_not_saved_as_a_user_fact(workspace):
     assert "project_name" not in project["state"]
 
 
-def test_uploaded_material_is_automatically_retrievable(workspace):
+def test_uploaded_material_requires_confirmation_before_retrieval(workspace):
     client, store, retriever, tools, _agent = workspace
     project_id = create_project(client)
     payload = "团队已经完成 12 株样本观察；导师建议进一步比较叶片病斑。".encode()
@@ -339,7 +339,10 @@ def test_uploaded_material_is_automatically_retrievable(workspace):
     )
     assert response.status_code == 200
     document = response.json()["documents"][0]["document"]
-    assert document["confirmed"] is True
+    assert document["confirmed"] is False
+    assert tools.search_project_materials(project_id, "12 株样本", 3)["results"] == []
+    assert client.get(f"/api/projects/{project_id}").json()["documents"][0]["confirmed"] is False
+    assert client.patch(f"/api/documents/{document['id']}/confirm", json={"confirmed": True}).status_code == 200
     result = tools.search_project_materials(project_id, "12 株样本", 3)
     assert result["results"]
     assert result["results"][0]["source_name"] == "project-notes.txt"
@@ -350,7 +353,7 @@ def test_uploaded_material_is_automatically_retrievable(workspace):
     assert retriever.search(project_id, "12 株样本")["results"] == []
 
 
-def test_mcp_text_material_auto_confirmed_for_rag(workspace):
+def test_mcp_text_material_requires_explicit_confirmation(workspace):
     _client, store, retriever, tools, _agent = workspace
     project = store.create_project()
     added = tools.add_text_material(
@@ -358,8 +361,10 @@ def test_mcp_text_material_auto_confirmed_for_rag(workspace):
         "../../field-notes.txt",
         "观察了 12 株番茄苗，并记录病斑面积。",
     )
-    assert added["confirmed"] is True
+    assert added["confirmed"] is False
     assert added["filename"] == "field-notes.txt"
+    assert retriever.search(project["id"], "12 株番茄苗")["results"] == []
+    assert tools.confirm_project_material(project["id"], added["document_id"])["success"] is True
     assert retriever.search(project["id"], "12 株番茄苗")["results"]
 
 
@@ -567,6 +572,7 @@ def test_pdf_template_headings_are_used_as_reconstruction_order(workspace, tmp_p
         "[第 1 页]\n一、项目背景与研究问题\n二、研究方法\n三、进度安排",
         "ready",
         confirmed=True,
+        confirmed_by_user=True,
     )
     store.set_template_document(project_id, document["id"])
     store.update_project(
@@ -692,7 +698,7 @@ def test_validation_flags_conflicting_budget_values_from_confirmed_docs(workspac
         file_path = store.files_dir / project_id / name
         file_path.write_text(text, encoding="utf-8")
         document = store.add_document(project_id, name, str(file_path), "source", "text/plain")
-        store.update_document_extraction(document["id"], text, "ready", confirmed=True)
+        store.update_document_extraction(document["id"], text, "ready", confirmed=True, confirmed_by_user=True)
     result = tools.validate_project(project_id)
     assert result["passed"] is False
     assert any("多个预算金额" in warning for warning in result["consistency_warnings"])
@@ -877,6 +883,9 @@ def test_configured_searxng_returns_only_official_domains(workspace, monkeypatch
     result = tools.search_official_notices("大创申报", "示例大学", max_results=5)
     assert result["source"] == "configured SearXNG"
     assert [item["url"] for item in result["results"]] == ["https://university.edu.cn/notice"]
+    scholarship = tools.search_official_notices("国家奖学金", "示例大学")
+    assert "国家奖学金" in scholarship["query"]
+    assert "大学生创新训练计划" not in scholarship["query"]
 
 
 def test_optional_review_uses_saved_draft_and_is_explicit(workspace):

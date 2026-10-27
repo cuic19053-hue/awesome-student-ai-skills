@@ -1,0 +1,1262 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "wuxi-2026-motivation-scholarship",
+      "skill_id": "motivation-scholarship",
+      "kind": "official",
+      "title": "无锡学院2026年国家励志奖学金申报及评审通知",
+      "source_url": "https://xgc.cwxu.edu.cn/info/1129/3318.htm",
+      "school": "无锡学院",
+      "application_year": 2026,
+      "scope": "仅适用于无锡学院2026年通知；学院材料上报截止2026年10月21日。以下为人工整理摘要，不是原文，须回源核验。",
+      "source_sha256": "6b010789b5fb0bd1e4c0e89ba7b4efd0912bcba2420bf7f94d5a83e7caa05486",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "一、奖励对象与标准",
+          "content": "该通知面向二年级及以上全日制本科生中品学兼优、家庭经济困难的学生；所列奖励标准为每人每年6000元。"
+        },
+        {
+          "source_ref": "一、奖励对象与标准（二）",
+          "content": "无锡学院此批次规定，获得国家励志奖学金的学生同一学年不能同时获得国家奖学金或学校奖学金。请勿推广为其他学校的政策。"
+        },
+        {
+          "source_ref": "三、申报条件",
+          "content": "申请人需已获学校家庭经济困难认定；通知另规定必修课考核、处分、体测和综合测评等条件，具体排名要求应查阅原文。"
+        },
+        {
+          "source_ref": "四、评审程序（一）",
+          "content": "流程包括学生申请、学院资格审查和初审推荐；学院候选名单需公示不少于三个工作日，2026年10月21日前向学校报送材料。"
+        }
+      ],
+      "verified_at": "2026-10-27",
+      "restrictions": {
+        "education_level": [
+          "本科"
+        ]
+      }
+    },
+    {
+      "id": "dlou-2026-motivation-scholarship",
+      "skill_id": "motivation-scholarship",
+      "kind": "official",
+      "title": "大连海洋大学2026年本科生国家励志奖学金评审与材料申报通知",
+      "source_url": "https://www.dlou.edu.cn/2026/0911/c5866a208286/page.htm",
+      "school": "大连海洋大学",
+      "application_year": 2026,
+      "scope": "仅适用于大连海洋大学2026年本科生通知；学院报送截止2026年10月9日16时。以下为人工整理摘要，不是原文，须回源核验。",
+      "source_sha256": "cbbe70b5fd8e986cdd667e0a18e8a2a9cebae0dc20052311eae2f0714a9f0cad",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "二、严格规范评审材料第2项",
+          "content": "此批次要求申请人为上一学年学校认定的家庭经济困难学生，且综合测评成绩位于本专业前50%。"
+        },
+        {
+          "source_ref": "二、严格规范评审材料第3项",
+          "content": "该通知允许同学年同时获得国家励志奖学金和本科生国家助学金，但不允许同时获得国家奖学金或省政府奖学金。"
+        },
+        {
+          "source_ref": "二、严格规范评审材料第1项",
+          "content": "各学院应使用统一的申请审批表和初审名单表，不得更改表格内容或使用自制表格。"
+        },
+        {
+          "source_ref": "三、严格规范材料报送",
+          "content": "通知要求学院于2026年10月9日16时前向学生工作处报送指定申请材料；该期限不等于学生向学院提交申请的截止时间。"
+        }
+      ],
+      "verified_at": "2026-10-27",
+      "restrictions": {
+        "education_level": [
+          "本科"
+        ]
+      }
+    },
+    {
+      "id": "wuxi-2026-national-grant",
+      "skill_id": "grant-application",
+      "kind": "official",
+      "title": "无锡学院2026—2027学年秋季普通本科生国家助学金评审通知",
+      "source_url": "https://xgc.cwxu.edu.cn/info/1129/3327.htm",
+      "school": "无锡学院",
+      "application_year": 2026,
+      "scope": "仅适用于无锡学院2026—2027学年秋季批次，学院材料报送截止2026年10月28日16时；以下为人工整理摘要，具体内容应回源核验。",
+      "source_sha256": "8294c4c8f1e17fc14d6977d812353edf2049fe10c72efe8dcaa3e72e05fc83ac",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "一、资助对象、标准（一）",
+          "content": "通知面向经学校正式认定为家庭经济困难的全日制普通本科生；同一学年已获得国家奖学金或国家励志奖学金的学生仍可申请国家助学金。"
+        },
+        {
+          "source_ref": "一、资助对象、标准（二）",
+          "content": "该校该学期按认定困难等级分别参照2350元、1850元和1350元进行评审；这是学期批次标准，不应误写成年标准或推广至其他学校。"
+        },
+        {
+          "source_ref": "三、评审程序",
+          "content": "由学生申请，经学院民主评议、审核和公示后，学院于2026年10月28日16时前上报材料；学生个人向学院提交的截止时间需另行确认。"
+        }
+      ],
+      "verified_at": "2026-10-27",
+      "restrictions": {
+        "education_level": [
+          "本科"
+        ]
+      }
+    },
+    {
+      "id": "wuxi-2027-selected-graduate",
+      "skill_id": "selected-graduate",
+      "kind": "official",
+      "title": "无锡学院关于江苏省2027年应届优秀大学毕业生选调工作的通知",
+      "source_url": "https://xgc.cwxu.edu.cn/info/1129/3329.htm",
+      "school": "无锡学院",
+      "application_year": 2027,
+      "scope": "仅适用于无锡学院推荐江苏省2027年应届毕业生的该次通知，省选调条件应另查省委组织部公告；以下为人工整理摘要，具体内容应回源核验。",
+      "source_sha256": "a59c9f41d7474416934f324f5c7761286367b7c3916d8289a4dacf70e85954ec",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "一、选调对象及数量、选调条件、选调程序等",
+          "content": "通知要求选调对象、数量及条件以江苏省委组织部公告为准；无锡学院属于乡镇（街道）职位选调类别Ⅱ高校。"
+        },
+        {
+          "source_ref": "二、推荐程序",
+          "content": "报考人员填写选调推荐人选名册并向所在学院党总支申请；学院汇总材料后提交学校审核，学校通知列有2026年10月26日和10月30日两个报送节点。"
+        },
+        {
+          "source_ref": "三、工作纪律",
+          "content": "报考者须如实填报个人信息并提供任职、奖励和学习等材料；资格条件及具体日期仍以相关公告和学校通知为准。"
+        }
+      ],
+      "verified_at": "2026-10-27"
+    },
+    {
+      "id": "wuxi-2026-university-scholarship",
+      "skill_id": "university-scholarship",
+      "kind": "official",
+      "title": "无锡学院2025—2026学年学校特等奖学金评定通知",
+      "source_url": "https://xgc.cwxu.edu.cn/info/1129/3320.htm",
+      "school": "无锡学院",
+      "application_year": 2026,
+      "scope": "仅适用于无锡学院2025—2026学年特等奖学金，学院公开差额答辩要求在2026年10月22日前完成；以下为人工整理摘要，具体内容应回源核验。",
+      "source_sha256": "e460c70db916e6a1991c1122a6289d4b57249cabb57bbc1c6c1775e442fa3991",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "一、申请条件（一）",
+          "content": "申请条件包含文明行为、体测、学习和综合素质等要求；通知还要求评定学年综合测评位于同年级同专业前50%，并有上一学年的校级或以上奖励。"
+        },
+        {
+          "source_ref": "一、申请条件（二）",
+          "content": "通知列举未注册、处分未解除或正在调查处理、必修课不及格、必修课加权平均分低于70分等不具备资格的情况。"
+        },
+        {
+          "source_ref": "二、评审方式与名额分配",
+          "content": "该校该学年特等奖学金采取差额评审、公开展示方式，学校名额为50个；具体名额按学院附件分配。"
+        },
+        {
+          "source_ref": "三、评审程序（二）",
+          "content": "候选学生参加学院公开差额答辩；学院推荐名单上报前需在学院范围公示三个工作日。"
+        }
+      ],
+      "verified_at": "2026-10-27",
+      "restrictions": {
+        "education_level": [
+          "本科"
+        ]
+      }
+    },
+    {
+      "id": "wuxi-2026-national-scholarship",
+      "skill_id": "national-scholarship",
+      "kind": "official",
+      "title": "无锡学院2026年本科生国家奖学金申报及评审通知",
+      "source_url": "https://xgc.cwxu.edu.cn/info/1129/3307.htm",
+      "school": "无锡学院",
+      "application_year": 2026,
+      "scope": "仅适用于无锡学院2026年本科生批次，学院材料报送截止2026年10月8日16时；以下为人工整理摘要，具体内容应回源核验。",
+      "source_sha256": "79f43278b4e2ff6382820e802b0e94e54eff200f8fa56444541c24435a6faa27",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "一、奖励对象与标准",
+          "content": "通知奖励全日制在校二年级及以上品学兼优本科生，标准为每人每年10000元；同一学年不能同时参评国家励志奖学金。"
+        },
+        {
+          "source_ref": "三、申报条件（五）第1项",
+          "content": "一般条件要求该校2025—2026学年学习成绩和综合测评成绩均位于同年级同专业前10%，并满足学校奖学金条件。"
+        },
+        {
+          "source_ref": "三、申报条件（五）第2项",
+          "content": "未进入前10%但达到前30%的学生，如其他方面特别突出可申请，并须提交详细证明材料；具体范围和细则以通知原文为准。"
+        },
+        {
+          "source_ref": "四、评审程序",
+          "content": "程序包含学院审核推荐、资格审核、公开答辩、学校审定和公示；学院于2026年10月8日16时前报送材料。"
+        }
+      ],
+      "verified_at": "2026-10-27",
+      "restrictions": {
+        "education_level": [
+          "本科"
+        ]
+      }
+    },
+    {
+      "id": "wuxi-2026-innovation-research",
+      "skill_id": "innovation-research",
+      "kind": "official",
+      "title": "无锡学院2026年校级大创申报通知 · 创新训练项目",
+      "source_url": "https://jwc.cwxu.edu.cn/info/1075/5775.htm",
+      "school": "无锡学院",
+      "application_year": 2026,
+      "scope": "仅适用于无锡学院2026年校级大创项目，学生在线申报截至2026年4月17日；以下为人工整理摘要，应回源核验。",
+      "source_sha256": "1b9febd9045457a5ef30dea6709d1f30ca13f0e74af4c5118561ab35cf8f6527",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "二、项目类型（一）",
+          "content": "创新训练项目由本科生个人或团队在导师指导下完成研究设计、条件准备、实施、报告与成果交流。"
+        },
+        {
+          "source_ref": "四、申请人员与项目组",
+          "content": "该校该批次主要面向一、二、三年级全日制本科生，项目负责人限1人，组员含负责人不超过5人；其他限制和例外请核对原文。"
+        },
+        {
+          "source_ref": "六、研究周期",
+          "content": "该批次一般研究周期为2026年4月至2027年4月；校级项目立项不资助，省级和国家级项目在校级项目基础上择优推荐。"
+        },
+        {
+          "source_ref": "八、申报要求和流程",
+          "content": "项目经学院评审后推荐学校审核；学生在线申报及指导教师审核截止2026年4月17日。"
+        }
+      ],
+      "verified_at": "2026-10-27",
+      "restrictions": {
+        "education_level": [
+          "本科"
+        ]
+      }
+    },
+    {
+      "id": "wuxi-2026-entrepreneurship-training",
+      "skill_id": "entrepreneurship-training",
+      "kind": "official",
+      "title": "无锡学院2026年校级大创申报通知 · 创业训练项目",
+      "source_url": "https://jwc.cwxu.edu.cn/info/1075/5775.htm",
+      "school": "无锡学院",
+      "application_year": 2026,
+      "scope": "仅适用于无锡学院2026年校级大创项目，学生在线申报截至2026年4月17日；以下为人工整理摘要，应回源核验。",
+      "source_sha256": "1b9febd9045457a5ef30dea6709d1f30ca13f0e74af4c5118561ab35cf8f6527",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "二、项目类型（二）",
+          "content": "创业训练团队在导师指导下编制商业计划书、开展可行性研究和企业模拟运行；创业训练项目需另提交创业计划书。"
+        },
+        {
+          "source_ref": "四、申请人员与项目组",
+          "content": "该校该批次主要面向一、二、三年级全日制本科生，项目负责人限1人，组员含负责人不超过5人；其他限制和例外请核对原文。"
+        },
+        {
+          "source_ref": "六、研究周期",
+          "content": "该批次一般研究周期为2026年4月至2027年4月；校级项目立项不资助，省级和国家级项目在校级项目基础上择优推荐。"
+        },
+        {
+          "source_ref": "八、申报要求和流程",
+          "content": "项目经学院评审后推荐学校审核；学生在线申报及指导教师审核截止2026年4月17日。"
+        }
+      ],
+      "verified_at": "2026-10-27",
+      "restrictions": {
+        "education_level": [
+          "本科"
+        ]
+      }
+    },
+    {
+      "id": "wuxi-2026-entrepreneurship-practice",
+      "skill_id": "entrepreneurship-practice",
+      "kind": "official",
+      "title": "无锡学院2026年校级大创申报通知 · 创业实践项目",
+      "source_url": "https://jwc.cwxu.edu.cn/info/1075/5775.htm",
+      "school": "无锡学院",
+      "application_year": 2026,
+      "scope": "仅适用于无锡学院2026年校级大创项目，学生在线申报截至2026年4月17日；以下为人工整理摘要，应回源核验。",
+      "source_sha256": "1b9febd9045457a5ef30dea6709d1f30ca13f0e74af4c5118561ab35cf8f6527",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "二、项目类型（三）",
+          "content": "该校该批次要求创业实践项目实际投入创业3个月以上；满足通知列出的注册或孵化条件者可优先立项。"
+        },
+        {
+          "source_ref": "四、申请人员与项目组",
+          "content": "申报创业实践项目时，项目负责人必须为相关项目的企业法人。"
+        },
+        {
+          "source_ref": "四、申请人员与项目组",
+          "content": "该校该批次主要面向一、二、三年级全日制本科生，项目负责人限1人，组员含负责人不超过5人；其他限制和例外请核对原文。"
+        },
+        {
+          "source_ref": "六、研究周期",
+          "content": "该批次一般研究周期为2026年4月至2027年4月；校级项目立项不资助，省级和国家级项目在校级项目基础上择优推荐。"
+        },
+        {
+          "source_ref": "八、申报要求和流程",
+          "content": "项目经学院评审后推荐学校审核；学生在线申报及指导教师审核截止2026年4月17日。"
+        }
+      ],
+      "verified_at": "2026-10-27",
+      "restrictions": {
+        "education_level": [
+          "本科"
+        ]
+      }
+    },
+    {
+      "id": "wuxi-2027-internet-plus",
+      "skill_id": "internet-plus",
+      "kind": "official",
+      "title": "无锡学院中国国际大学生创新大赛（2027）培育项目遴选通知 · 高教主赛道",
+      "source_url": "https://jwc.cwxu.edu.cn/info/1094/6021.htm",
+      "school": "无锡学院",
+      "application_year": 2027,
+      "scope": "仅适用于无锡学院2027年创新大赛培育项目遴选，按往届赛道规则组织；2027年正式赛事规则须另行核对；以下为人工整理摘要，应回源核验。",
+      "source_sha256": "6472e3a094847a9c3a7761af676d1f4e833ebab9c7fe9ec8d361edd1f5ec1ef1",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "二、工作任务（二）赛道设置",
+          "content": "学校培育通知列出高教主赛道的新工科、新医科、新农科、新文科、人工智能+等项目类型；实际2027年赛制以主办方正式通知为准。"
+        },
+        {
+          "source_ref": "二、工作任务（三）组建参赛团队",
+          "content": "学校培育通知按往届要求组织团队，所列人数和指导教师数量仅作该校遴选参考，不能代替2027年正式赛事规则。"
+        },
+        {
+          "source_ref": "二、工作任务（四）项目申报流程",
+          "content": "团队向学院提交项目申报材料，学院完成推荐后学校组织评审并择优确定培育项目。"
+        }
+      ],
+      "verified_at": "2026-10-27"
+    },
+    {
+      "id": "wuxi-2027-internet-plus-red-tour",
+      "skill_id": "internet-plus-red-tour",
+      "kind": "official",
+      "title": "无锡学院中国国际大学生创新大赛（2027）培育项目遴选通知 · 青年红色筑梦之旅",
+      "source_url": "https://jwc.cwxu.edu.cn/info/1094/6021.htm",
+      "school": "无锡学院",
+      "application_year": 2027,
+      "scope": "仅适用于无锡学院2027年创新大赛培育项目遴选，按往届赛道规则组织；2027年正式赛事规则须另行核对；以下为人工整理摘要，应回源核验。",
+      "source_sha256": "6472e3a094847a9c3a7761af676d1f4e833ebab9c7fe9ec8d361edd1f5ec1ef1",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "二、工作任务（二）赛道设置",
+          "content": "学校培育通知将红旅赛道主题描述为科技创新、乡村振兴、城市社区治理、城乡融合发展，并列公益组、创意组、创业组；正式赛制以主办方通知为准。"
+        },
+        {
+          "source_ref": "二、工作任务（三）组建参赛团队",
+          "content": "学校培育通知按往届要求组织团队，所列人数和指导教师数量仅作该校遴选参考，不能代替2027年正式赛事规则。"
+        },
+        {
+          "source_ref": "二、工作任务（四）项目申报流程",
+          "content": "团队向学院提交项目申报材料，学院完成推荐后学校组织评审并择优确定培育项目。"
+        }
+      ],
+      "verified_at": "2026-10-27"
+    },
+    {
+      "id": "wuxi-2027-must-exchange",
+      "skill_id": "exchange-program",
+      "kind": "official",
+      "title": "无锡学院2026—2027学年春季赴澳门科技大学交流生通知",
+      "source_url": "https://gjjy.cwxu.edu.cn/info/1364/1658.htm",
+      "school": "无锡学院",
+      "application_year": 2027,
+      "scope": "仅适用于无锡学院赴澳门科技大学2027年春季学期交流批次，通知规定学生提交材料截至2026年10月14日10时；以下为人工整理摘要，应回源核验。",
+      "source_sha256": "5c282d80e001cf4b8c106f559937688c9e0cca4eddd8e9313610d73828fdd409",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "交流时间",
+          "content": "通知计划交流时间为2027年1月至5月。"
+        },
+        {
+          "source_ref": "课程安排",
+          "content": "通知要求交流生每学期修读不少于12个、最多18个学分，具体课程应以接收学校安排为准。"
+        },
+        {
+          "source_ref": "报名方式",
+          "content": "有意报名者按通知提交交换申请表、成绩单及澳门科技大学报名表；该批次通知载明的学生提交截止时间为2026年10月14日10时。"
+        }
+      ],
+      "verified_at": "2026-10-27"
+    },
+    {
+      "id": "wuxi-2026-challenge-cup-training",
+      "skill_id": "challenge-cup",
+      "kind": "official",
+      "title": "无锡学院团委“挑战杯”赛事训练营实施细则（试行）",
+      "source_url": "https://tw.cwxu.edu.cn/info/1164/2602.htm",
+      "school": "无锡学院",
+      "application_year": 2026,
+      "scope": "仅为无锡学院2026年10月起试行一学年的校内赛事训练营制度，不是挑战杯主办方比赛规则或评审标准；摘要须回源核验。",
+      "source_sha256": "14c3dd43bd17c686bb57e84c64d79c029377e12654e31ea76d6670b4c38ab2f7",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "训练营实施方式",
+          "content": "校内训练营按秋、春两季开展，围绕赛事认知、选题、作品打磨及答辩实战等模块设置课程。该细则仅约束训练营，不能替代挑战杯赛事报名或评分规定。"
+        },
+        {
+          "source_ref": "招募与入营流程",
+          "content": "通知说明每季开营前发布招募，师生自愿报名并填写入营申请表；实际报名时间及当季要求需核实最新公告。"
+        },
+        {
+          "source_ref": "师生激励机制（一）",
+          "content": "试行细则对符合条件的训练营获评者所培育项目设置校赛阶段激励；是否符合及规则细节应查阅原文。"
+        }
+      ],
+      "verified_at": "2026-10-27"
+    },
+    {
+      "id": "wuxi-2026-summer-social-survey",
+      "skill_id": "social-survey",
+      "kind": "official",
+      "title": "无锡学院2026年暑期“三下乡”社会实践通知 · 调查研究",
+      "source_url": "https://tw.cwxu.edu.cn/info/1164/2563.htm",
+      "school": "无锡学院",
+      "application_year": 2026,
+      "scope": "仅适用于无锡学院2026年暑期“三下乡”项目通用要求；学院立项材料报送截止2026年6月12日。该通知不等于其他学校或专项要求；以下是人工摘要，须回源核验。",
+      "source_sha256": "ae5b17a35a58ead5e2dd18fdcbb9820901c5207000c12167a36bf1245a212703",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "五、活动内容第4项",
+          "content": "通知鼓励围绕乡村特色产业发展开展调研、提出建议；具体调查题目、对象和方法应结合当地实际。"
+        },
+        {
+          "source_ref": "七、活动安排（一）团队组建",
+          "content": "该校该批次团队成员不超过10人、团队实践原则上不少于7天；个人或团队须配备该校在岗指导教师，人数不超过3人，外出活动须购买人身意外伤害保险。"
+        },
+        {
+          "source_ref": "七、活动安排（二）项目申报",
+          "content": "个人或团队填写学校立项信息汇总表和项目立项书，经学院或归口管理部门汇总上报；学院材料报送节点为2026年6月12日。"
+        },
+        {
+          "source_ref": "七、活动安排（三）项目结题",
+          "content": "该批次要求提交结题书、活动视频、照片及调研报告等，个人或团队应于2026年9月11日前交由归口单位汇总；具体附件与格式核对原文。"
+        }
+      ],
+      "verified_at": "2026-10-27"
+    },
+    {
+      "id": "wuxi-2026-summer-volunteer-teaching",
+      "skill_id": "volunteer-teaching",
+      "kind": "official",
+      "title": "无锡学院2026年暑期“三下乡”社会实践通知 · 助学帮扶",
+      "source_url": "https://tw.cwxu.edu.cn/info/1164/2563.htm",
+      "school": "无锡学院",
+      "application_year": 2026,
+      "scope": "仅适用于无锡学院2026年暑期“三下乡”项目通用要求；学院立项材料报送截止2026年6月12日。该通知不等于其他学校或专项要求；以下是人工摘要，须回源核验。",
+      "source_sha256": "ae5b17a35a58ead5e2dd18fdcbb9820901c5207000c12167a36bf1245a212703",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "五、活动内容第6项",
+          "content": "通知提出面向农村留守家人和子女提供助学帮扶、心理辅导及陪伴照护等关爱服务；未规定具体支教课程表。"
+        },
+        {
+          "source_ref": "七、活动安排（一）团队组建",
+          "content": "该校该批次团队成员不超过10人、团队实践原则上不少于7天；个人或团队须配备该校在岗指导教师，人数不超过3人，外出活动须购买人身意外伤害保险。"
+        },
+        {
+          "source_ref": "七、活动安排（二）项目申报",
+          "content": "个人或团队填写学校立项信息汇总表和项目立项书，经学院或归口管理部门汇总上报；学院材料报送节点为2026年6月12日。"
+        },
+        {
+          "source_ref": "七、活动安排（三）项目结题",
+          "content": "该批次要求提交结题书、活动视频、照片及调研报告等，个人或团队应于2026年9月11日前交由归口单位汇总；具体附件与格式核对原文。"
+        }
+      ],
+      "verified_at": "2026-10-27"
+    },
+    {
+      "id": "wuxi-2026-summer-policy-lecture",
+      "skill_id": "policy-lecture",
+      "kind": "official",
+      "title": "无锡学院2026年暑期“三下乡”社会实践通知 · 宣讲服务",
+      "source_url": "https://tw.cwxu.edu.cn/info/1164/2563.htm",
+      "school": "无锡学院",
+      "application_year": 2026,
+      "scope": "仅适用于无锡学院2026年暑期“三下乡”项目通用要求；学院立项材料报送截止2026年6月12日。该通知不等于其他学校或专项要求；以下是人工摘要，须回源核验。",
+      "source_sha256": "ae5b17a35a58ead5e2dd18fdcbb9820901c5207000c12167a36bf1245a212703",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "五、活动内容第1项",
+          "content": "通知提出开展小规模、互动式理论宣传宣讲；具体宣讲主题及活动对象应按学校通知和实际方案确定。"
+        },
+        {
+          "source_ref": "七、活动安排（一）团队组建",
+          "content": "该校该批次团队成员不超过10人、团队实践原则上不少于7天；个人或团队须配备该校在岗指导教师，人数不超过3人，外出活动须购买人身意外伤害保险。"
+        },
+        {
+          "source_ref": "七、活动安排（二）项目申报",
+          "content": "个人或团队填写学校立项信息汇总表和项目立项书，经学院或归口管理部门汇总上报；学院材料报送节点为2026年6月12日。"
+        },
+        {
+          "source_ref": "七、活动安排（三）项目结题",
+          "content": "该批次要求提交结题书、活动视频、照片及调研报告等，个人或团队应于2026年9月11日前交由归口单位汇总；具体附件与格式核对原文。"
+        }
+      ],
+      "verified_at": "2026-10-27"
+    },
+    {
+      "id": "wuxi-2026-summer-tech-service",
+      "skill_id": "tech-service",
+      "kind": "official",
+      "title": "无锡学院2026年暑期“三下乡”社会实践通知 · 科技服务",
+      "source_url": "https://tw.cwxu.edu.cn/info/1164/2563.htm",
+      "school": "无锡学院",
+      "application_year": 2026,
+      "scope": "仅适用于无锡学院2026年暑期“三下乡”项目通用要求；学院立项材料报送截止2026年6月12日。该通知不等于其他学校或专项要求；以下是人工摘要，须回源核验。",
+      "source_sha256": "ae5b17a35a58ead5e2dd18fdcbb9820901c5207000c12167a36bf1245a212703",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "五、活动内容第3项",
+          "content": "通知提出结合涉农技术、智慧农业与数字乡村等领域开展科技实践和农技指导，具体服务应匹配团队能力和当地需求。"
+        },
+        {
+          "source_ref": "七、活动安排（一）团队组建",
+          "content": "该校该批次团队成员不超过10人、团队实践原则上不少于7天；个人或团队须配备该校在岗指导教师，人数不超过3人，外出活动须购买人身意外伤害保险。"
+        },
+        {
+          "source_ref": "七、活动安排（二）项目申报",
+          "content": "个人或团队填写学校立项信息汇总表和项目立项书，经学院或归口管理部门汇总上报；学院材料报送节点为2026年6月12日。"
+        },
+        {
+          "source_ref": "七、活动安排（三）项目结题",
+          "content": "该批次要求提交结题书、活动视频、照片及调研报告等，个人或团队应于2026年9月11日前交由归口单位汇总；具体附件与格式核对原文。"
+        }
+      ],
+      "verified_at": "2026-10-27"
+    },
+    {
+      "id": "wuxi-2024-outstanding-student",
+      "skill_id": "outstanding-student",
+      "kind": "official",
+      "title": "无锡学院2024年度江苏省高校省级评优通知 · 三好学生",
+      "source_url": "https://xgc.cwxu.edu.cn/info/1129/2703.htm",
+      "school": "无锡学院",
+      "application_year": 2024,
+      "scope": "仅适用于无锡学院2024年度江苏省高校省级评选，学院材料报送截止2024年4月15日，不能当成当前规则；以下为人工整理摘要，应回源核验。",
+      "source_sha256": "fb8e7ba3df2f0f7752f6da4d357b3c153acffcf5fb07af05e5acf954e62dc503",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "二、评选标准第1项",
+          "content": "该校该批次省级三好学生标准涵盖思想品德、学习、实践、劳动及身心等方面，具体标准以原通知为准。"
+        },
+        {
+          "source_ref": "一、评选范围和名额",
+          "content": "评选范围为该校本科在籍学生；三好学生、优秀学生干部和优秀毕业生不可兼评。"
+        },
+        {
+          "source_ref": "三、评选程序",
+          "content": "个人评优由个人申报和组织推荐相结合，经院系审核、学校遴选和公示后上报；班集体由院系推荐。"
+        }
+      ],
+      "variant": "outstanding_student",
+      "verified_at": "2026-10-27",
+      "restrictions": {
+        "education_level": [
+          "本科"
+        ]
+      }
+    },
+    {
+      "id": "wuxi-2024-outstanding-cadre",
+      "skill_id": "outstanding-cadre",
+      "kind": "official",
+      "title": "无锡学院2024年度江苏省高校省级评优通知 · 优秀学生干部",
+      "source_url": "https://xgc.cwxu.edu.cn/info/1129/2703.htm",
+      "school": "无锡学院",
+      "application_year": 2024,
+      "scope": "仅适用于无锡学院2024年度江苏省高校省级评选，学院材料报送截止2024年4月15日，不能当成当前规则；以下为人工整理摘要，应回源核验。",
+      "source_sha256": "fb8e7ba3df2f0f7752f6da4d357b3c153acffcf5fb07af05e5acf954e62dc503",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "二、评选标准第2项",
+          "content": "该校该批次省级优秀学生干部须具备规定的三好学生条件，并在学校认定的组织担任主要学生干部累计一年以上，具有工作业绩；其他条件核对原文。"
+        },
+        {
+          "source_ref": "一、评选范围和名额",
+          "content": "评选范围为该校本科在籍学生；三好学生、优秀学生干部和优秀毕业生不可兼评。"
+        },
+        {
+          "source_ref": "三、评选程序",
+          "content": "个人评优由个人申报和组织推荐相结合，经院系审核、学校遴选和公示后上报；班集体由院系推荐。"
+        }
+      ],
+      "verified_at": "2026-10-27",
+      "restrictions": {
+        "education_level": [
+          "本科"
+        ]
+      }
+    },
+    {
+      "id": "wuxi-2024-outstanding-graduate",
+      "skill_id": "outstanding-graduate",
+      "kind": "official",
+      "title": "无锡学院2024年度江苏省高校省级评优通知 · 优秀毕业生",
+      "source_url": "https://xgc.cwxu.edu.cn/info/1129/2703.htm",
+      "school": "无锡学院",
+      "application_year": 2024,
+      "scope": "仅适用于无锡学院2024年度江苏省高校省级评选，学院材料报送截止2024年4月15日，不能当成当前规则；以下为人工整理摘要，应回源核验。",
+      "source_sha256": "fb8e7ba3df2f0f7752f6da4d357b3c153acffcf5fb07af05e5acf954e62dc503",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "二、评选标准第3项",
+          "content": "该校该批次省级优秀毕业生标准涵盖在校品德、学习成绩、实践创新和就业观等，学校通知对部分就业方向设置优先推荐条件，具体以原文为准。"
+        },
+        {
+          "source_ref": "一、评选范围和名额",
+          "content": "评选范围为该校本科在籍学生；三好学生、优秀学生干部和优秀毕业生不可兼评。"
+        },
+        {
+          "source_ref": "三、评选程序",
+          "content": "个人评优由个人申报和组织推荐相结合，经院系审核、学校遴选和公示后上报；班集体由院系推荐。"
+        }
+      ],
+      "verified_at": "2026-10-27",
+      "restrictions": {
+        "education_level": [
+          "本科"
+        ]
+      }
+    },
+    {
+      "id": "wuxi-2024-class-collective",
+      "skill_id": "class-collective",
+      "kind": "official",
+      "title": "无锡学院2024年度江苏省高校省级评优通知 · 先进班集体",
+      "source_url": "https://xgc.cwxu.edu.cn/info/1129/2703.htm",
+      "school": "无锡学院",
+      "application_year": 2024,
+      "scope": "仅适用于无锡学院2024年度江苏省高校省级评选，学院材料报送截止2024年4月15日，不能当成当前规则；以下为人工整理摘要，应回源核验。",
+      "source_sha256": "fb8e7ba3df2f0f7752f6da4d357b3c153acffcf5fb07af05e5acf954e62dc503",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "二、评选标准第4项",
+          "content": "该校该批次省级先进班集体标准包括班委示范、班级管理、班风学风、公益实践和宿舍卫生等方面。"
+        },
+        {
+          "source_ref": "一、评选范围和名额",
+          "content": "评选范围为该校本科在籍学生；三好学生、优秀学生干部和优秀毕业生不可兼评。"
+        },
+        {
+          "source_ref": "三、评选程序",
+          "content": "个人评优由个人申报和组织推荐相结合，经院系审核、学校遴选和公示后上报；班集体由院系推荐。"
+        }
+      ],
+      "verified_at": "2026-10-27",
+      "restrictions": {
+        "education_level": [
+          "本科"
+        ]
+      }
+    },
+    {
+      "id": "wuxi-2026-jiangsu-enlistment",
+      "skill_id": "military-enlistment",
+      "kind": "official",
+      "title": "江苏省征兵工作条例（2025年修订，学校转载）",
+      "source_url": "https://xgc.cwxu.edu.cn/info/1164/3187.htm",
+      "school": "无锡学院",
+      "application_year": 2026,
+      "scope": "仅供无锡学院2026年江苏省征兵制度参考；条例2026年1月1日起施行，当前是否修订及具体报名通知需核验；以下为人工整理摘要，应回源核验。",
+      "source_sha256": "83e34ccf6600c221d5108f1f921269b66b47b52a32a16bc4ae403faffbac5964",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "第九条",
+          "content": "条例规定，当年12月31日前满十八周岁的男性公民依法进行初次兵役登记；具体报名安排以当年公告为准。"
+        },
+        {
+          "source_ref": "第十一条",
+          "content": "征兵体格检查和政治考核由征集地征兵办公室组织，相关主管部门按职责实施；具体标准以现行规定为准。"
+        },
+        {
+          "source_ref": "第十二条",
+          "content": "体格检查和政治考核合格人员在审定新兵前参加役前教育；选拔仍以当地征兵工作要求为准。"
+        }
+      ],
+      "verified_at": "2026-10-27"
+    },
+    {
+      "id": "wuxi-2027-challenge-cup-selection",
+      "skill_id": "challenge-cup",
+      "kind": "official",
+      "title": "无锡学院第二十届挑战杯课外学术科技作品竞赛校内选拔赛预通知",
+      "source_url": "https://tw.cwxu.edu.cn/info/1164/2596.htm",
+      "school": "无锡学院",
+      "application_year": 2027,
+      "scope": "仅适用于无锡学院第二十届挑战杯校内选拔预通知；学院初赛安排在2026年11月20日前，正式赛事须以主办方后续规则为准；以下为人工整理摘要，应回源核验。",
+      "source_sha256": "7f16dea7d2122f515688ce3498720291894d25758ebc3945e75c22e31f187fd0",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "一、参赛对象",
+          "content": "该校预通知面向2027年6月1日前正式注册的全日制在校本科生；此要求不能替代省赛或国赛报名规则。"
+        },
+        {
+          "source_ref": "二、参赛作品类别",
+          "content": "该校预通知列自然科学类学术论文、哲学社会科学类社会调查报告和学术论文、科技发明制作三个作品类别。"
+        },
+        {
+          "source_ref": "三、参赛作品要求",
+          "content": "预通知规定了个人与集体作品的归类和作者要求，并列出不在申报范围的作品；具体应逐项核对原文。"
+        },
+        {
+          "source_ref": "四、赛程安排",
+          "content": "学校预通知安排学院初赛在2026年11月20日前，校赛决赛拟于2026年12月中旬进行；后续以正式通知为准。"
+        }
+      ],
+      "verified_at": "2026-10-27"
+    },
+    {
+      "id": "wuxi-2026-major-transfer",
+      "skill_id": "major-transfer",
+      "kind": "official",
+      "title": "无锡学院2026年普通本科生转专业工作通知",
+      "source_url": "https://jwc.cwxu.edu.cn/info/1100/5880.htm",
+      "school": "无锡学院",
+      "application_year": 2026,
+      "scope": "仅适用于无锡学院2026年普通本科生转专业批次；学生申请截止2026年9月5日，当前批次已结束。以下是人工摘要，应回源核验。",
+      "source_sha256": "54f7b8eb216be64146cede1de11b6ec56420f7042a52c925d2288dea1aa93919",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "一、申请对象和条件",
+          "content": "该校2026年转专业面向符合相关办法的2025级普通本科生，以及符合学习困难转专业细则的2024级普通本科生，均不含中外合作办学；具体资格以原办法为准。"
+        },
+        {
+          "source_ref": "二、转专业日程安排（二）",
+          "content": "该批次拟申请学生须于2026年9月5日前向所在二级学院提交学校转专业申请表，后续还需通过转出审核与转入考核。"
+        },
+        {
+          "source_ref": "三、相关要求（一）",
+          "content": "通知规定在校学习期间只能申请一次转专业，办妥转专业手续后不得再转回原专业；申请前应充分了解目标专业。"
+        },
+        {
+          "source_ref": "三、相关要求（三）",
+          "content": "转入学生须修读转入专业所有专业基础课和专业课，课程认定和补修以接收学院审核为准。"
+        }
+      ],
+      "verified_at": "2026-10-27",
+      "restrictions": {
+        "education_level": [
+          "本科"
+        ]
+      }
+    },
+    {
+      "id": "wuxi-2024-outstanding-youth-league",
+      "skill_id": "outstanding-student",
+      "variant": "outstanding_youth_league",
+      "kind": "official",
+      "title": "无锡学院2024年江苏省优秀共青团员等推荐通知",
+      "source_url": "https://tw.cwxu.edu.cn/info/1164/2248.htm",
+      "school": "无锡学院",
+      "application_year": 2024,
+      "scope": "仅适用于无锡学院2024年省级团内评优推荐；近年标准和报名程序应查看当年正式通知。以下是人工摘要，须回源核验。",
+      "source_sha256": "2c1871167e7c4418d15659d7fcfd5dc9941ff4a7b99353ca1f42bce7a389d413",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "一、申报类别",
+          "content": "该校该批次推荐类别包括江苏省优秀共青团员、优秀共青团干部和五四红旗团支部等；各类别条件不同，不可混用。"
+        },
+        {
+          "source_ref": "二、申报条件（二）参评资格",
+          "content": "通知对省级优秀共青团员的年龄、团龄、发展团员编号及既往荣誉等列出条件；具体条款和适用对象应核对原文。"
+        }
+      ],
+      "verified_at": "2026-10-27"
+    },
+    {
+      "id": "wuxi-2023-western-plan",
+      "skill_id": "western-plan",
+      "kind": "official",
+      "title": "无锡学院2023年大学生志愿服务西部计划志愿者招募通知",
+      "source_url": "https://tw.cwxu.edu.cn/info/1164/2090.htm",
+      "school": "无锡学院",
+      "application_year": 2023,
+      "scope": "仅适用于无锡学院2023年西部计划招募历史批次，学院材料报送截止2023年5月13日；后续年度政策不得沿用。以下是人工摘要，须回源核验。",
+      "source_sha256": "ffab8b250b2a35b7a22e8b7eb8376fc78916c20bae5c8569b5db5fe2e4dfc727",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "二、招募对象",
+          "content": "学校该批次招募对象为2023年应届毕业生，通知还列明西部计划与江苏省大学生志愿服务乡村振兴计划不得兼报；现行政策以当年正式通知为准。"
+        },
+        {
+          "source_ref": "三、招募程序",
+          "content": "该批次要求在西部计划系统注册填报，并按学校要求提交经学院签字盖章的报名表和成绩单；时间节点仅适用于2023年。"
+        },
+        {
+          "source_ref": "四、政策保障",
+          "content": "通知介绍了符合条件时的升学、学费补偿等保障政策；具体资格和标准以服务期届满时有效政策及招募公告为准。"
+        }
+      ],
+      "verified_at": "2026-10-27"
+    },
+    {
+      "id": "wuxi-2026-youth-league-application",
+      "skill_id": "youth-league-application",
+      "kind": "official",
+      "title": "无锡学院2026年团员发展工作通知",
+      "source_url": "https://tw.cwxu.edu.cn/info/1164/2540.htm",
+      "school": "无锡学院",
+      "application_year": 2026,
+      "scope": "仅适用于无锡学院2026年团员发展工作；年度名额与后续时间安排须以最新通知为准。以下为人工摘要，应回源核验。",
+      "source_sha256": "4e869695aa0863f566ca18843b48142865ab7d609b0d781568a3eb9da0049f8f",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "二、发展工作程序（一）",
+          "content": "通知要求申请人以书面方式向学习所在单位团组织提出入团申请；团组织收到申请书后应在一个月内安排谈话。"
+        },
+        {
+          "source_ref": "二、发展工作程序（三）",
+          "content": "该校2026年通知要求团前教育不少于8学时、培养考察不少于3个月；具体考察程序以学校和团组织规定为准。"
+        },
+        {
+          "source_ref": "二、发展工作程序（五）",
+          "content": "发展对象的接收须经团支部大会逐人讨论表决；后续组织审批表格与最初提交的入团申请书不是同一文件。"
+        }
+      ],
+      "verified_at": "2026-10-27"
+    },
+    {
+      "id": "xjtu-2027-graduate-recommendation",
+      "skill_id": "graduate-recommendation",
+      "kind": "official",
+      "title": "西安交通大学推荐2027年优秀应届本科毕业生免试攻读研究生工作通知",
+      "source_url": "https://jwc.xjtu.edu.cn/info/1098/10435.htm",
+      "school": "西安交通大学",
+      "application_year": 2027,
+      "scope": "仅适用于西安交通大学推荐2027届应届本科毕业生的推免工作，不是接收院校复试通知；具体学院方案及时间须另行核验。以下为人工摘要，应回源核验。",
+      "source_sha256": "0199ff7cb6bc952c22e27870743c7749c3c36eb855d2bf0853726183f37fe9fc",
+      "verified_at": "2026-10-27",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "二、推荐条件",
+          "content": "学校该批次推荐对象为国家普通本科招生计划录取的全日制应届毕业生，需满足思想品德、课程学分、学习表现和诚信等基本条件；具体课程条件以原通知和学院方案为准。"
+        },
+        {
+          "source_ref": "四、推荐工作程序及要求（二）",
+          "content": "该校该批次总成绩由综合素质测评和智育成绩构成，通知所列比例分别为10%和90%；不能将该比例推广到其他学校。"
+        },
+        {
+          "source_ref": "四、推荐工作程序及要求（七）—（十）",
+          "content": "符合基本条件的学生向所在学院提出申请并填写学校推免申请表；学院核算成绩、推荐并公示，教务处审核后上报推免服务系统。"
+        },
+        {
+          "source_ref": "一、工作原则第5项",
+          "content": "通知要求保障学生自主报考，不得将报考本校作为遴选推免生的条件。"
+        }
+      ],
+      "restrictions": {
+        "education_level": [
+          "本科"
+        ]
+      }
+    },
+    {
+      "id": "xjtu-2027-csc-aus-nz-canada",
+      "skill_id": "csc-scholarship",
+      "kind": "official",
+      "title": "西安交通大学2027年国家留学基金委澳新加19所高校合作奖学金项目申报通知",
+      "source_url": "https://gs.xjtu.edu.cn/info/1390/11709.htm",
+      "school": "西安交通大学",
+      "application_year": 2027,
+      "scope": "仅适用于西安交通大学2027年澳、新、加19所合作高校公派博士学位或联合培养项目，学校通知面向全日制在读研究生；不适用于其他CSC项目。具体资格须以基金委原文为准。以下为人工摘要，应回源核验。",
+      "source_sha256": "c4f74ea2562883eef1858c8ec67fba78e31c6dcef3e9a2f53ae8d4c4ca583194",
+      "verified_at": "2026-10-27",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "一、项目概况",
+          "content": "该校通知的合作项目面向优秀全日制在读研究生，资助赴澳大利亚、新西兰、加拿大指定合作高校攻读博士学位或开展博士联合培养；合作高校与资格要求以基金委原文为准。"
+        },
+        {
+          "source_ref": "一、项目概况",
+          "content": "通知说明该批次调整为先申请留学基金委奖学金资格，再自主向合作高校申请入学资格；请勿将该流程推广到其他公派项目。"
+        },
+        {
+          "source_ref": "申报流程与注意事项",
+          "content": "学校实行个人自主申报、学院初审、学校统一推荐流程；申请人单次仅限填报一所本项目合作高校奖学金，所需材料和外语条件以官方项目指南为准。"
+        },
+        {
+          "source_ref": "申报流程与注意事项",
+          "content": "学校通知说明申请奖学金资格阶段无需提前提供外方邀请信，但正式派出前需取得外方高校录取通知书或正式邀请信；须再核对基金委及合作院校要求。"
+        }
+      ],
+      "restrictions": {
+        "education_level": [
+          "硕士",
+          "博士"
+        ]
+      }
+    },
+    {
+      "id": "dlut-2025-enterprise-scholarships",
+      "skill_id": "enterprise-scholarship",
+      "kind": "official",
+      "title": "大连理工大学生物工程学院2024—2025学年研究生企业专项奖学金申报通知",
+      "source_url": "https://biotech.dlut.edu.cn/info/1011/11223.htm",
+      "school": "大连理工大学",
+      "application_year": 2025,
+      "restrictions": {
+        "education_level": [
+          "硕士",
+          "博士"
+        ],
+        "college": [
+          "生物工程学院"
+        ]
+      },
+      "scope": "仅适用于大连理工大学生物工程学院2024—2025学年研究生企业专项奖学金后续申报；各奖项对硕士年级或博士有不同要求，不能推广给本科生或其他学院。以下为人工摘要，应回源核验。",
+      "source_sha256": "c024e0f222d1af219142983366d69e8133834b3c09f0bddacd71fbf9164d26e1",
+      "verified_at": "2026-10-27",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "申报工作说明",
+          "content": "通知面向已完成自主报名和汇报评审的该院研究生，按综合排序及各专项奖学金要求办理后续申报；并非面向所有学生的首次公开申报。"
+        },
+        {
+          "source_ref": "奖学金名单：皓阳生物专项奖学金",
+          "content": "通知列出的皓阳生物专项奖学金面向硕士二年级研究生，强调工程实践贡献；具体条件须以原通知及附件为准。"
+        },
+        {
+          "source_ref": "奖学金名单：金赛药业奖学金",
+          "content": "通知分别列出金赛药业优秀博士生、优秀硕士生和优秀学生干部奖学金，各项奖励对象、条件及额度不同，申请前须核对对应条款。"
+        }
+      ]
+    },
+    {
+      "id": "henu-2026-open-lab-research",
+      "skill_id": "university-research",
+      "kind": "official",
+      "title": "河南大学2026年度科研实验室（平台）面向本科生开放性课题项目申报立项通知",
+      "source_url": "https://jwc.henu.edu.cn/info/2357/23113.htm",
+      "school": "河南大学",
+      "application_year": 2026,
+      "restrictions": {
+        "education_level": [
+          "本科"
+        ]
+      },
+      "scope": "仅适用于河南大学2026年度科研实验室（平台）面向本科生开放性课题；该项目可按规定与大创衔接，但不等同其他校级科研项目或大创申报。系统开放至2026年10月28日，具体办理时间请向学校核实。以下为人工整理摘要，应回源核验。",
+      "source_sha256": "510e1c7924751a3cac2cbde0064a64c473d7cbf021e81336df0e9b445b60270e",
+      "verified_at": "2026-10-27",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "一、申报方式",
+          "content": "教师或学生均可在学校实验实践教学综合服务平台发布开放性课题。学生发布课题前须确定依托实验室和指导教师，并按要求办理实验室意见和学院审核。"
+        },
+        {
+          "source_ref": "四、限项要求",
+          "content": "通知要求每位学生同时仅参与一项学生科研项目，范围包含大创项目与开放性课题；指导教师和科研实验室另有限项要求。"
+        },
+        {
+          "source_ref": "五、系统开放时间",
+          "content": "该批次系统开放时间为2026年10月14日至10月28日；学院汇总表报送时间为10月30日，不能把学院报送节点当成学生系统截止时间。"
+        },
+        {
+          "source_ref": "六、注意事项第4—6项",
+          "content": "通过中期检查的开放性课题可按规定申请转化为大创项目；课题执行期为2026年11月至2027年10月，其他资格限制和转化条件须核对原通知。"
+        }
+      ]
+    },
+    {
+      "id": "henu-2026-single-scholarship",
+      "skill_id": "single-scholarship",
+      "kind": "official",
+      "title": "河南大学2025—2026学年本科生评先奖优工作通知（单项奖学金）",
+      "source_url": "https://stu.henu.edu.cn/info/1144/24008.htm",
+      "school": "河南大学",
+      "application_year": 2026,
+      "restrictions": {
+        "education_level": [
+          "本科"
+        ]
+      },
+      "scope": "仅适用于河南大学2025—2026学年普通本科生评先奖优，其中单项奖学金按学校成果申报系统目录和本单位细则执行；2026级本科新生不在通知评选范围内。院系材料于2026年11月4日11时前报学生处，不等于学生提交院系截止时间。以下为人工摘要，应回源核验。",
+      "source_sha256": "46d7b9d3daff6cebe576caa0f43599fa5d0c9e8884920252bcc814dc8901ddbe",
+      "verified_at": "2026-10-27",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "一、评选范围",
+          "content": "该批次评选对象为学校正式注册并正常参加学习活动的全日制普通本科生及其组织，2026级本科新生除外。"
+        },
+        {
+          "source_ref": "二、评选项目及比例（二）",
+          "content": "通知说明单项奖学金不限评选比例；符合成果申报系统目录的条件且在2025年9月1日至2026年8月31日期间参加相应比赛获奖的学生可申请，原则上以证书落款时间为准。"
+        },
+        {
+          "source_ref": "三、评选程序及要求",
+          "content": "各单位需结合实际制定评选方案，明确标准、程序和时间节点，并开展申请、民主评议、资格审查及公示；具体申报与材料要求以本单位细则和学校原文为准。"
+        }
+      ]
+    },
+    {
+      "id": "henu-2027-outstanding-thesis",
+      "skill_id": "outstanding-thesis",
+      "kind": "official",
+      "title": "河南大学2027届本科毕业论文（设计）工作通知",
+      "source_url": "https://jwc.henu.edu.cn/info/2357/22773.htm",
+      "school": "河南大学",
+      "application_year": 2027,
+      "restrictions": {
+        "education_level": [
+          "本科"
+        ]
+      },
+      "scope": "仅适用于河南大学2027届本科毕业论文工作；优秀论文推荐比例由学校另行通知，不能将课程成绩等级等同于获评校级优秀论文。 以下为人工整理摘要，应回源核验。",
+      "source_sha256": "2cdd7529858d0d0dc46ca1303d1ff9a4062e0bb98350cc888421c7d26a40e86a",
+      "verified_at": "2026-10-27",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "七、成绩评定与推优第1项",
+          "content": "该批次综合成绩按评阅教师平均分和答辩成绩各占50%核算；评阅、答辩及综合成绩均需达到60分方可合格。"
+        },
+        {
+          "source_ref": "七、成绩评定与推优第2—3项",
+          "content": "学校将综合成绩90—100分划为优秀等级；优秀论文及优秀指导教师须由教学单位按另行通知的比例推荐，学校统一评选，获得优秀等级不等于已获优秀论文。"
+        },
+        {
+          "source_ref": "六、论文答辩与定稿",
+          "content": "各教学单位按要求组织答辩，学生应根据答辩意见修改论文，指导教师认可后提交最终定稿；具体工作节点以原通知及学院安排为准。"
+        }
+      ]
+    },
+    {
+      "id": "henu-2026-national-project-review",
+      "skill_id": "national-project-eval",
+      "kind": "official",
+      "title": "河南大学2026年大学生创新创业训练计划项目申报立项通知（推荐流程）",
+      "source_url": "https://jwc.henu.edu.cn/info/2357/22053.htm",
+      "school": "河南大学",
+      "application_year": 2026,
+      "restrictions": {
+        "education_level": [
+          "本科"
+        ]
+      },
+      "scope": "仅适用于河南大学2026年大创项目校内评审及国家级推荐流程，不是全国统一评审量表，也未给出全国评审权重；学生系统申报截止2026年5月22日。 以下为人工整理摘要，应回源核验。",
+      "source_sha256": "9e25f988416bd034cea493894da221adfed1ec04ec58e592e514bb89e1900c94",
+      "verified_at": "2026-10-27",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "四、学院评审流程",
+          "content": "学院在学校平台指派专家评审，结合专家意见确定项目推荐级别和质量排序；推荐结果需符合学术诚信和公平公正要求。"
+        },
+        {
+          "source_ref": "四、学校复评",
+          "content": "学校组织专家对学院推荐的校级重点项目复评，并从重点立项项目中择优推荐申报省级、国家级项目；省级组织专家评审并确定后续结果。"
+        },
+        {
+          "source_ref": "五、时间节点",
+          "content": "学校通知所列系统申报截止为2026年5月22日24时，逾期不再受理；此历史节点不能用于其他年度或学校。"
+        }
+      ]
+    },
+    {
+      "id": "henu-2026-party-probation-conversion",
+      "skill_id": "youth-league-conversion",
+      "kind": "official",
+      "title": "中国共产党发展党员工作细则（2026年修订，河南大学转载）",
+      "source_url": "https://stu.henu.edu.cn/info/1148/22178.htm",
+      "school": "河南大学",
+      "application_year": 2026,
+      "restrictions": {
+        "political_stage": [
+          "预备党员"
+        ]
+      },
+      "scope": "适用于河南大学项目中已确认处于预备党员阶段的2026年党组织转正材料参考；该文是学校转载的2026年修订细则，具体办理以所在党组织要求和现行党内法规为准。 以下为人工整理摘要，应回源核验。",
+      "source_sha256": "61823cfa2af7d2c2ac7aabdbaaee532fe8c8a237bc3abec4296f02b177cc42d1",
+      "verified_at": "2026-10-27",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "第五章第三十一条",
+          "content": "转载细则规定预备党员预备期为一年，起算日为党支部党员大会通过其为预备党员之日；转正须履行规定程序。"
+        },
+        {
+          "source_ref": "第五章第三十二条",
+          "content": "预备党员本人向党支部提出书面转正申请，党支部征求意见并审查，经党员大会讨论表决后报上级党委审批。"
+        },
+        {
+          "source_ref": "第五章第三十三条",
+          "content": "上级党委按细则要求对党支部上报的转正决议审批，审批结果应及时通知党支部；实际办理以所在组织安排为准。"
+        }
+      ]
+    },
+    {
+      "id": "henu-2015-summary-activist",
+      "skill_id": "summary-report",
+      "kind": "official",
+      "title": "河南大学发展党员工作实施细则（2015年学校历史资料）",
+      "source_url": "https://cs.henu.edu.cn/info/1019/1576.htm",
+      "school": "河南大学",
+      "application_year": 2015,
+      "restrictions": {
+        "political_stage": [
+          "入党积极分子"
+        ]
+      },
+      "scope": "仅供河南大学2015年对应党组织考察阶段的历史资料参考，不适用于科研工作阶段报告，也不能代替2026年修订细则或所在党组织现行要求。 以下为人工整理摘要，应回源核验。",
+      "source_sha256": "7424d3d52a118367488a9cc53bd77f91a71ac3424fcfa5cf52e0bf3839d376cf",
+      "verified_at": "2026-10-27",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "第二章关于培养教育第六项",
+          "content": "该校2015年实施细则要求培养联系人定期听取入党积极分子思想汇报，内容涉及思想、学习和工作；书面汇报频次以当时学校要求为准。"
+        }
+      ]
+    },
+    {
+      "id": "henu-2015-summary-probationary",
+      "skill_id": "summary-report",
+      "kind": "official",
+      "title": "河南大学发展党员工作实施细则（2015年学校历史资料）",
+      "source_url": "https://cs.henu.edu.cn/info/1019/1576.htm",
+      "school": "河南大学",
+      "application_year": 2015,
+      "restrictions": {
+        "political_stage": [
+          "预备党员"
+        ]
+      },
+      "scope": "仅供河南大学2015年对应党组织考察阶段的历史资料参考，不适用于科研工作阶段报告，也不能代替2026年修订细则或所在党组织现行要求。 以下为人工整理摘要，应回源核验。",
+      "source_sha256": "7424d3d52a118367488a9cc53bd77f91a71ac3424fcfa5cf52e0bf3839d376cf",
+      "verified_at": "2026-10-27",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "第五章关于预备党员教育考察",
+          "content": "该校2015年实施细则要求预备党员向党支部汇报思想、学习和工作情况；该历史规定不能替代2026年修订后的现行要求。"
+        }
+      ]
+    },
+    {
+      "id": "henu-2024-civilized-student",
+      "skill_id": "civilized-student",
+      "kind": "official",
+      "title": "河南大学2024年度“两创两争”活动先进集体和先进个人推选通知（文明学生）",
+      "source_url": "https://news.henu.edu.cn/info/1009/128059.htm",
+      "school": "河南大学",
+      "application_year": 2024,
+      "scope": "仅适用于河南大学2024年度“两创两争”文明学生推选历史批次，不是其他学校或当年的评选条件。具体评选标准须查阅通知附件1。以下为人工整理摘要，应回源核验。",
+      "source_sha256": "b8fe3340815ff6cbd713c93999ab1c370dcebf04ea0b60df3660abbf5783945e",
+      "verified_at": "2026-10-27",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "一、评选表彰对象第5项",
+          "content": "学校该批次文明学生评选对象为取得河南大学正式学籍的全日制学生；本科生和研究生材料分别报送相应工作部门。"
+        },
+        {
+          "source_ref": "三、评选标准",
+          "content": "通知要求推荐对象在以弘扬雷锋精神为主题的活动中发挥示范带头作用，并具有持续培育潜力；详细评选标准须查看附件。"
+        },
+        {
+          "source_ref": "四、评选程序",
+          "content": "各单位开展申请、考察、资格审查及本单位公示后，上报职能部门集中评审；通知所列本批次初评时间为2024年3月13日至18日。"
+        }
+      ]
+    },
+    {
+      "id": "henu-2024-college-research-review-report",
+      "skill_id": "college-research",
+      "kind": "institution_report",
+      "title": "河南大学基础医学院2024年大学生科创训练营项目评审答辩报道",
+      "source_url": "https://news.henu.edu.cn/info/1084/146397.htm",
+      "school": "河南大学",
+      "application_year": 2024,
+      "restrictions": {
+        "college": [
+          "基础医学院"
+        ]
+      },
+      "scope": "仅记录河南大学基础医学院2024年科创训练营项目答辩的新闻报道，不是院级科研申报通知或正式评审规则，不能证明申报资格、评审权重或项目立项。以下为人工整理摘要，应回源核验。",
+      "source_sha256": "eea4970b9187dd70963e4e6890e2c1023f000200296210a73955ff86009399b4",
+      "verified_at": "2026-10-27",
+      "license": "学校活动报道摘要，回源核验",
+      "example_structure": "可从研究问题、技术路线、可行性与创新性等方面组织答辩内容；是否适用须以具体项目要求为准。",
+      "chunks": [
+        {
+          "source_ref": "报道第3—4段",
+          "content": "学校新闻报道介绍，基础医学院训练营项目答辩围绕立项依据、科学问题、技术路线、可行性与创新性展开，评委从科学性、创新性和实用性等角度交流意见；报道未提供申报资格、评分权重或完整评审细则。"
+        }
+      ]
+    },
+    {
+      "id": "wzu-2027-college-research",
+      "skill_id": "college-research",
+      "kind": "official",
+      "title": "温州大学生命与环境科学学院2027年度学生科研课题项目申报通知",
+      "source_url": "https://shxy.wzu.edu.cn/info/1068/161671.htm",
+      "school": "温州大学",
+      "application_year": 2027,
+      "restrictions": {
+        "college": [
+          "生命与环境科学学院"
+        ],
+        "education_level": [
+          "本科",
+          "专科"
+        ]
+      },
+      "scope": "仅适用于温州大学生命与环境科学学院2027年度学生科研课题（发展型资助专项、普惠型课题）项目申报通知；普惠型材料报送生环学院团委科创部截止2026年11月15日，发展型资助专项截止2026年11月20日，项目正式立项后于2028年3月结题验收。以下为人工整理摘要，应回源核验。",
+      "source_sha256": "740934b426339a436c4482de7aa9f6dbef22de6d8a1f4c95ea802c65dc03bdd1",
+      "verified_at": "2026-10-27",
+      "license": "官方通知摘要，回源核验",
+      "chunks": [
+        {
+          "source_ref": "二、学生科研课题（一）发展型资助专项课题",
+          "content": "申报对象为温州大学正式注册的全日制非成人教育在读非毕业班本、专科生，且仅限2026-2027学年学生资助对象（经学校认定）作为负责人；按自然科学类论文、哲学社会科学类调查报告、科技发明制作三类申报；采用学院审核推荐制与限额申报（生环学院限额11项），扶持经费1000元/项；经院级校级中期检查通过发放50%，结题通过发放剩余50%；报送生环学院团委科创部截止2026年11月20日。"
+        },
+        {
+          "source_ref": "二、学生科研课题（二）普惠型学生科研课题",
+          "content": "申报对象为2027年6月1日以前正式注册的全日制非成人教育在读本、专科生；按自然科学类论文、哲学社会科学类调查报告、科技发明制作三类申报；各学院组织申报并做好评审排序，学校对学院推报项目进行审查并立项；分为立项资助课题与立项不资助课题，正式立项后于2028年3月结题验收；申报书及汇总表报送生环学院团委科创部截止2026年11月15日。"
+        },
+        {
+          "source_ref": "二、学生科研课题（三）申报比例要求与结题周期",
+          "content": "温州大学学生科研课题申报与“挑战杯”赛事结合，学院推报参加课题学生人数占学院在校生总数比例需达10%及以上，指导教师人数占在职专任教师总数比例需达6%及以上，课题项目总数占在校生总数比例需达1%及以上；发展型与普惠型立项项目均于2028年3月结题验收。"
+        }
+      ]
+    }
+  ]
+}

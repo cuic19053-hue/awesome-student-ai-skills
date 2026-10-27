@@ -53,6 +53,7 @@ from proposal.credit_security import (
     workbench_voucher_digest,
 )
 from proposal.retrieval import ProjectRetriever
+from utils.skill_cards import build_skill_cards, infer_honor_variant, infer_task_type
 from proposal.storage import CreditRateLimitError, InsufficientCreditsError, PendingUsageError, Store
 from proposal.supabase_store import SupabaseStore, request_identity
 from proposal.workbench_metering import WorkbenchMeter
@@ -138,7 +139,7 @@ class StorageDocumentInput(BaseModel):
     document_id: str = Field(min_length=12, max_length=80)
     original_name: str = Field(min_length=1, max_length=255)
     storage_path: str = Field(min_length=8, max_length=600)
-    kind: Literal["source", "template", "photo"] = "source"
+    kind: Literal["source", "template", "photo", "official"] = "source"
     content_type: str = Field(default="", max_length=150)
     is_leader: bool = False
     process_now: bool = True
@@ -327,7 +328,7 @@ async def _require_supabase_session(request: Request, call_next):
     if (
         path == "/"
         or path in {
-            "/health", "/api/health", "/api/config", "/api/skills", "/api/route",
+            "/health", "/api/health", "/api/config", "/api/skills", "/api/skill-cards", "/api/route",
             "/api/models/preset", "/api/pay/notify", "/api/admin/provider-health",
             "/api/auth/login", "/api/auth/signup",
             "/api/ping",
@@ -766,6 +767,13 @@ def list_skills() -> dict[str, Any]:
     return {"total": len(skill_registry.skills), "skills": skill_registry.list()}
 
 
+@app.get("/api/skill-cards")
+def list_skill_cards() -> dict[str, Any]:
+    """Routing metadata; authoritative eligibility remains in official notices."""
+    cards = build_skill_cards(dispatcher.skills) if dispatcher else []
+    return {"total": len(cards), "cards": cards}
+
+
 @app.post("/api/route")
 def route_skill(payload: RouteRequest) -> dict[str, Any]:
     """Match a natural-language request to a skill, asking for clarification when weak."""
@@ -793,6 +801,8 @@ def route_skill(payload: RouteRequest) -> dict[str, Any]:
             "selected": None,
             "needs_clarification": True,
             "candidates": [],
+            "task_type": infer_task_type(payload.query),
+            "method": routing["method"],
             "message": "我还不能确定你要准备哪类材料，请选择赛道，或补充材料名称/用途。",
         }
     selected_id = routing["selected"]
@@ -801,6 +811,8 @@ def route_skill(payload: RouteRequest) -> dict[str, Any]:
         "selected": selected,
         "needs_clarification": selected is None,
         "candidates": candidates[:5],
+        "task_type": infer_task_type(payload.query),
+        "method": routing["method"],
         "message": "" if selected else "我找到几个可能的赛道，请确认最符合你需求的一项。",
     }
 
@@ -1445,6 +1457,19 @@ def create_project(payload: CreateProject) -> dict[str, Any]:
     state = dict(project["state"])
     state["skill_id"] = selected_skill["id"]
     state["skill_name"] = selected_skill.get("display_name") or selected_skill.get("name", "")
+    if selected_skill["id"] == "outstanding-student":
+        variant = infer_honor_variant(payload.initial_request)
+        # The manual selector labels this skill as student / three-good-student;
+        # retain an explicit ambiguity when the user mentions both variants.
+        if not variant and not (
+            any(term in payload.initial_request for term in ("优秀团员", "优秀共青团员"))
+            and any(term in payload.initial_request for term in ("优秀学生", "三好学生"))
+        ):
+            variant = "outstanding_student"
+        if variant:
+            state["skill_variant"] = variant
+            if variant == "outstanding_youth_league":
+                state["skill_name"] = "优秀团员"
     state["skill_category"] = selected_skill.get("category", "")
     if payload.initial_request.strip():
         state["initial_request"] = payload.initial_request.strip()
@@ -1497,21 +1522,6 @@ def list_projects() -> dict[str, Any]:
 def get_project(project_id: str) -> dict[str, Any]:
     project = _safe_project(project_id)
     raw_docs = store.list_documents(project_id)
-    for d in raw_docs:
-        if not material_enabled(project) and not d.get("confirmed") and d.get("extracted_text", "").strip() and d.get("kind") != "template":
-            try:
-                store.update_document_extraction(
-                    d["id"],
-                    d["extracted_text"],
-                    d.get("extraction_status", "ready"),
-                    d.get("extraction_warning", ""),
-                    d.get("low_confidence_count", 0),
-                    confirmed=True,
-                )
-                retriever.index_document(d["id"], d["extracted_text"])
-                d["confirmed"] = True
-            except Exception:
-                pass
     project["documents"] = [_public_document(d) for d in raw_docs]
     project["messages"] = store.messages(project_id, limit=80)
     return project
@@ -1537,8 +1547,8 @@ async def upload_documents(
     kind: str = "source",
 ) -> dict[str, Any]:
     _safe_project(project_id)
-    if kind not in {"source", "template", "photo"}:
-        raise HTTPException(status_code=400, detail="kind 只能是 source、template 或 photo")
+    if kind not in {"source", "template", "photo", "official"}:
+        raise HTTPException(status_code=400, detail="kind 只能是 source、template、photo 或 official")
     if not files or len(files) > 12:
         raise HTTPException(status_code=400, detail="一次可上传 1–12 个文件")
     project_folder = store.files_dir / project_id
@@ -1567,9 +1577,9 @@ async def upload_documents(
         )
         try:
             extraction = _extract_uploaded_document(name, content, kind)
-            # 自动确认并入库建立检索索引，无需用户手动确认
-            confirmed = True if kind == "template" else (
-                bool(extraction.text.strip()) and not material_enabled(_safe_project(project_id)))
+            # Templates are used for structure only. Source text and OCR must
+            # remain inaccessible to retrieval until the user confirms them.
+            confirmed = kind == "template"
             store.update_document_extraction(
                 document_id,
                 extraction.text,
@@ -1578,10 +1588,7 @@ async def upload_documents(
                 extraction.low_confidence_count,
                 confirmed=confirmed,
             )
-            if confirmed and extraction.text.strip():
-                chunks = retriever.index_document(document_id, extraction.text)
-            else:
-                chunks = 0
+            chunks = 0
             if kind == "template":
                 store.set_template_document(project_id, document_id)
                 current_project = store.get_project(project_id)
@@ -1595,7 +1602,7 @@ async def upload_documents(
                 {
                     "document": _public_document(updated),
                     "chunk_count": chunks,
-                    "needs_confirmation": False,
+                    "needs_confirmation": kind != "template",
                 }
             )
         except Exception as exc:
@@ -1615,7 +1622,7 @@ async def upload_documents(
                     "error": _document_extraction_error(exc),
                 }
             )
-    return {"documents": results, "note": "材料已上传并自动建立检索。"}
+    return {"documents": results, "note": "材料已保存；非模板文字须由你核对确认后才能用于检索。"}
 
 
 @app.post("/api/projects/{project_id}/leader-photo")
@@ -1661,6 +1668,7 @@ async def upload_leader_photo(
         "",
         0,
         confirmed=True,
+        confirmed_by_user=True,
     )
     state = dict(project["state"])
     state["leader_photo"] = document_id
@@ -1754,9 +1762,7 @@ def _process_cloud_document(document: dict[str, Any]) -> dict[str, Any]:
         extraction = _extract_uploaded_document(document["original_name"], file_bytes, document["kind"])
         observability.emit("upload.parsing", stage="extract", status="failed" if extraction.status == "error" else "completed",
                            code="MATERIAL_PARSE_FAILED" if extraction.status == "error" else None)
-        # 自动确认并入库建立检索索引，无需用户手动确认
-        confirmed = True if document["kind"] == "template" else (
-            bool(extraction.text.strip()) and not material_enabled(_safe_project(project_id)))
+        confirmed = document["kind"] == "template"
         store.update_document_extraction(
             document["id"],
             extraction.text,
@@ -1765,11 +1771,7 @@ def _process_cloud_document(document: dict[str, Any]) -> dict[str, Any]:
             extraction.low_confidence_count,
             confirmed=confirmed,
         )
-        chunks = (
-            retriever.index_document(document["id"], extraction.text)
-            if confirmed and extraction.text.strip()
-            else 0
-        )
+        chunks = 0
         if document["kind"] == "template":
             store.set_template_document(project_id, document["id"])
             current_project = store.get_project(project_id)
@@ -1784,10 +1786,10 @@ def _process_cloud_document(document: dict[str, Any]) -> dict[str, Any]:
                 {
                     "document": _public_document(updated or document),
                     "chunk_count": chunks,
-                    "needs_confirmation": False,
+                    "needs_confirmation": document["kind"] != "template",
                 }
             ],
-            "note": "材料已上传并自动建立检索。",
+            "note": "材料已保存；非模板文字须由你核对确认后才能用于检索。",
         }
     except Exception as exc:
         observability.emit("upload.parsing", stage="extract", status="failed", level="error", error=exc)
@@ -1820,6 +1822,14 @@ def confirm_document(document_id: str, payload: ConfirmDocument) -> dict[str, An
     text = payload.corrected_text if payload.corrected_text is not None else document["extracted_text"]
     if payload.confirmed and not text.strip():
         raise HTTPException(status_code=400, detail="识别文本为空，请补充或取消确认")
+    # Hide and remove the old snapshot before a re-confirmation. A failed
+    # reindex must not make an obsolete chunk visible under new confirmation.
+    if document.get("confirmed"):
+        store.update_document_extraction(
+            document_id, document["extracted_text"], document["extraction_status"],
+            document["extraction_warning"], document["low_confidence_count"], confirmed=False,
+        )
+    store.replace_chunks(document_id, [])
     store.update_document_extraction(
         document_id,
         text,
@@ -1827,10 +1837,23 @@ def confirm_document(document_id: str, payload: ConfirmDocument) -> dict[str, An
         document["extraction_warning"],
         document["low_confidence_count"],
         confirmed=payload.confirmed,
+        confirmed_by_user=payload.confirmed,
     )
-    chunks = retriever.index_document(document_id, text) if payload.confirmed else 0
-    if not payload.confirmed:
-        store.replace_chunks(document_id, [])
+    try:
+        chunks = retriever.index_document(document_id, text) if payload.confirmed else 0
+        if payload.confirmed and not chunks:
+            raise MaterialConflict("材料在索引期间已撤回或不可用，请重新核对。")
+    except MaterialConflict:
+        # Another request owns the newer document state. Do not overwrite it.
+        raise
+    except Exception:
+        current = store.get_document(document_id)
+        if current and current.get("extracted_text") == text:
+            store.update_document_extraction(
+                document_id, text, "ready", document["extraction_warning"],
+                document["low_confidence_count"], confirmed=False,
+            )
+        raise
     if payload.confirmed and document["kind"] == "official":
         match = re.search(r"\[来源链接\]\s*(https://\S+)", text)
         if match:
@@ -1966,6 +1989,23 @@ def chat(project_id: str, payload: ChatInput, request: Request) -> dict[str, Any
         fields["state"] = state
     if fields:
         store.update_project(project_id, **fields)
+    from proposal.knowledge import is_policy_question
+    if is_policy_question(text):
+        # Evidence-only answers neither call a model nor consume a free chat or
+        # require a paid-model configuration. The project is already authorized.
+        policy_stream = bool(payload.stream or (request.headers.get("accept") == "text/event-stream")
+                             or (request.query_params.get("stream") == "true"))
+        if policy_stream:
+            def evidence_events():
+                for event in agent.chat_stream(project_id, text):
+                    event["setup_updated"] = bool(fields)
+                    event["free_chat"] = False
+                    yield f"event: {event.get('type', 'message')}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
+            return StreamingResponse(evidence_events(), media_type="text/event-stream",
+                                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+        result = agent.chat(project_id, text)
+        result.update(setup_updated=bool(fields), free_chat=False)
+        return result
     cfg = payload.llm_config
     user_id = _current_user_id(request)
     is_free = False
@@ -2394,6 +2434,17 @@ def search_papers(project_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail="请输入论文主题关键词")
     return tools.search_papers(query, int(payload.get("limit", 5)))
 
+@app.post("/api/projects/{project_id}/search/knowledge")
+def search_public_knowledge(project_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    _safe_project(project_id)
+    query = str(payload.get("query", "")).strip()
+    if not 2 <= len(query) <= 300:
+        raise HTTPException(status_code=400, detail="请输入 2–300 字的检索问题")
+    return tools.search_public_knowledge_user(
+        project_id, query, external_query_consent=payload.get("external_query_consent") is True,
+        include_examples=payload.get("include_examples") is True,
+    )
+
 
 @app.post("/api/projects/{project_id}/search/official")
 def search_official(project_id: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -2503,6 +2554,15 @@ def update_project_facts(project_id: str, payload: dict[str, Any]) -> dict[str, 
     project = _safe_project(project_id)
     if len(payload) > 100:
         raise HTTPException(status_code=413, detail="一次最多保存 100 个信息字段")
+    year_value = str(payload.get("application_year", "")).strip()
+    if "application_year" in payload and year_value and not re.fullmatch(r"(?:19|20|21)\d{2}", year_value):
+        raise HTTPException(status_code=422, detail="申报年度须为四位年份，或留空。")
+    education_level = str(payload.get("education_level", "")).strip()
+    if "education_level" in payload and education_level not in {"", "本科", "硕士", "博士"}:
+        raise HTTPException(status_code=422, detail="学历阶段须为本科、硕士、博士，或留空。")
+    political_stage = str(payload.get("political_stage", "")).strip()
+    if "political_stage" in payload and political_stage not in {"", "入党积极分子", "预备党员"}:
+        raise HTTPException(status_code=422, detail="党组织考察阶段无效。")
     facts = {
         key: str(value).strip()[:2000]
         for key, value in payload.items()
@@ -2510,6 +2570,12 @@ def update_project_facts(project_id: str, payload: dict[str, Any]) -> dict[str, 
     }
     state = dict(project["state"])
     confirmed = dict(state.get("confirmed_facts", {}))
+    for optional_key in ("application_year", "education_level", "college", "political_stage"):
+        if optional_key in payload and not str(payload[optional_key]).strip():
+            confirmed.pop(optional_key, None)
+            state.pop(optional_key, None)
+            if isinstance(state.get("fact_sources"), dict):
+                state["fact_sources"].pop(optional_key, None)
     confirmed.update(facts)
     state["confirmed_facts"] = confirmed
     state.update(facts)

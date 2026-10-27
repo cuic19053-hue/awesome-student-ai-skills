@@ -38,10 +38,10 @@
 
 | 目录 | 中文名 | 适用场景 |
 |---|---|---|
-| [outstanding-student/](./outstanding-student/SKILL.md) | 优秀学生 / 三好学生 | 学年综合评优 |
+| [outstanding-student/](./outstanding-student/SKILL.md) | 优秀学生 / 三好学生 / 优秀团员 | 学年综合评优 |
 | [outstanding-graduate/](./outstanding-graduate/SKILL.md) | 优秀毕业生 | 省级/校级毕业评优 |
 | [outstanding-cadre/](./outstanding-cadre/SKILL.md) | 优秀学生干部 | 学生干部评优 |
-| [civilized-student/](./civilized-student/SKILL.md) | 文明大学生 / 优秀团员 | 道德文明类评优 |
+| [civilized-student/](./civilized-student/SKILL.md) | 文明大学生 | 道德文明类评优 |
 | [class-collective/](./class-collective/SKILL.md) | 优秀班集体 | 班级集体荣誉 |
 | [outstanding-thesis/](./outstanding-thesis/SKILL.md) | 优秀毕业设计 / 论文 | 毕设评优申报 |
 

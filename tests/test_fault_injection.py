@@ -25,7 +25,7 @@ def test_untrusted_prompt_injection_in_material_does_not_override_guardrails(tmp
 
     # 存储并确认为材料
     doc = store.add_document(project["id"], "malicious.txt", str(tmp_path / "f.txt"), "source", "text/plain")
-    store.update_document_extraction(doc["id"], malicious_text, "ready", confirmed=True)
+    store.update_document_extraction(doc["id"], malicious_text, "ready", confirmed=True, confirmed_by_user=True)
 
     # 验证黑板初始化时，该恶意文本绝不会被自动识别或确认为真实项目事实
     bb = ProjectBlackboard(

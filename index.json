@@ -143,12 +143,14 @@
       "name": "outstanding-student",
       "display_name": "优秀学生/三好学生",
       "category": "honor",
-      "description": "面向在校生的学年评优，要求本学年思想+学习+身体三方面突出，时间跨度为一学年。",
+      "description": "面向在校生的学年评优；支持优秀学生及优秀团员分支，时间跨度为一学年。",
       "triggers": [
         "优秀学生",
         "三好学生",
         "学年评优",
-        "优秀学生标兵"
+        "优秀学生标兵",
+        "优秀团员",
+        "优秀共青团员"
       ],
       "skill_md_path": "subskills/outstanding-student/SKILL.md",
       "build_py_path": "subskills/outstanding-student/build.py",
@@ -183,6 +185,8 @@
       "triggers": [
         "优秀班干部",
         "优秀学生干部",
+        "优秀团干部",
+        "优秀团干",
         "班干部评优",
         "学生干部"
       ],
@@ -195,13 +199,11 @@
     },
     {
       "name": "civilized-student",
-      "display_name": "文明大学生/优秀团员",
+      "display_name": "文明大学生",
       "category": "honor",
-      "description": "文明大学生侧重文明素养（课堂纪律/宿舍卫生/网络文明）；优秀团员侧重团员先进性。",
+      "description": "文明大学生侧重文明素养、公共秩序与具体道德事例。",
       "triggers": [
         "文明大学生",
-        "优秀团员",
-        "优秀团干",
         "文明素养",
         "团员先进性"
       ],

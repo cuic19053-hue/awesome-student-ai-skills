@@ -17,7 +17,8 @@ from html.parser import HTMLParser
 from datetime import datetime, timezone
 
 from .retrieval import ProjectRetriever
-from .skills import registry, valid_fact_key
+from .knowledge import PublicKnowledgeRetriever
+from .skills import model_safe_guidance, registry, valid_fact_key
 from .storage import Store, new_id
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -117,6 +118,7 @@ class ProposalTools:
     def __init__(self, store: Store, retriever: ProjectRetriever | None = None):
         self.store = store
         self.retriever = retriever or ProjectRetriever(store)
+        self.public_knowledge = PublicKnowledgeRetriever(store)
 
     def get_project_state(self, project_id: str) -> dict[str, Any]:
         project = self.store.get_project(project_id)
@@ -171,16 +173,14 @@ class ProposalTools:
             "ready",
             "",
             0,
-            confirmed=True,
+            confirmed=False,
         )
-        if self.retriever and content:
-            self.retriever.index_document(document_id, content)
         return {
             "document_id": document_id,
             "filename": safe_name,
             "preview": content[:1200],
-            "confirmed": True,
-            "next_step": "材料已入库并建立检索索引。",
+            "confirmed": False,
+            "next_step": "请核对材料后明确确认；确认前不会进入项目检索。",
         }
 
     def confirm_project_material(
@@ -197,6 +197,12 @@ class ProposalTools:
         text = corrected_text if corrected_text.strip() else document["extracted_text"]
         if not text.strip():
             return {"error": "材料文字为空，请重新上传或补充。"}
+        if document.get("confirmed"):
+            self.store.update_document_extraction(
+                document_id, document["extracted_text"], document["extraction_status"],
+                document["extraction_warning"], document["low_confidence_count"], confirmed=False,
+            )
+        self.store.replace_chunks(document_id, [])
         self.store.update_document_extraction(
             document_id,
             text,
@@ -204,8 +210,25 @@ class ProposalTools:
             document["extraction_warning"],
             document["low_confidence_count"],
             confirmed=True,
+            confirmed_by_user=True,
         )
-        chunks = self.retriever.index_document(document_id, text)
+        try:
+            chunks = self.retriever.index_document(document_id, text)
+            if not chunks:
+                from .materials import MaterialConflict
+                raise MaterialConflict("材料在索引期间已撤回或不可用，请重新核对。")
+        except Exception as exc:
+            from .materials import MaterialConflict
+            if isinstance(exc, MaterialConflict):
+                # A newer version must remain untouched.
+                raise
+            current = self.store.get_document(document_id)
+            if current and current.get("extracted_text") == text:
+                self.store.update_document_extraction(
+                    document_id, text, "ready", document["extraction_warning"],
+                    document["low_confidence_count"], confirmed=False,
+                )
+            raise
         return {
             "success": True,
             "filename": document["original_name"],
@@ -223,7 +246,7 @@ class ProposalTools:
         else:
             selected = registry.get(skill_id) or registry.get("innovation-research")
             source_path = selected["skill_path"] if selected else INNOVATION_SKILL
-        text = source_path.read_text(encoding="utf-8")
+        text = model_safe_guidance(source_path.read_text(encoding="utf-8"))
         lines = text.splitlines()
         if section:
             matches = [i for i, line in enumerate(lines) if line.startswith("#") and section in line]
@@ -246,6 +269,54 @@ class ProposalTools:
         self, project_id: str, query: str, top_k: int = 5
     ) -> dict[str, Any]:
         return self.retriever.search(project_id, query, top_k)
+
+    def search_public_knowledge(
+        self, project_id: str, query: str, top_k: int = 6, include_examples: bool = False
+    ) -> dict[str, Any]:
+        """Public references are scope-filtered using server-owned project fields."""
+        result = self._search_public_knowledge(project_id, query, top_k, external_query_consent=False,
+                                               include_examples=include_examples is True)
+        # Historical examples may be shown to the user, but their actual facts
+        # must not be injected into a drafting model as facts about this project.
+        for item in result.get("results", []):
+            if item.get("kind") in {"example", "institution_report"}:
+                item["content"] = item.get("example_structure") or "仅参考结构，具体实例内容未提供给模型。"
+                item["model_content_restricted"] = True
+                if item.get("kind") == "example":
+                    item.pop("attribution", None)
+                    item["attribution_notice"] = "作者署名与授权信息见来源；再分发时须遵守许可。"
+            elif item.get("kind") == "skill_guidance":
+                item["content"] = model_safe_guidance(str(item.get("content") or ""))
+                item["model_content_restricted"] = True
+        return result
+
+    def search_public_knowledge_user(
+        self, project_id: str, query: str, *, external_query_consent: bool = False,
+        include_examples: bool = False
+    ) -> dict[str, Any]:
+        """Only direct user-facing HTTP requests may give per-request consent."""
+        return self._search_public_knowledge(project_id, query, 6, external_query_consent=external_query_consent,
+                                             include_examples=include_examples is True)
+
+    def _search_public_knowledge(
+        self, project_id: str, query: str, top_k: int, *, external_query_consent: bool, include_examples: bool
+    ) -> dict[str, Any]:
+        project = self.store.get_project(project_id)
+        if not project:
+            return {"error": "找不到这个项目。", "results": []}
+        state = project.get("state") or {}
+        facts = state.get("confirmed_facts") or {}
+        year_value = str(facts.get("application_year", "")).strip()
+        year = int(year_value) if re.fullmatch(r"(?:19|20|21)\d{2}", year_value) else None
+        school = str(project.get("school") or "").strip()
+        return self.public_knowledge.search(
+            str(state.get("skill_id", "innovation-research")), query[:300],
+            school=school, year=year, top_k=top_k,
+            variant=str(state.get("skill_variant") or ""),
+            filters={key: str(facts.get(key) or "").strip() for key in ("education_level", "college", "political_stage")},
+            external_query_consent=external_query_consent is True,
+            include_examples=include_examples,
+        )
 
     def search_papers(self, query: str, limit: int = 5) -> dict[str, Any]:
         query = query.strip()[:300]
@@ -316,7 +387,7 @@ class ProposalTools:
         school = school.strip()[:120]
         if not query:
             return {"results": [], "error": "官方通知查询关键词不能为空。"}
-        full_query = f"{school} {query} 大学生创新训练计划".strip()
+        full_query = f"{school} {query}".strip()
         searxng_url = os.environ.get("SEARXNG_URL", "").strip()
         if searxng_url:
             params = urllib.parse.urlencode(
@@ -847,6 +918,23 @@ class ProposalTools:
             {
                 "type": "function",
                 "function": {
+                    "name": "search_public_knowledge",
+                    "description": "检索当前赛道的公共写作指南和适用的已审核资料；指南不是官方规则，示例不是用户事实。",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "project_id": {"type": "string"},
+                            "query": {"type": "string"},
+                            "top_k": {"type": "integer"},
+                            "include_examples": {"type": "boolean", "description": "仅在用户明确要求参考历史范文时启用；范文事实不会作为当前项目事实。"},
+                        },
+                        "required": ["project_id", "query"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
                     "name": "search_papers",
                     "description": "通过 Crossref 查找真实论文元数据。若只有标题/摘要，不得假称读过全文。",
                     "parameters": {
@@ -979,6 +1067,7 @@ class ProposalTools:
             "get_project_state": self.get_project_state,
             "get_writing_guidance": self.get_writing_guidance,
             "search_project_materials": self.search_project_materials,
+            "search_public_knowledge": self.search_public_knowledge,
             "search_papers": self.search_papers,
             "search_official_notices": self.search_official_notices,
             "fetch_official_notice": self.fetch_official_notice,

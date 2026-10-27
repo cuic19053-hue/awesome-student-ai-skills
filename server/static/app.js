@@ -111,6 +111,10 @@
   const labels = {
     problem: "要解决的问题",
     project_name: "项目名称",
+    application_year: "申报年度",
+    education_level: "学历阶段",
+    college: "所在学院",
+    political_stage: "党组织考察阶段",
     target_user: "服务对象 / 场景",
     method: "拟采用的方法",
     foundation: "现有基础 / 资源",
@@ -1210,7 +1214,7 @@
         customPrompts = [
           { label: "⌕ 查项目材料依据", prompt: "请根据我已确认的项目材料，找出与当前项目相关的依据，并标明文件和页码。" },
           { label: "⌕ 查相关前沿论文", prompt: "请搜索与当前项目方向相关的真实论文，给出标题、作者、年份、DOI/链接和摘要；不要编造。" },
-          { label: "⌕ 查官方立项通知", prompt: "请查找当前学校或官方机构发布的大创申报通知，给出年份、来源链接；没有结果就明确说查不到。" },
+          { label: "⌕ 查官方申报通知", prompt: "请查找当前赛道、当前学校或官方机构发布的申报通知，给出年份和来源链接；没有结果就明确说查不到。" },
           { label: "💡 提炼核心科学难点", prompt: "请根据当前研究构思，帮我提炼项目的核心科学挑战与关键技术路线。" },
           { label: "⏰ 规划甘特图里程碑", prompt: "请帮我拟订一个为期一年的实施进度安排与甘特图里程碑节点。" },
         ];
@@ -1441,6 +1445,7 @@
     const copy = {
       source: ["把项目信息材料拖到这里", "Word、PDF、扫描件或照片"],
       template: ["上传学校下发的申报模板", "Word 模板尽量原位填写；PDF 模板会参考重建"],
+      official: ["上传学校或主办方通知", "确认文字后可检索；来源真实性及适用范围仍需你核验"],
       photo: ["上传真实实验 / 调研照片", "没有照片时 Word 会放“待补充”占位，不会生成假图；负责人证件照可在下方事实面板上传"],
     }[kind];
     $("#uploadTitle").textContent = copy[0];
@@ -1499,7 +1504,7 @@
       const firstDocument = (result.documents || []).find((item) => item.document?.id);
       if (firstDocument) void previewDocument(firstDocument.document, true);
       if (fromChat && uploaded.length) {
-        const labels = { source: "项目信息材料", template: "学校申报模板", photo: "实验 / 调研照片" };
+        const labels = { source: "项目信息材料", template: "学校申报模板", official: "学校通知（待核验）", photo: "实验 / 调研照片" };
         const successfulNames = uploaded.map((item) => item.document?.original_name).filter(Boolean);
         await sendChat(
           undefined,
@@ -1867,30 +1872,39 @@
         actions.append(retry);
       }
       if (doc.kind !== "template") {
-        const edit = button("修改识别文字", "button button-small button-secondary");
-        edit.addEventListener("click", () => {
-          text.readOnly = !text.readOnly;
-          if (!text.readOnly) {
-            text.focus();
-            const save = button("保存修改", "button button-small button-primary");
-            save.addEventListener("click", async () => {
-              try {
-                await api(`/api/documents/${doc.id}/confirm`, {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ confirmed: true, corrected_text: text.value }),
-                });
-                await loadProject(state.project.id);
-                toast("识别文字已更新。");
-              } catch (error) {
-                toast(error.message, true);
-              }
+        const confirmText = async () => {
+          if (!text.value.trim()) {
+            toast("请先补充或核对识别文字。", true);
+            return;
+          }
+          try {
+            await api(`/api/documents/${doc.id}/confirm`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ confirmed: true, corrected_text: text.value }),
             });
+            await loadProject(state.project.id);
+            toast("已确认材料并建立检索索引。");
+          } catch (error) {
+            toast(error.message, true);
+          }
+        };
+        if (!doc.confirmed) {
+          const confirmBtn = button("核对并确认入库", "button button-small button-primary");
+          confirmBtn.addEventListener("click", confirmText);
+          actions.append(confirmBtn);
+        } else {
+          const edit = button("修改识别文字", "button button-small button-secondary");
+          edit.addEventListener("click", () => {
+            text.readOnly = false;
+            text.focus();
+            const save = button("确认修改并重新索引", "button button-small button-primary");
+            save.addEventListener("click", confirmText);
             actions.insertBefore(save, remove);
             edit.remove();
-          }
-        });
-        actions.append(edit);
+          });
+          actions.append(edit);
+        }
       }
       const remove = button("移除", "button button-small button-quiet");
       remove.addEventListener("click", async () => {
@@ -1911,14 +1925,16 @@
 
   function renderFacts() {
     const facts = { ...(state.project?.state?.confirmed_facts || {}) };
+    $("#politicalStageField").hidden = !["summary-report", "youth-league-conversion"].includes(state.project?.state?.skill_id);
     const factSources = state.project?.state?.fact_sources || {};
     const summary = $("#factsSummary");
     summary.replaceChildren();
     const commonKeys = [
       "project_name", "problem", "target_user", "method", "foundation",
       "goal", "expected_output", "constraints", "duration", "budget",
-      "leader_name", "advisor_name", "team"
+      "leader_name", "advisor_name", "team", "application_year", "education_level", "college"
     ];
+    if (!$("#politicalStageField").hidden) commonKeys.push("political_stage");
     const keys = [...new Set([...commonKeys, ...Object.keys(facts)])];
     for (const key of keys) {
       if (key.startsWith("skill_") || key.startsWith("template_") || key.startsWith("fact_") || key === "leader_photo") continue;
@@ -2175,6 +2191,84 @@
     }
   }
 
+  async function searchPublicKnowledge() {
+    if (!state.project?.id) {
+      toast("请先选择项目。", true);
+      return;
+    }
+    const query = $("#knowledgeQuery").value.trim();
+    if (query.length < 2 || query.length > 300) {
+      toast("请输入 2–300 字的检索问题。", true);
+      return;
+    }
+    const btn = $("#knowledgeSearchBtn");
+    const target = $("#knowledgeResults");
+    btn.disabled = true;
+    try {
+      const result = await api(`/api/projects/${state.project.id}/search/knowledge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query,
+          external_query_consent: $("#knowledgeExternalConsent").checked === true,
+          include_examples: $("#knowledgeIncludeExamples").checked === true,
+        }),
+      });
+      target.replaceChildren();
+      const notice = document.createElement("p");
+      notice.className = "source-warning";
+      notice.textContent = `${result.message || ""} 检索模式：${result.retrieval_mode || "未知"}。${result.fallback_reason || ""}`;
+      target.append(notice);
+      for (const item of result.results || []) {
+        const card = document.createElement("div");
+        card.className = "source-card";
+        const title = document.createElement("h3");
+        title.textContent = `${item.kind === "official" ? "官方资料摘要" : item.kind === "institution_report" ? "校内活动报道（非评审规则）" : item.kind === "example" ? "范例" : "非官方写作指南"}：${item.title || ""}`;
+        const scope = document.createElement("p");
+        scope.textContent = [item.scope, item.source_ref, item.school, item.application_year,
+          item.verified_at ? `核验时间：${item.verified_at}` : ""].filter(Boolean).join(" · ");
+        const excerpt = document.createElement("p");
+        excerpt.textContent = item.content || "";
+        card.append(title, scope, excerpt);
+        if (item.kind === "example") {
+          const license = document.createElement("p");
+          license.className = "source-warning";
+          license.textContent = `授权信息：${item.license || "待核验"}；署名：${item.attribution || "待核验"}；${item.example_match_type === "cross_track" ? "跨赛道参考" : "同赛道参考"}。范文仅供结构参考，不得将示例事实写成你的事实。`;
+          card.append(license);
+          try {
+            const rights = new URL(item.rights_evidence_url);
+            if (rights.protocol === "https:") {
+              const evidenceLink = document.createElement("a");
+              evidenceLink.href = rights.href;
+              evidenceLink.target = "_blank";
+              evidenceLink.rel = "noopener noreferrer";
+              evidenceLink.textContent = "查看授权依据";
+              card.append(evidenceLink);
+            }
+          } catch {}
+        }
+        try {
+          const url = new URL(item.source_url);
+          if (url.protocol === "https:") {
+            const link = document.createElement("a");
+            link.href = url.href;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.textContent = "查看原始来源（请核对版本）";
+            card.append(link);
+          }
+        } catch {}
+        target.append(card);
+      }
+    } catch (error) {
+      toast(error.message || "赛道知识检索失败。", true);
+    } finally {
+      $("#knowledgeExternalConsent").checked = false;
+      $("#knowledgeIncludeExamples").checked = false;
+      btn.disabled = false;
+    }
+  }
+
   async function confirmSource(source, kind, btn) {
     btn.disabled = true;
     try {
@@ -2298,7 +2392,9 @@
   async function saveFacts() {
     const payload = {};
     $$("[data-fact]").forEach((field) => {
-      if (field.value.trim()) payload[field.dataset.fact] = field.value.trim();
+      if (field.dataset.fact === "political_stage" && $("#politicalStageField").hidden) return;
+      if (field.value.trim() || ["application_year", "education_level", "college", "political_stage"].includes(field.dataset.fact))
+        payload[field.dataset.fact] = field.value.trim();
     });
     const projectFields = {};
     $$("[data-project]").forEach((field) => {
@@ -2820,7 +2916,10 @@
             editor.value = result.content;
             wordBadge.textContent = `${countWords(result.content)} 字`;
             const evidence = (result.evidence || []).map((e) => `${e.source_name} · ${e.source_ref}`).join("；");
-            sources.textContent = evidence ? `检索依据：${evidence}` : "未检索到可用材料；请补充事实或保留“待补充”标记。";
+            const publicRefs = (result.public_knowledge?.results || [])
+              .map((e) => `${e.kind === "official" ? "官方摘要" : "非官方指南"}：${e.title} · ${e.source_ref}`).join("；");
+            sources.textContent = (evidence ? `项目材料：${evidence}` : "未检索到项目材料；请补充事实或保留“待补充”。")
+              + (publicRefs ? ` 公共参考：${publicRefs}。请核对来源和适用范围。` : "");
             state.project.sections = state.project.sections || {};
             state.project.sections[section.id] = result.content;
 
@@ -3941,6 +4040,7 @@
     $("#proposeFactsBtn").addEventListener("click", proposeFacts);
     $("#paperSearchBtn").addEventListener("click", () => searchSources("paper"));
     $("#officialSearchBtn").addEventListener("click", () => searchSources("official"));
+    $("#knowledgeSearchBtn").addEventListener("click", searchPublicKnowledge);
     $("#officialUrlBtn").addEventListener("click", previewOfficialUrl);
     $("#generateOutlineBtn").addEventListener("click", generateOutline);
     $("#resetOutlineBtn")?.addEventListener("click", generateOutline);

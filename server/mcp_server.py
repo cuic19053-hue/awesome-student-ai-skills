@@ -19,15 +19,17 @@ from mcp.server.mcpserver import MCPServer
 from proposal.retrieval import ProjectRetriever
 from proposal.storage import Store
 from proposal.tools import ProposalTools
+from proposal.skills import registry
 
 store = Store()
 tools = ProposalTools(store, ProjectRetriever(store))
 server = MCPServer(
     name="awesome-student-ai-skills",
     version="0.1.0",
-    description="大创创新训练申报 Agent 的项目资料、写作和导出工具。",
+    description="大学生多赛道申报 Agent 的项目资料、写作和导出工具。",
     instructions=(
-        "只处理大学生大创创新训练项目。材料检索仅限当前项目中学生已确认的文件。"
+        "支持项目所选的大学生申报赛道。私有材料检索仅限当前项目中学生已确认的文件。"
+        "公共写作指南不是官方规则，官方通知仅在学校和年度匹配时可作为参考。"
         "先取证再写，不得编造事实；资料矛盾时询问用户。"
         "导出 Word 前运行 validate_project，缺失内容使用待补充标记。"
     ),
@@ -46,15 +48,34 @@ def create_project(
     level: str = "",
     discipline: str = "",
     school: str = "",
+    skill_id: str = "innovation-research",
+    skill_variant: str = "",
 ) -> dict[str, Any]:
-    """创建一个本地申报项目；项目资料保存在配置的本机数据目录。"""
+    """创建一个本地申报项目；skill_id 必须为目录中的赛道标识。"""
+    skill = registry.get(skill_id)
+    if not skill:
+        return {"error": "赛道不存在，请先选择有效赛道。"}
+    if skill_variant and (
+        skill["id"] != "outstanding-student"
+        or skill_variant not in {"outstanding_student", "outstanding_youth_league"}
+    ):
+        return {"error": "赛道子类别无效。"}
     project = store.create_project(title, level, discipline, school)
+    project_state = dict(project.get("state") or {})
+    project_state["skill_id"] = skill["id"]
+    project_state["skill_name"] = skill.get("display_name", skill["id"])
+    if skill_variant:
+        project_state["skill_variant"] = skill_variant
+        if skill_variant == "outstanding_youth_league":
+            project_state["skill_name"] = "优秀团员"
+    store.update_project(project["id"], state=project_state)
     return {
         "project_id": project["id"],
         "title": project["title"],
         "level": project["level"],
         "discipline": project["discipline"],
         "school": project["school"],
+        "skill_id": skill["id"],
     }
 
 
@@ -66,7 +87,7 @@ def get_project_state(project_id: str) -> dict[str, Any]:
 
 @server.tool()
 def add_text_material(project_id: str, filename: str, text: str) -> dict[str, Any]:
-    """添加文本材料为待确认状态；未经确认不会进入本项目 RAG。"""
+    """保存待确认文字；用户核对并调用确认工具后才可进入项目检索。"""
     return tools.add_text_material(project_id, filename, text)
 
 
@@ -82,7 +103,7 @@ def confirm_project_material(
 
 @server.tool()
 def get_writing_guidance(project_id: str, section: str = "") -> dict[str, Any]:
-    """按需读取大创创新训练的写作指南。"""
+    """按需读取当前赛道的写作指南；指南不是官方规则。"""
     return tools.get_writing_guidance(project_id, section)
 
 
@@ -90,6 +111,11 @@ def get_writing_guidance(project_id: str, section: str = "") -> dict[str, Any]:
 def search_project_materials(project_id: str, query: str, top_k: int = 5) -> dict[str, Any]:
     """在该项目已确认资料中做 RAG 检索，返回文件名和页码/段落来源。"""
     return tools.search_project_materials(project_id, query, top_k)
+
+@server.tool()
+def search_public_knowledge(project_id: str, query: str, top_k: int = 6, include_examples: bool = False) -> dict[str, Any]:
+    """按当前项目赛道、学校、年度检索公共写作指南及有明确范围的官方摘要。"""
+    return tools.search_public_knowledge(project_id, query, top_k, include_examples)
 
 
 @server.tool()

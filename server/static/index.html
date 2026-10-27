@@ -316,6 +316,7 @@
               <div class="upload-tabs" role="tablist">
                 <button class="upload-tab active" data-kind="source">项目资料</button>
                 <button class="upload-tab" data-kind="template">学校模板</button>
+                <button class="upload-tab" data-kind="official">学校通知（待核验）</button>
                 <button class="upload-tab" data-kind="photo">实验 / 实践照片</button>
               </div>
               <div class="upload-zone" id="dropZone">
@@ -347,10 +348,23 @@
                 <button id="officialSearchBtn" class="button button-secondary button-small">查官方指南</button>
               </div>
               <div class="source-search-row">
+                <input id="knowledgeQuery" placeholder="检索当前赛道指南或适用的已收录资料">
+                <button id="knowledgeSearchBtn" class="button button-secondary button-small">检索赛道知识</button>
+              </div>
+              <label class="inline-hint">
+                <input id="knowledgeExternalConsent" type="checkbox">
+                本次允许将检索问题发送给已配置的免费模型服务（不发送项目私有材料；不可用时自动降级）
+              </label>
+              <label class="inline-hint">
+                <input id="knowledgeIncludeExamples" type="checkbox">
+                本次包含已授权历史范文（仅供结构参考，学校、年度和赛道可能不同）
+              </label>
+              <div class="source-search-row">
                 <input id="officialUrl" placeholder="如搜索受限，可直接粘贴学校官网通知 HTTPS 链接">
                 <button id="officialUrlBtn" class="button button-secondary button-small">直接抓取原文</button>
               </div>
               <div id="sourceResults" class="source-results"></div>
+              <div id="knowledgeResults" class="source-results"></div>
               <div id="confirmedSources" class="confirmed-sources"></div>
             </section>
 
@@ -377,6 +391,10 @@
                   <label class="field"><span>申报级别</span><select data-project="level"><option value="">暂未确定</option><option>校级</option><option>省级</option><option>国家级</option></select></label>
                   <label class="field"><span>专业 / 学科</span><input data-project="discipline"></label>
                   <label class="field"><span>学校</span><input data-project="school"></label>
+                  <label class="field"><span>申报年度</span><input data-fact="application_year" inputmode="numeric" placeholder="例如：2026，未知可留空"></label>
+                  <label class="field"><span>学历阶段</span><select data-fact="education_level"><option value="">未知或不适用</option><option>本科</option><option>硕士</option><option>博士</option></select></label>
+                  <label class="field"><span>所在学院</span><input data-fact="college" placeholder="按学校正式名称填写，未知可留空"></label>
+                  <label class="field" id="politicalStageField" hidden><span>党组织考察阶段（可选）</span><select data-fact="political_stage"><option value="">未填写或不适用</option><option>入党积极分子</option><option>预备党员</option></select></label>
                 </div>
                 <div class="facts-grid">
                   <label class="field"><span>要解决的问题</span><textarea data-fact="problem" rows="2"></textarea></label>
@@ -556,7 +574,7 @@
               <div class="chat-tools" id="chatTools">
                 <button data-prompt="请根据我已确认的项目材料，找出与当前项目相关的依据，并标明文件和页码。">⌕ 查项目材料</button>
                 <button data-prompt="请搜索与当前项目方向相关的真实论文，给出标题、作者、年份、DOI/链接和摘要；不要编造。">⌕ 查相关论文</button>
-                <button data-prompt="请查找当前学校或官方机构发布的大创申报通知，给出年份、来源链接；没有结果就明确说查不到。">⌕ 查官方通知</button>
+                <button data-prompt="请查找当前赛道、当前学校或官方机构发布的申报通知，给出年份和来源链接；没有结果就明确说查不到。">⌕ 查官方通知</button>
                 <button data-prompt="请根据当前研究构思，帮我提炼项目的核心科学挑战与技术难点。">💡 提炼技术难点</button>
                 <button data-prompt="请帮我拟订一个为期一年的实施进度安排与甘特图里程碑节点。">⏰ 规划一年进度</button>
               </div>

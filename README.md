@@ -99,9 +99,9 @@
 | 14 | 单项奖学金 | `single-scholarship` | 44 KB |
 | 15 | 国家助学金 | `grant-application` | 75 KB |
 | 16 | 优秀毕业生 | `outstanding-graduate` | 46 KB |
-| 17 | 优秀学生 / 三好学生 | `outstanding-student` | 58 KB |
+| 17 | 优秀学生 / 三好学生 / 优秀团员 | `outstanding-student` | 58 KB |
 | 18 | 优秀学生干部 | `outstanding-cadre` | 87 KB |
-| 19 | 文明大学生 / 优秀团员 | `civilized-student` | 60 KB |
+| 19 | 文明大学生 | `civilized-student` | 60 KB |
 | 20 | 优秀班集体 | `class-collective` | 67 KB |
 | 21 | 优秀毕业设计 / 论文 | `outstanding-thesis` | 73 KB |
 
@@ -193,7 +193,7 @@ AI 会做三件事：交互式追问你的真实信息 → 调用 `utils/dispatc
 <details>
 <summary><b>② MCP 服务接入（Claude Desktop / Cursor / Codex）</b></summary>
 
-仓库自带标准 MCP Server（`mcp_server.py`），暴露 7 个工具：赛道路由、信息采集、评委盲审打分、Word 渲染等。
+仓库自带标准 MCP Server（`mcp_server.py`），支持赛道路由、公共知识检索、信息采集、模拟评审和 Word 渲染。公共指南不是官方政策；官方资料按学校、年度及适用对象筛选，真实授权范文与尚缺资料的状态见 [RAG 状态说明](./docs/rag-status.md)。
 
 ```json
 {

@@ -10,7 +10,7 @@
     {"query": "三下乡做问卷访谈", "expected": "social-survey"},
     {"query": "优秀毕业设计申报书", "expected": "outstanding-thesis"},
     {"query": "优秀毕业生申请书", "expected": "outstanding-graduate"},
-    {"query": "优秀团员评优", "expected": "civilized-student"},
+    {"query": "优秀团员评优", "expected": "outstanding-student"},
     {"query": "国家级项目立项逻辑评测", "expected": "national-project-eval"},
     {"query": "我已注册公司，要做创业实践项目", "expected": "entrepreneurship-practice"},
     {"query": "我要做创业训练项目，不是创业实践", "expected": "entrepreneurship-training"},

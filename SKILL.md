@@ -70,10 +70,10 @@ if candidates:
 
 | 子 skill | 中文名 | 触发关键词 |
 |----------|--------|------------|
-| `subskills/outstanding-student/` | 优秀学生/三好学生 | "三好学生""优秀学生""优秀学生标兵" |
+| `subskills/outstanding-student/` | 优秀学生/三好学生/优秀团员 | "三好学生""优秀学生""优秀团员" |
 | `subskills/outstanding-graduate/` | 优秀毕业生 | "优秀毕业生""省优毕业生" |
 | `subskills/outstanding-cadre/` | 优秀学生干部 | "优秀班干部""优秀学生干部" |
-| `subskills/civilized-student/` | 文明大学生/优秀团员 | "文明大学生""优秀团员" |
+| `subskills/civilized-student/` | 文明大学生 | "文明大学生""文明学生" |
 | `subskills/class-collective/` | 优秀班集体 | "优秀班集体""先进班级" |
 | `subskills/outstanding-thesis/` | 优秀毕业设计/论文申报书 | "优秀毕设""毕设评优" |
 
@@ -168,9 +168,9 @@ if candidates:
 │   │   ├─ 单项（科研/社工/文体） → single-scholarship
 │   │   └─ 助学金（贫困补助，无成绩要求） → grant-application
 │   ├─ Q7：在校生学年评优？
-│   │   ├─ 三好学生/优秀学生 → outstanding-student
+│   │   ├─ 三好学生/优秀学生/优秀团员 → outstanding-student
 │   │   ├─ 优秀学生干部 → outstanding-cadre
-│   │   ├─ 文明大学生/优秀团员 → civilized-student
+│   │   ├─ 文明大学生 → civilized-student
 │   │   └─ 优秀班集体 → class-collective
 │   ├─ Q8：毕业生评优？
 │   │   ├─ 优秀毕业生 → outstanding-graduate
