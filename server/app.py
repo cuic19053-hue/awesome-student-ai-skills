@@ -339,6 +339,7 @@ async def _require_supabase_session(request: Request, call_next):
             "/api/models/preset", "/api/pay/notify", "/api/admin/provider-health",
             "/api/admin/provider-usage",
             "/api/admin/reconcile-usage",
+            "/api/admin/configure-reconcile-scheduler",
             "/api/auth/login", "/api/auth/signup",
             "/api/ping",
         }
@@ -1464,14 +1465,41 @@ def reconcile_usage(request: Request):
     expected = os.environ.get("BILLING_DIAGNOSTIC_TOKEN", "")
     if not expected:
         raise HTTPException(503, "用量对账尚未配置")
-    if not hmac.compare_digest(request.headers.get("x-billing-probe-token", ""), expected):
-        raise HTTPException(403, "无权执行用量对账")
-    from proposal.billing_reconcile import run_batch
+    from proposal.billing_reconcile import run_batch, verify_scheduler_tick, worker_rpc
     try:
-        return run_batch(store)
+        operator = hmac.compare_digest(request.headers.get("x-billing-probe-token", ""), expected)
+        if operator:
+            background = request.headers.get("x-billing-scheduler-mode", "") == "background"
+        else:
+            timestamp = request.headers.get("x-billing-scheduler-timestamp", "")
+            signature = request.headers.get("x-billing-scheduler-signature", "")
+            if not verify_scheduler_tick(timestamp, signature, expected):
+                raise HTTPException(403, "无权执行用量对账")
+            tick = worker_rpc(store, "scheduler_tick", {"timestamp": int(timestamp)})
+            if tick.get("status") in ("duplicate", "expired"):
+                return {"status": "idle", "processed": 0, "alert_count": 0}
+            if tick.get("status") != "accepted":
+                raise RuntimeError("Invalid scheduler tick response")
+            background = True
+        return run_batch(store, include_alerts=not background)
     except RuntimeError:
         logger.exception("Background billing reconciliation failed")
         raise HTTPException(503, "后台对账暂不可用") from None
+
+
+@app.post("/api/admin/configure-reconcile-scheduler")
+def configure_reconcile_scheduler(request: Request):
+    expected = os.environ.get("BILLING_DIAGNOSTIC_TOKEN", "")
+    if not expected:
+        raise HTTPException(503, "用量对账尚未配置")
+    if not hmac.compare_digest(request.headers.get("x-billing-probe-token", ""), expected):
+        raise HTTPException(403, "无权配置用量对账")
+    from proposal.billing_reconcile import worker_rpc
+    try:
+        return worker_rpc(store, "configure_scheduler")
+    except RuntimeError:
+        logger.exception("Billing scheduler configuration failed")
+        raise HTTPException(503, "后台对账调度暂不可配置") from None
 
 
 @app.get("/api/projects/{project_id}/usage")

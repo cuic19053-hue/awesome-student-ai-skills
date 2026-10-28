@@ -13,12 +13,19 @@ def main():
         return 1
     request = urllib.request.Request(
         "https://agent.stardust.website/api/admin/reconcile-usage", data=b"{}",
-        headers={"x-billing-probe-token": token, "Content-Type": "application/json"},
+        headers={
+            "x-billing-probe-token": token,
+            "Content-Type": "application/json",
+            "User-Agent": "StardustBillingReconciler/1.0",
+        },
         method="POST",
     )
     try:
         with urllib.request.urlopen(request, timeout=58) as response:
             result = json.load(response)
+    except urllib.error.HTTPError as exc:
+        print(f"Billing reconciliation endpoint returned HTTP {exc.code}", file=sys.stderr)
+        return 1
     except (urllib.error.URLError, TimeoutError, OSError, ValueError):
         print("Billing reconciliation endpoint unavailable", file=sys.stderr)
         return 1

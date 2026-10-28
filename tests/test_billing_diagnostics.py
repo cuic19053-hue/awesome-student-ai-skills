@@ -126,18 +126,52 @@ def test_background_endpoint_requires_secret(monkeypatch):
     client = TestClient(app_module.app)
     monkeypatch.setenv("BILLING_DIAGNOSTIC_TOKEN", "test-only-probe")
     monkeypatch.setattr("proposal.billing_reconcile.run_batch",
-                        lambda _: {"status": "idle", "alert_count": 0})
+                        lambda _, **kw: {"status": "idle", "alert_count": 0,
+                                         "include_alerts": kw["include_alerts"]})
     assert client.post("/api/admin/reconcile-usage").status_code == 403
     response = client.post("/api/admin/reconcile-usage",
                            headers={"x-billing-probe-token": "test-only-probe"})
-    assert response.json() == {"status": "idle", "alert_count": 0}
+    assert response.json() == {"status": "idle", "alert_count": 0, "include_alerts": True}
+    response = client.post("/api/admin/reconcile-usage", headers={
+        "x-billing-probe-token": "test-only-probe", "x-billing-scheduler-mode": "background"
+    })
+    assert response.json()["include_alerts"] is False
+    assert client.post("/api/admin/configure-reconcile-scheduler").status_code == 403
+
+
+def test_short_lived_scheduler_signature_and_replay_fence(monkeypatch):
+    import hashlib
+    import hmac
+    from proposal.billing_reconcile import verify_scheduler_tick
+    tick = 1_800_000_000  # minute-aligned
+    secret = "a" * 64
+    signature = hmac.new(secret.encode(), f"stardust-billing-tick:{tick}".encode(),
+                         hashlib.sha256).hexdigest()
+    assert verify_scheduler_tick(str(tick), signature, secret, now=tick + 5)
+    assert not verify_scheduler_tick(str(tick), signature, secret, now=tick + 91)
+    assert not verify_scheduler_tick(str(tick), "f" * 64, secret, now=tick + 5)
+    assert not verify_scheduler_tick(str(tick + 1), signature, secret, now=tick + 5)
+    monkeypatch.setenv("BILLING_DIAGNOSTIC_TOKEN", secret)
+    monkeypatch.setattr("proposal.billing_reconcile.time.time", lambda: tick + 5)
+    monkeypatch.setattr("proposal.billing_reconcile.worker_rpc", lambda *_: {"status": "accepted"})
+    monkeypatch.setattr("proposal.billing_reconcile.run_batch",
+                        lambda _, **kw: {"status": "idle", "alert_count": 0,
+                                         "include_alerts": kw["include_alerts"]})
+    client = TestClient(app_module.app)
+    headers = {"x-billing-scheduler-timestamp": str(tick),
+               "x-billing-scheduler-signature": signature}
+    assert client.post("/api/admin/reconcile-usage", headers=headers).json()["include_alerts"] is False
+    monkeypatch.setattr("proposal.billing_reconcile.worker_rpc", lambda *_: {"status": "duplicate"})
+    assert client.post("/api/admin/reconcile-usage", headers=headers).json()["processed"] == 0
+    headers["x-billing-scheduler-signature"] = "f" * 64
+    assert client.post("/api/admin/reconcile-usage", headers=headers).status_code == 403
 
 
 def test_background_batch_bounds_work_and_preserves_alerts(monkeypatch):
     from proposal.billing_reconcile import run_batch
     calls = []
 
-    def one(*_args):
+    def one(*_args, **_kwargs):
         calls.append(1)
         return {"status": "deferred", "alert_count": 1 if len(calls) == 1 else 0}
 
@@ -163,3 +197,25 @@ def test_balance_never_waits_for_provider_when_background_worker_enabled(monkeyp
     monkeypatch.setattr(store, "pending_workbench_usage",
                         lambda *_: pytest.fail("balance must not query the provider"))
     assert app_module.get_user_balance(None)["user_id"] == "alice"
+
+
+def test_scheduled_worker_uses_identifiable_user_agent_without_leaking_secret(monkeypatch, capsys):
+    import io
+    from scripts import run_billing_reconciliation
+
+    class Response(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            self.close()
+
+    def open_request(request, timeout):
+        assert request.get_header("User-agent") == "StardustBillingReconciler/1.0"
+        assert request.get_header("X-billing-probe-token") == "test-secret"
+        return Response(b'{"status":"idle","processed":0,"alert_count":0}')
+
+    monkeypatch.setenv("BILLING_RECONCILIATION_TOKEN", "test-secret")
+    monkeypatch.setattr(run_billing_reconciliation.urllib.request, "urlopen", open_request)
+    assert run_billing_reconciliation.main() == 0
+    assert "test-secret" not in capsys.readouterr().out

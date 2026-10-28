@@ -32,8 +32,8 @@ RUN_POSTGRES_POLICY_TESTS=1 .venv/bin/pytest -q tests/test_workbench_reconciliat
 
 ## 后台对账和告警
 
-现有 GitHub Actions `Production Uptime` 约每五分钟触发一次后台对账，
-GitHub 调度可能延迟；不是实时或必达。每次最多依次领取五笔，使用数据库租约和
+Supabase Cron 每五分钟触发后台对账，现有 GitHub Actions `Production Uptime`
+作为独立备用触发和告警渠道，GitHub 调度可能延迟。每次最多依次领取五笔，使用数据库租约和
 退避重试，避免多个 Worker 对同一笔重复结算。仅唯一匹配并通过版本价格规则
 校验的上游收据可结算；查不到、匹配不唯一、扫描未完成、上游故障均保留预留，
 不得根据超时认定失败或退款。已恢复/人工处理的记录不能被旧租约再次更改。
@@ -50,8 +50,12 @@ GitHub 调度可能延迟；不是实时或必达。每次最多依次领取五�
    `billing_private.worker_capability`；数据库还独立验证 `WORKBENCH_BACKEND_SECRET`。
 2. 在 GitHub 仓库的 Actions Secret `BILLING_RECONCILIATION_TOKEN` 中设置同一
    诊断令牌。不要把令牌写入仓库、URL 或日志。
-3. 发布 Vercel 代码，再运行一次 `Production Uptime` workflow 并确认 worker
-   状态、身份边界和告警。数据库函数不对外暴露原始账单或用户内容。
+3. 应用 `billing_reconciliation_scheduler` 迁移，发布 Vercel 代码。通过独立鉴权的
+   `/api/admin/configure-reconcile-scheduler` 配置 Supabase Cron；调度令牌只存 Vault，
+   不进入 `cron.job`、`pg_net` 请求队列或仓库。队列仅含短时 HMAC 签名，
+   服务端验证有效期并在数据库中消费每个时间片一次，防止重放。Cron 不领取告警，
+   避免抢占 GitHub 通知。
+   运行一次 `Production Uptime` workflow 并确认 worker 状态、身份边界和告警。
 4. 只有实测后台 worker 工作后，设置并部署 Vercel 环境变量
    `BILLING_BACKGROUND_RECONCILIATION=true`，避免用户读取余额时同步等待上游。
    默认为关闭；关闭并重新部署可恢复原有按用户触发的重试，作为回滚路径。

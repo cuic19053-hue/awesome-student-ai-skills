@@ -146,5 +146,67 @@ def test_nonblocking_billing_rpc_preserves_wallet_and_authorization():
         assert sql("select status from workbench_usage_events where request_id='review-does-not-block'") == "reserved"
         assert sql("select count(*) from workbench_credit_transactions where kind='usage_refund'") == "0"
         assert json.loads(worker("claim"))["status"] == "idle"  # exponential backoff
+
+        # Exercise the scheduler logic with stubbed extensions; this container
+        # deliberately does not install or connect to any external services.
+        sql("""
+          create schema vault; create schema cron; create schema net;
+          create table vault.secrets(id uuid primary key default gen_random_uuid(),
+            name text unique, secret text);
+          create view vault.decrypted_secrets as select id,name,secret as decrypted_secret from vault.secrets;
+          create function vault.create_secret(v text,n text,d text) returns uuid
+          language plpgsql as $$ declare id uuid; begin
+            insert into vault.secrets(name,secret) values(n,v) returning vault.secrets.id into id;
+            return id;
+          end $$;
+          create function vault.update_secret(i uuid,v text,n text,d text) returns void
+          language sql as $$ update vault.secrets set secret=v,name=n where id=i $$;
+          create table cron.job(jobid bigint generated always as identity,jobname text unique,
+            schedule text,command text);
+          create function cron.schedule(n text,s text,c text) returns bigint
+          language plpgsql as $$ declare i bigint; begin
+            insert into cron.job(jobname,schedule,command) values(n,s,c)
+            on conflict(jobname) do update set schedule=excluded.schedule,command=excluded.command
+            returning jobid into i; return i;
+          end $$;
+        """)
+        scheduler = next((ROOT / "supabase/migrations").glob("*_billing_reconciliation_scheduler.sql")).read_text()
+        scheduler = scheduler.replace("create extension if not exists pg_cron;", "")
+        scheduler = scheduler.replace("create extension if not exists pg_net;", "")
+        sql(scheduler)
+
+        def configure(worker_secret, ok=True):
+            return sql(f"""set role anon;
+              select public.billing_reconciliation_scheduler(repeat('a',64),'{worker_secret}');""", ok=ok)
+
+        configure("c" * 64, ok=False)
+        assert json.loads(configure("b" * 64))["status"] == "configured"
+        assert json.loads(configure("b" * 64))["status"] == "configured"
+        assert sql("select count(*) from cron.job") == "1"
+        assert sql("select count(*) from vault.secrets") == "1"
+        assert sql("select (position(repeat('b',64) in command)=0)::text from cron.job") == "true"
+        assert sql("select (position('x-billing-scheduler-mode' in command)>0)::text from cron.job") == "true"
+        sql("set role anon; select * from vault.secrets", ok=False)
+        sql("set role anon; select * from cron.job", ok=False)
+
+        # Upgrade to signed, expiring, single-use ticks before configuring a
+        # real scheduler. The queued HTTP request must not contain the secret.
+        signed = next((ROOT / "supabase/migrations").glob("*_billing_scheduler_signed_tick.sql")).read_text()
+        sql(signed)
+        assert json.loads(configure("b" * 64))["status"] == "configured"
+        assert sql("select (position('x-billing-probe-token' in command)=0)::text from cron.job") == "true"
+        assert sql("select (position('x-billing-scheduler-signature' in command)>0)::text from cron.job") == "true"
+        assert sql("select (position(repeat('b',64) in command)=0)::text from cron.job") == "true"
+        tick = int(sql("select extract(epoch from date_trunc('minute',now()))::bigint"))
+
+        def consume(timestamp, secret="b" * 64, ok=True):
+            return sql(f"""set role anon; select public.billing_reconciliation_scheduler_tick(
+              repeat('a',64),'{secret}',{timestamp});""", ok=ok)
+
+        consume(tick, secret="c" * 64, ok=False)
+        assert json.loads(consume(tick))["status"] == "accepted"
+        assert json.loads(consume(tick))["status"] == "duplicate"
+        assert json.loads(consume(tick - 600))["status"] == "expired"
+        sql("set role anon; select * from billing_private.scheduler_ticks", ok=False)
     finally:
         subprocess.run(["docker", "rm", "-f", name], capture_output=True, timeout=20)
