@@ -109,4 +109,5 @@ jobs:
             tests/test_material_postgres.py \
             tests/test_observability_postgres.py \
             tests/test_trial_policy_postgres.py \
+            tests/test_workbench_reconciliation_postgres.py \
             tests/test_user_model_config.py -q

@@ -3417,6 +3417,7 @@
     let bubble = null;
     let streamedText = "";
     let finalResult = null;
+    let streamReader = null;
 
     try {
       const url = `/api/projects/${projectId}/chat?stream=true`;
@@ -3450,13 +3451,14 @@
         throw new Error(errText || `请求失败 (${response.status})`);
       }
 
-      const reader = response.body.getReader();
+      const reader = streamReader = response.body.getReader();
       const decoder = new TextDecoder();
       let sseBuffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+        if (state.project?.id !== projectId) return;
         sseBuffer += decoder.decode(value, { stream: true });
         const blocks = sseBuffer.split("\n\n");
         sseBuffer = blocks.pop() || "";
@@ -3508,7 +3510,10 @@
       pending.remove();
       if (state.project?.id !== projectId) return;
 
-      const finalText = finalResult?.message || streamedText;
+      if (!finalResult || typeof finalResult.message !== "string") {
+        throw new Error("连接已中断，回复未完成。请稍后重试；系统不会自动重复发送。");
+      }
+      const finalText = finalResult.message;
       if (!finalText.trim()) {
         throw new Error("模型未返回可用正文，请勿连续重试；请先查看积分流水并联系管理员核对。");
       }
@@ -3585,6 +3590,11 @@
     } finally {
       state.chatSending = false;
       syncChatControls();
+      if (streamReader) {
+        pending.remove();
+        try { await streamReader.cancel(); } catch {}
+        try { streamReader.releaseLock(); } catch {}
+      }
     }
   }
 

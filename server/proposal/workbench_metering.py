@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sqlite3
 import time
 import uuid
 from typing import Any
@@ -63,7 +64,19 @@ class WorkbenchMeter:
                      level="warning", usage_request_id=request_id, code="BILLING_RECONCILIATION_PENDING")
             return None
         amount, provider_id = found
-        result = self.store.settle_workbench_usage(request_id, amount, provider_id)
+        try:
+            result = self.store.settle_workbench_usage(request_id, amount, provider_id)
+            if not isinstance(result, dict) or result.get("status") not in {"settled", "needs_review"}:
+                raise RuntimeError("Invalid settlement response")
+        except (RuntimeError, ValueError, PermissionError, sqlite3.Error):
+            # The upstream answer already exists. A ledger outage (including
+            # commit-then-timeout) must not discard it or replay paid inference.
+            # The original durable reservation is retried by the worker.
+            logger.warning("Ledger settlement deferred; request_id=%s", request_id)
+            obs.emit("billing.reconciliation_pending", stage="ledger_confirmation",
+                     status="pending", level="warning", usage_request_id=request_id,
+                     code="BILLING_LEDGER_UNAVAILABLE")
+            return None
         if result.get("status") == "needs_review":
             logger.error("Provider charge exceeded reservation; request_id=%s", request_id)
         obs.emit("billing.settled", stage="ledger_confirmed",

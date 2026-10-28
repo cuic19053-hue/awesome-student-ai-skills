@@ -7,7 +7,7 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-from .agent import ModelUnavailable
+from .agent import DEFINITE_HTTP_REJECTIONS, ModelUnavailable
 from .workbench_metering import WorkbenchMeter
 from .wopally_transport import wopally_urlopen
 
@@ -47,8 +47,10 @@ def generate_image_deferred(
         with wopally_urlopen(request, timeout=request_timeout) as response:
             body: Any = json.load(response)
     except urllib.error.HTTPError as exc:
-        meter.refund(request_id)
-        raise ModelUnavailable(f"生图服务返回 HTTP {exc.code}，本次预留已退回。") from exc
+        if exc.code in DEFINITE_HTTP_REJECTIONS:
+            meter.refund(request_id)
+            raise ModelUnavailable(f"生图服务返回 HTTP {exc.code}，本次预留已退回。") from exc
+        raise ModelUnavailable(f"生图服务返回 HTTP {exc.code}，结果暂未确认，请稍后重试。") from exc
     except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
         # The provider may have generated an image despite a transport failure.
         # Keep the hold for usage-log reconciliation rather than charging twice.

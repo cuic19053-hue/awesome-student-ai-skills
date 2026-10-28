@@ -33,9 +33,15 @@ def service_token(base_url: str, *, timeout: float = 10) -> str:
         raise ServiceLoginUnavailable("工作台专用账户尚未配置")
     if _cached_token and time.monotonic() < _expires_at:
         return _cached_token
-    with _lock:
+    deadline = time.monotonic() + timeout
+    if not _lock.acquire(timeout=max(0, timeout)):
+        raise ServiceLoginUnavailable("工作台专用账户登录繁忙")
+    try:
         if _cached_token and time.monotonic() < _expires_at:
             return _cached_token
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise ServiceLoginUnavailable("工作台专用账户登录超时")
         request = urllib.request.Request(
             base_url.rstrip("/") + "/api/v1/auth/login",
             data=json.dumps({"email": email, "password": password}).encode(),
@@ -43,7 +49,7 @@ def service_token(base_url: str, *, timeout: float = 10) -> str:
             method="POST",
         )
         try:
-            with wopally_urlopen(request, timeout=timeout) as response:
+            with wopally_urlopen(request, timeout=remaining) as response:
                 body = json.load(response)
             data = body.get("data", body)
             if body.get("code") not in (None, 0) or not isinstance(data, dict):
@@ -62,6 +68,8 @@ def service_token(base_url: str, *, timeout: float = 10) -> str:
             raise ServiceLoginUnavailable(f"工作台专用账户登录被中转站拒绝（HTTP {exc.code}）") from exc
         except (urllib.error.URLError, TimeoutError, OSError, ValueError, TypeError) as exc:
             raise ServiceLoginUnavailable("工作台专用账户登录失败") from exc
+    finally:
+        _lock.release()
 
 
 def clear_cached_token() -> None:

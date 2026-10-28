@@ -26,14 +26,14 @@ def test_context_budgeter_allocation_bounds():
     assert sum(map(len, allocated.values())) <= 4000
 
 
-def test_agent_retry_on_transient_error(monkeypatch):
+def test_byok_agent_retry_on_explicit_rate_limit(monkeypatch):
     attempts = []
 
     def mock_urlopen(request, timeout):
         attempts.append(1)
         if len(attempts) < 2:
-            # 模拟第 1 次 503 临时故障
-            raise urllib.error.HTTPError(request.full_url, 503, "Service Unavailable", {}, io.BytesIO(b"busy"))
+            # 明确未受理的 429 可重试；503 不能证明上游没有执行。
+            raise urllib.error.HTTPError(request.full_url, 429, "Too Many Requests", {}, io.BytesIO(b"busy"))
         # 第 2 次重试成功
         return io.BytesIO(json.dumps({
             "choices": [{"message": {"role": "assistant", "content": "重试成功输出"}}]
@@ -51,6 +51,21 @@ def test_agent_retry_on_transient_error(monkeypatch):
     res = agent._post("/api/chat", {"messages": [{"role": "user", "content": "hi"}]})
     assert res["message"]["content"] == "重试成功输出"
     assert len(attempts) == 2
+
+
+def test_byok_agent_does_not_repeat_an_ambiguous_503(monkeypatch):
+    attempts = []
+
+    def failed(request, timeout):
+        attempts.append(1)
+        raise urllib.error.HTTPError(request.full_url, 503, "Service Unavailable", {}, io.BytesIO(b"busy"))
+
+    monkeypatch.setattr(urllib.request, "urlopen", failed)
+    agent = OllamaAgent(None, None, base_url="https://api.example.test/v1",
+                        model="test-model", provider="openai_compatible", api_key="test-only")
+    with pytest.raises(ModelUnavailable):
+        agent._post("/api/chat", {"messages": []})
+    assert len(attempts) == 1
 
 
 def test_agent_exhausted_retries_does_not_leak_key(monkeypatch):

@@ -65,6 +65,8 @@ function harness() {
     sessionStorage: { getItem: (k) => session.get(k) || null, setItem: (k,v) => session.set(k,v), removeItem: (k) => session.delete(k) },
     Headers,
     Blob,
+    TextEncoder,
+    TextDecoder,
     URL: {
       createObjectURL(blob) {
         created.push(blob);
@@ -773,4 +775,69 @@ test("SSE chat cannot bill the default model while cloud BYOK restore is pending
     assert.equal(h.requests.length, 0);
     assert.equal(h.element("#chatInput").value, "不要提前扣费");
   }
+});
+
+function realChatStream(h, text) {
+  h.ui.state.project = { id: "project-one" };
+  h.ui.setChatRefresh(async () => {});
+  h.ui.setLoadProject(async () => {});
+  let read = false;
+  let cancelled = 0;
+  h.context.fetch = async () => ({
+    ok: true,
+    body: { getReader: () => ({
+      read: async () => {
+        if (read) return { done: true };
+        read = true;
+        return { done: false, value: new TextEncoder().encode(text) };
+      },
+      cancel: async () => { cancelled++; },
+      releaseLock() {},
+    }) },
+  });
+  return () => cancelled;
+}
+
+test("real SSE EOF without a done event never turns partial output into success", async () => {
+  const h = harness();
+  const cancelled = realChatStream(h, 'event: delta\ndata: {"text":"不完整的半句"}\n\n');
+  await h.ui.sendChat(null, "测试");
+  assert.equal(h.ui.state.messages.length, 0);
+  const bubbles = h.element("#chatMessages").children.flatMap((item) => item.children);
+  assert.ok(bubbles.some((item) => item.innerHTML?.includes("未完成")));
+  assert.equal(h.ui.state.chatSending, false);
+  assert.equal(h.timers.size, 0);
+  assert.equal(cancelled(), 1);
+});
+
+test("real SSE done event is required and keeps the complete server response", async () => {
+  const h = harness();
+  const cancelled = realChatStream(h,
+    'event: delta\ndata: {"text":"部分"}\n\n' +
+    'event: done\ndata: {"message":"完整回复","tool_calls":[]}\n\n');
+  await h.ui.sendChat(null, "测试");
+  assert.equal(h.ui.state.messages[1].content, "完整回复");
+  assert.equal(h.ui.state.chatSending, false);
+  assert.equal(cancelled(), 1);
+});
+
+test("switching projects during real SSE cancels the reader and clears the wait timer", async () => {
+  const h = harness();
+  h.ui.state.project = { id: "project-one" };
+  h.ui.setChatRefresh(async () => {});
+  h.ui.setLoadProject(async () => {});
+  let cancelled = false;
+  h.context.fetch = async () => ({ ok: true, body: { getReader: () => ({
+    read: async () => {
+      h.ui.state.project = { id: "project-two" };
+      return { done: false, value: new TextEncoder().encode('event: delta\ndata: {"text":"old"}\n\n') };
+    },
+    cancel: async () => { cancelled = true; },
+    releaseLock() {},
+  }) } });
+  await h.ui.sendChat(null, "测试");
+  assert.equal(h.ui.state.messages.length, 0);
+  assert.equal(h.timers.size, 0);
+  assert.equal(h.ui.state.chatSending, false);
+  assert.equal(cancelled, true);
 });

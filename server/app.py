@@ -37,7 +37,7 @@ if str(ROOT) not in sys.path:
 if str(SERVER_DIR) not in sys.path:
     sys.path.insert(0, str(SERVER_DIR))
 
-from proposal.agent import ModelUnavailable, OllamaAgent
+from proposal.agent import DEFINITE_HTTP_REJECTIONS, ModelUnavailable, OllamaAgent
 from proposal.documents import ALLOWED_EXTENSIONS, MAX_UPLOAD_BYTES, Extraction, extract_file
 from proposal.exporter import export_project
 from proposal import observability
@@ -2088,6 +2088,7 @@ def chat(project_id: str, payload: ChatInput, request: Request) -> dict[str, Any
     user_id = _current_user_id(request)
     is_free = False
     remaining_free = -1
+    wallet = None
 
     if cfg is not None and cfg.provider == "preset":
         wallet = store.get_workbench_credit_balance(user_id)
@@ -2100,6 +2101,12 @@ def chat(project_id: str, payload: ChatInput, request: Request) -> dict[str, Any
 
     is_stream = bool(payload.stream or (request.headers.get("accept") == "text/event-stream") or (request.query_params.get("stream") == "true"))
     if is_stream:
+        # Snapshot once per turn. A cloud wallet RPC on every token can turn a
+        # long response into hundreds of round trips and exceed Vercel's limit.
+        free_chats_snapshot = remaining_free if is_free else int(
+            (wallet if wallet is not None else store.get_workbench_credit_balance(user_id))
+            .get("free_chat_count", 0)
+        )
         if is_free:
             if not _platform_bundle_ready():
                 raise HTTPException(status_code=503, detail="工作台服务账户与实际用量结算尚未接通")
@@ -2129,7 +2136,7 @@ def chat(project_id: str, payload: ChatInput, request: Request) -> dict[str, Any
                                            level="error" if failed else "info", code="MODEL_EXECUTION_FAILED" if failed else None)
                     event["setup_updated"] = bool(fields)
                     event["free_chat"] = is_free
-                    event["free_chats_remaining"] = remaining_free if is_free else int(store.get_workbench_credit_balance(user_id).get("free_chat_count", 0))
+                    event["free_chats_remaining"] = free_chats_snapshot
                     yield f"event: {event['type']}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
             except InsufficientCreditsError:
                 observability.emit("model.stream", stage="invoke", status="failed", level="error", code="MODEL_EXECUTION_FAILED")
@@ -3070,7 +3077,7 @@ def material_worker_model_proxy(payload: MaterialWorkerProxyInput, request: Requ
     except urllib.error.HTTPError as exc:
         observability.emit("model.worker_relay", stage="invoke", status="failed", level="error",
                            usage_request_id=request_id, http_status=exc.code, code="UPSTREAM_FAILED")
-        if meter and request_id:
+        if meter and request_id and exc.code in DEFINITE_HTTP_REJECTIONS:
             try:
                 meter.refund(request_id)
             except Exception:

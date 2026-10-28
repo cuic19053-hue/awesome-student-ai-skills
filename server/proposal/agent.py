@@ -7,6 +7,7 @@ import urllib.error
 import urllib.request
 import urllib.parse
 import hashlib
+import http.client
 import time
 from typing import Any
 
@@ -15,6 +16,14 @@ from .tools import ProposalTools
 from .wopally_transport import wopally_urlopen
 from .materials import requirement_prompt
 from . import observability as obs
+
+DEFINITE_HTTP_REJECTIONS = {400, 401, 403, 404, 413, 422, 429}
+
+
+def _token_count(value: Any, fallback: int = 0) -> int:
+    # Informational token statistics must not invalidate a usable answer.
+    # Actual billing is independently confirmed from the provider ledger.
+    return value if type(value) is int and 0 <= value <= 10**12 else fallback
 
 SYSTEM_PROMPT = """你是“大学生申报材料 AI 助手”。用简体中文回答，像耐心的导师或材料顾问，但不擅自评审或打击学生。
 
@@ -128,6 +137,21 @@ class OllamaAgent:
         # Network routing is independent of billing: free platform chats still
         # need the configured origin/TLS transport. BYOK stays on its own route.
         self.platform_transport = platform_transport or meter is not None
+        # Vercel candidates are constructed per HTTP action. Reserve time for
+        # final response/ledger handling before the function's 60s hard limit.
+        self._execution_deadline = (
+            time.monotonic() + 45
+            if provider == "openai_compatible" and os.environ.get("VERCEL") == "1"
+            else None
+        )
+
+    def _provider_timeout(self, requested: float) -> float:
+        if self._execution_deadline is None:
+            return requested
+        remaining = self._execution_deadline - time.monotonic()
+        if remaining <= 0:
+            raise ModelUnavailable("本轮处理时间已用完，请缩小问题范围后重试。")
+        return min(requested, remaining)
 
     def is_available(self) -> bool:
         return bool(self.status()["running"])
@@ -207,6 +231,7 @@ class OllamaAgent:
         self, payload: dict[str, Any], timeout: int = 120
     ) -> dict[str, Any]:
         """Translate the internal Ollama-style tool loop to Chat Completions."""
+        timeout = self._provider_timeout(timeout)
         start_t = time.perf_counter()
         url = self.base_url.rstrip("/")
         if not url.endswith("/chat/completions"):
@@ -288,20 +313,26 @@ class OllamaAgent:
             method="POST",
         )
         body = None
-        attempts = 1 if getattr(self, "single_attempt", False) else 3
+        attempts = 1 if self.platform_transport or getattr(self, "single_attempt", False) else 3
         for attempt in range(attempts):
             try:
                 opener = getattr(self, "request_opener", None)
                 if opener is None:
                     opener = wopally_urlopen if self.platform_transport else urllib.request.urlopen
-                with opener(request, timeout=timeout) as response:
+                try:
+                    upstream_timeout = self._provider_timeout(timeout)
+                except ModelUnavailable:
+                    if usage_request_id:
+                        self.meter.refund(usage_request_id)  # No upstream POST has been sent.
+                    raise
+                with opener(request, timeout=upstream_timeout) as response:
                     body = json.loads(response.read().decode("utf-8"))
                 break
             except urllib.error.HTTPError as exc:
-                if exc.code in {429, 502, 503, 504} and attempt < attempts - 1:
+                if exc.code == 429 and attempt < attempts - 1:
                     time.sleep(0.5 * (attempt + 1))
                     continue
-                if usage_request_id:
+                if usage_request_id and exc.code in DEFINITE_HTTP_REJECTIONS:
                     self.meter.refund(usage_request_id)
                 if self.platform_transport and exc.code in {401, 403}:
                     raise ModelUnavailable(
@@ -311,15 +342,14 @@ class OllamaAgent:
                 raise ModelUnavailable(
                     f"模型服务返回 HTTP {exc.code}。请检查 API 地址、密钥、模型名和账户额度。"
                 ) from exc
-            except (TimeoutError, urllib.error.URLError) as exc:
-                if attempt < attempts - 1:
-                    time.sleep(0.5 * (attempt + 1))
-                    continue
+            except (TimeoutError, urllib.error.URLError, OSError, http.client.HTTPException) as exc:
+                # A timed-out POST may already be running upstream. Never
+                # automatically issue the same paid inference again.
                 raise ModelUnavailable("无法连接模型服务，请检查网络或稍后重试。") from exc
-            except json.JSONDecodeError as exc:
-                if usage_request_id:
-                    self.meter.refund(usage_request_id)
-                raise ModelUnavailable(f"模型返回内容解析失败：{exc}") from exc
+            except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+                raise ModelUnavailable("模型返回内容不完整，本次请求未完成。") from exc
+        if not isinstance(body, dict):
+            raise ModelUnavailable("模型返回格式无效，本次请求未完成。")
         choices = body.get("choices") or []
         if not choices:
             if usage_request_id:
@@ -348,10 +378,11 @@ class OllamaAgent:
                     "模型未返回可用正文，已退回本次空回复请求的预留积分。请稍后重试。"
                 )
             raise ModelUnavailable("模型未返回可用正文，本次请求未完成。请稍后重试。")
-        usage_info = body.get("usage") or {}
-        p_tok = usage_info.get("prompt_tokens", 0)
-        c_tok = usage_info.get("completion_tokens", 0)
-        tot_tok = usage_info.get("total_tokens", p_tok + c_tok)
+        usage_info = body.get("usage")
+        usage_info = usage_info if isinstance(usage_info, dict) else {}
+        p_tok = _token_count(usage_info.get("prompt_tokens"))
+        c_tok = _token_count(usage_info.get("completion_tokens"))
+        tot_tok = _token_count(usage_info.get("total_tokens"), p_tok + c_tok)
         key_fp = ("key_" + hashlib.sha256(self.api_key.encode()).hexdigest()[:8]) if self.api_key else "local"
         latency_ms = int((time.perf_counter() - start_t) * 1000) if "start_t" in locals() else 0
         if usage_request_id:
@@ -436,6 +467,7 @@ class OllamaAgent:
     def _stream_openai_compatible(
         self, payload: dict[str, Any], timeout: int = 120
     ):
+        timeout = self._provider_timeout(timeout)
         start_t = time.perf_counter()
         url = self.base_url.rstrip("/")
         if not url.endswith("/chat/completions"):
@@ -504,30 +536,57 @@ class OllamaAgent:
         full_content: list[str] = []
         tool_calls_dict: dict[int, dict[str, Any]] = {}
         usage_info: dict[str, Any] = {}
-        for attempt in range(3):
+        stream_complete = False
+        attempts = 1 if self.platform_transport or getattr(self, "single_attempt", False) else 3
+        for attempt in range(attempts):
             try:
                 opener = getattr(self, "request_opener", None)
                 if opener is None:
                     opener = wopally_urlopen if self.platform_transport else urllib.request.urlopen
-                with opener(request, timeout=timeout) as response:
+                try:
+                    upstream_timeout = self._provider_timeout(timeout)
+                except ModelUnavailable:
+                    if usage_request_id:
+                        self.meter.refund(usage_request_id)  # No upstream POST has been sent.
+                    raise
+                with opener(request, timeout=upstream_timeout) as response:
                     for line in response:
+                        if not stream_complete:
+                            self._provider_timeout(timeout)
                         line_str = line.decode("utf-8").strip()
                         if not line_str.startswith("data:"):
                             continue
                         data_part = line_str.removeprefix("data:").strip()
+                        if not data_part:
+                            continue  # Empty keep-alive event, not a model payload.
                         if data_part == "[DONE]":
+                            stream_complete = True
                             break
                         try:
                             data = json.loads(data_part)
-                        except Exception:
-                            continue
-                        if data.get("usage"):
+                        except json.JSONDecodeError as exc:
+                            if stream_complete:
+                                break  # Broken trailing metadata cannot erase a finished answer.
+                            raise ModelUnavailable("模型输出格式异常，本次回复未完成。") from exc
+                        if not isinstance(data, dict) or data.get("error"):
+                            if stream_complete:
+                                break
+                            raise ModelUnavailable("模型流式输出异常，本次回复未完成。")
+                        if isinstance(data.get("usage"), dict):
                             usage_info = data["usage"]
                         choices = data.get("choices") or []
                         if not choices:
                             continue
+                        if not isinstance(choices, list) or not isinstance(choices[0], dict):
+                            raise ModelUnavailable("模型流式输出格式无效。")
+                        if choices[0].get("finish_reason") is not None:
+                            stream_complete = True
                         delta = choices[0].get("delta") or {}
+                        if not isinstance(delta, dict):
+                            raise ModelUnavailable("模型流式输出格式无效。")
                         content = delta.get("content") or ""
+                        if not isinstance(content, str):
+                            raise ModelUnavailable("模型流式正文格式无效。")
                         if content:
                             full_content.append(content)
                             yield {"type": "delta", "text": content}
@@ -548,10 +607,12 @@ class OllamaAgent:
                                 tool_calls_dict[idx]["function"]["arguments"] += fn["arguments"]
                 break
             except urllib.error.HTTPError as exc:
-                if exc.code in {429, 502, 503, 504} and attempt < 2:
+                if (exc.code == 429 and attempt < attempts - 1
+                        and not full_content and not tool_calls_dict):
                     time.sleep(0.5 * (attempt + 1))
                     continue
-                if usage_request_id:
+                if (usage_request_id and exc.code in DEFINITE_HTTP_REJECTIONS
+                        and not full_content and not tool_calls_dict):
                     self.meter.refund(usage_request_id)
                 if self.platform_transport and exc.code in {401, 403}:
                     raise ModelUnavailable(
@@ -561,18 +622,25 @@ class OllamaAgent:
                 raise ModelUnavailable(
                     f"模型服务返回 HTTP {exc.code}。请检查 API 地址、密钥、模型名和账户额度。"
                 ) from exc
-            except (TimeoutError, urllib.error.URLError) as exc:
-                if attempt < 2:
-                    time.sleep(0.5 * (attempt + 1))
-                    continue
-                if usage_request_id:
-                    self.meter.refund(usage_request_id)
-                raise ModelUnavailable("无法连接模型服务，请检查网络或稍后重试。") from exc
+            except (TimeoutError, urllib.error.URLError, OSError, http.client.HTTPException) as exc:
+                if stream_complete:
+                    break
+                raise ModelUnavailable("模型连接中断，本次回复未完成，请稍后重试。") from exc
+            except UnicodeDecodeError as exc:
+                if stream_complete:
+                    break
+                raise ModelUnavailable("模型输出编码异常，本次回复未完成。") from exc
 
+        if not stream_complete:
+            raise ModelUnavailable("模型连接中断，本次回复未完成，请稍后重试。")
         tool_calls = [tool_calls_dict[i] for i in sorted(tool_calls_dict.keys())]
-        p_tok = usage_info.get("prompt_tokens", 0)
-        c_tok = usage_info.get("completion_tokens", len("".join(full_content)) // 2)
-        tot_tok = usage_info.get("total_tokens", p_tok + c_tok)
+        if not "".join(full_content).strip() and not tool_calls:
+            if usage_request_id:
+                self.meter.refund(usage_request_id)
+            raise ModelUnavailable("模型未返回可用正文，本次请求未完成。请稍后重试。")
+        p_tok = _token_count(usage_info.get("prompt_tokens"))
+        c_tok = _token_count(usage_info.get("completion_tokens"), len("".join(full_content)) // 2)
+        tot_tok = _token_count(usage_info.get("total_tokens"), p_tok + c_tok)
         key_fp = ("key_" + hashlib.sha256(self.api_key.encode()).hexdigest()[:8]) if self.api_key else "local"
         latency_ms = int((time.perf_counter() - start_t) * 1000)
         if usage_request_id:

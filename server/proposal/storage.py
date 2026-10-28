@@ -1535,7 +1535,7 @@ class Store:
                 """,
                 (
                     new_id(), event["user_id"], event["reserved_micro_cny"], balance,
-                    event["model"], request_id, request_id, now,
+                    request_id, event["model"], request_id, now,
                 ),
             )
             db.execute(

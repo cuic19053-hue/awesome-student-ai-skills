@@ -177,7 +177,12 @@ class SupabaseStore:
             method="POST",
         )
         try:
-            with supabase_urlopen(request, timeout=20) as response:
+            timeout = (
+                2 if function.endswith("settle_usage")
+                and os.environ.get("BILLING_BACKGROUND_RECONCILIATION", "").lower() == "true"
+                else 20
+            )
+            with supabase_urlopen(request, timeout=timeout) as response:
                 data = response.read()
             return json.loads(data.decode("utf-8")) if data else None
         except urllib.error.HTTPError as exc:
@@ -189,7 +194,9 @@ class SupabaseStore:
                 raise CreditRateLimitError("卡密兑换过于频繁，请一小时后再试。") from exc
             if isinstance(error_data, dict) and error_data.get("code") == "23514":
                 raise InsufficientCreditsError("积分不足。请兑换卡密或切换自带 API Key。") from exc
-            if isinstance(error_data, dict) and error_data.get("code") == "55000" and "reserve_usage" in function:
+            if (isinstance(error_data, dict) and error_data.get("code") == "55000"
+                    and "reserve_usage" in function
+                    and error_data.get("message") == "prior model charge pending review"):
                 raise PendingUsageError("有一笔模型用量正在核对，请稍后重试。") from exc
             if isinstance(error_data, dict) and error_data.get("code") == "42501":
                 raise PermissionError("登录身份或服务端授权无效。") from exc

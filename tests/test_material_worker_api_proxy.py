@@ -2,6 +2,7 @@ import io
 import json
 import sys
 import urllib.parse
+import urllib.error
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -66,6 +67,29 @@ def setup_proxy(monkeypatch, context):
 
 def auth_headers():
     return {"Authorization": f"Bearer {WORKER_SECRET}"}
+
+
+@pytest.mark.parametrize(("status", "expected"), [(503, ["reserve"]), (401, ["reserve", "refund"])])
+def test_gateway_failure_does_not_invent_a_refund(api, monkeypatch, status, expected):
+    client, _, _ = api
+    calls = setup_proxy(monkeypatch, {
+        "id": JOB_ID, "project_id": PROJECT_ID, "owner_id": OWNER_ID,
+        "kind": "section", "payload": {"paid": True, "platform": True},
+    })
+    monkeypatch.setattr(app, "_platform_bundle_ready", lambda **_: True)
+    monkeypatch.setenv("WOPALLY_MODEL_BASE_URL", "https://api.wopally.cn/v1")
+    monkeypatch.setenv("WOPALLY_WORKBENCH_API_KEY", "test-only-provider-key")
+    monkeypatch.setenv("WOPALLY_WORKBENCH_API_KEY_ID", "17")
+
+    def failure(request, **_kwargs):
+        raise urllib.error.HTTPError(request.full_url, status, "failed", {}, io.BytesIO(b""))
+
+    monkeypatch.setattr(app, "wopally_urlopen", failure)
+    response = client.post("/api/material/internal/model", headers=auth_headers(), json={
+        "job_id": JOB_ID, "lease": LEASE, "request_body": {"messages": [], "stream": False},
+    })
+    assert response.status_code == 502
+    assert [action for action, _ in calls] == expected
 
 
 def test_internal_proxy_rejects_missing_capability(api, monkeypatch):
