@@ -19,7 +19,7 @@ _cached_token = ""
 _expires_at = 0.0
 
 
-def service_token(base_url: str) -> str:
+def service_token(base_url: str, *, timeout: float = 10) -> str:
     """Use only a dedicated low-privilege service login, never an admin password."""
     global _cached_token, _expires_at
     email = os.environ.get("WOPALLY_SERVICE_EMAIL", "").strip()
@@ -43,7 +43,7 @@ def service_token(base_url: str) -> str:
             method="POST",
         )
         try:
-            with wopally_urlopen(request, timeout=10) as response:
+            with wopally_urlopen(request, timeout=timeout) as response:
                 body = json.load(response)
             data = body.get("data", body)
             if body.get("code") not in (None, 0) or not isinstance(data, dict):

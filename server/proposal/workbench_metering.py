@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 import uuid
 from typing import Any
@@ -23,7 +24,13 @@ class WorkbenchMeter:
         self.user_id = user_id
         self.api_key_id = api_key_id
         self.project_id = project_id
-        self.usage = WopallyUsage()
+        self.background_reconciliation = (
+            os.environ.get("BILLING_BACKGROUND_RECONCILIATION", "").lower() == "true"
+        )
+        self.usage = WopallyUsage(
+            timeout=2 if self.background_reconciliation else 8,
+            max_pages=1 if self.background_reconciliation else 5,
+        )
 
     def reserve(self, model: str, hold_micro_cny: int | None = None) -> str:
         request_id = f"{PRICE_VERSION}_{uuid.uuid4().hex}"
@@ -38,7 +45,8 @@ class WorkbenchMeter:
 
     def settle(self, request_id: str, model: str) -> dict[str, Any] | None:
         found = None
-        for attempt in range(3):
+        attempts = 1 if self.background_reconciliation else 3
+        for attempt in range(attempts):
             try:
                 found = self.usage.find(request_id, self.api_key_id, model)
             except UsageUnavailable:
@@ -48,7 +56,7 @@ class WorkbenchMeter:
                 return None  # Keep the hold until an authoritative record is recovered.
             if found is not None:
                 break
-            if attempt < 2:
+            if attempt < attempts - 1:
                 time.sleep(0.35)
         if found is None:
             obs.emit("billing.reconciliation_pending", stage="provider_usage", status="pending",

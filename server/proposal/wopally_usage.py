@@ -20,26 +20,29 @@ class UsageUnavailable(RuntimeError):
 class WopallyUsage:
     """Price only the service account's confirmed, uniquely matched usage."""
 
-    def __init__(self, base_url: str | None = None, token: str | None = None):
+    def __init__(self, base_url: str | None = None, token: str | None = None,
+                 *, timeout: float = 8, max_pages: int = 5):
         self.base_url = (base_url or os.environ.get("WOPALLY_API_URL", "https://api.wopally.cn")).rstrip("/")
         self.token = (token if token is not None else os.environ.get("WOPALLY_SERVICE_ACCESS_TOKEN", "")).strip()
+        self.timeout = timeout
+        self.max_pages = max(1, min(int(max_pages), 5))
 
     def find(self, request_id: str, api_key_id: int, model: str) -> tuple[int, str] | None:
         if not request_id or api_key_id <= 0:
             raise UsageUnavailable("中转站用量查询尚未配置")
         try:
-            token = self.token or service_token(self.base_url)
+            token = self.token or service_token(self.base_url, timeout=self.timeout)
         except ServiceLoginUnavailable as exc:
             raise UsageUnavailable("工作台专用账户登录失败") from exc
         marker = f"StardustWorkbench/{request_id}"
-        for page in range(1, 6):
+        for page in range(1, self.max_pages + 1):
             query = urllib.parse.urlencode({"page": page, "page_size": 100, "api_key_id": api_key_id})
             req = urllib.request.Request(
                 f"{self.base_url}/api/v1/usage?{query}",
                 headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
             )
             try:
-                with wopally_urlopen(req, timeout=8) as resp:
+                with wopally_urlopen(req, timeout=self.timeout) as resp:
                     body: Any = json.load(resp)
             except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
                 raise UsageUnavailable("中转站用量暂不可查询") from exc
@@ -57,7 +60,11 @@ class WopallyUsage:
             for row in rows:
                 if not isinstance(row, dict) or row.get("user_agent") != marker:
                     continue
-                if int(row.get("api_key_id") or 0) != api_key_id or row.get("model") != model:
+                try:
+                    matching_key = int(row.get("api_key_id") or 0) == api_key_id
+                except (ValueError, TypeError):
+                    matching_key = False
+                if not matching_key or row.get("model") != model:
                     raise UsageUnavailable("中转站用量归属不符")
                 try:
                     if re.fullmatch(r"o2x1_[0-9a-f]{32}", request_id):

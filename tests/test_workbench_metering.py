@@ -243,3 +243,20 @@ def test_concurrent_reservations_still_cannot_overdraw_or_double_charge(tmp_path
         request_id = db.execute("SELECT request_id FROM workbench_usage_events LIMIT 1").fetchone()[0]
     assert store.reserve_workbench_usage("alice", request_id, "model-a", 200_000, 692)["duplicate"]
     assert store.get_workbench_credit_balance("alice")["balance_micro_cny"] == 0
+
+
+def test_background_enabled_bounds_inline_lookup_and_keeps_unverified_hold(monkeypatch, tmp_path):
+    monkeypatch.setenv("BILLING_BACKGROUND_RECONCILIATION", "true")
+    store = Store(tmp_path)
+    store.grant_workbench_payment_credits("alice", "payment-fast-check", 1_000_000)
+    meter = WorkbenchMeter(store, "alice", 692)
+    assert meter.usage.timeout == 2 and meter.usage.max_pages == 1
+    calls = []
+    meter.usage.find = lambda *args: calls.append(args) or None
+    monkeypatch.setattr("proposal.workbench_metering.time.sleep",
+                        lambda *_: pytest.fail("inline lookup must not retry"))
+    request_id = meter.reserve("deepseek-v4-flash")
+    assert meter.settle(request_id, "deepseek-v4-flash") is None
+    assert len(calls) == 1
+    assert store.pending_workbench_usage("alice")[0]["request_id"] == request_id
+    assert store.get_workbench_credit_balance("alice")["balance_micro_cny"] == 800_000
