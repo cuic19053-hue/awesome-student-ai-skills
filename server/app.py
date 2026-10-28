@@ -131,6 +131,10 @@ class ChatInput(BaseModel):
     stream: bool = False
 
 
+class BillingReceiptInput(BaseModel):
+    request_id: str = Field(pattern=r"^(?:o2x1_|o90v1_|m12_)?[a-f0-9]{32}$")
+
+
 class LLMRequest(BaseModel):
     llm_config: LLMConfigInput | None = None
 
@@ -333,6 +337,7 @@ async def _require_supabase_session(request: Request, call_next):
         or path in {
             "/health", "/api/health", "/api/config", "/api/skills", "/api/skill-cards", "/api/route",
             "/api/models/preset", "/api/pay/notify", "/api/admin/provider-health",
+            "/api/admin/provider-usage",
             "/api/auth/login", "/api/auth/signup",
             "/api/ping",
         }
@@ -1426,6 +1431,25 @@ def get_provider_health(request: Request) -> dict[str, Any]:
         except (urllib.error.URLError, TimeoutError, OSError, ValueError, TypeError):
             pass
     return result
+
+
+@app.post("/api/admin/provider-usage")
+def inspect_provider_receipt(payload: BillingReceiptInput, request: Request):
+    # A separate, read-only operator capability. Not a user authentication bypass
+    # for projects or any ledger write, and not the provider's account password.
+    expected = os.environ.get("BILLING_DIAGNOSTIC_TOKEN", "")
+    if not expected:
+        raise HTTPException(503, "用量诊断尚未配置")
+    if not hmac.compare_digest(request.headers.get("x-billing-probe-token", ""), expected):
+        raise HTTPException(403, "无权查看用量诊断")
+    from proposal.billing_diagnostics import inspect_receipt
+    try:
+        key_id = int(os.environ.get("WOPALLY_WORKBENCH_API_KEY_ID", "0") or 0)
+        return inspect_receipt(payload.request_id, key_id)
+    except WopallyUnavailable:
+        raise HTTPException(503, "上游用量暂不可查询") from None
+    except ValueError:
+        raise HTTPException(503, "用量诊断配置无效") from None
 
 
 @app.get("/api/projects/{project_id}/usage")

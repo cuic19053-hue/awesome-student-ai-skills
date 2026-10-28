@@ -1403,15 +1403,9 @@ class Store:
                 if prior["user_id"] != user_id:
                     raise ValueError("请求标识已由其他用户使用。")
                 return {"status": prior["status"], "duplicate": True}
-            unresolved = db.execute(
-                """
-                SELECT 1 FROM workbench_usage_events
-                WHERE user_id = ? AND status IN ('reserved', 'needs_review') LIMIT 1
-                """,
-                (user_id,),
-            ).fetchone()
-            if unresolved:
-                raise PendingUsageError("有一笔模型用量正在核对，请稍后重试。")
+            # Pending reconciliation is not an account-wide execution lock.
+            # BEGIN IMMEDIATE and the balance check below still prevent
+            # concurrent reservations from spending the same available funds.
             wallet = db.execute(
                 "SELECT balance_micro_cny FROM workbench_credit_wallets WHERE user_id = ?", (user_id,)
             ).fetchone()

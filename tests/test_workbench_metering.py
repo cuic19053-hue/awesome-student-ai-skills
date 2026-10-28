@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import json
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
@@ -183,3 +184,62 @@ def test_official_2x_pricing():
 
     row_img = {"input_tokens": 1000, "output_tokens": 1650, "image_output_tokens": 1650, "image_count": 1}
     assert official_2x_charge(row_img, "gpt-image-2") == 730848
+
+
+@pytest.mark.parametrize("status", ["reserved", "needs_review"])
+def test_unresolved_receipt_does_not_lock_user_or_auto_refund(tmp_path, status):
+    store = Store(tmp_path)
+    store.grant_workbench_payment_credits("alice", "payment-nonblocking", 1_000_000)
+    store.reserve_workbench_usage("alice", "old-request", "model-a", 200_000, 692)
+    if status == "needs_review":
+        store.settle_workbench_usage("old-request", 250_000, "provider-old")
+    with store.connect() as db:
+        db.execute("UPDATE workbench_usage_events SET created_at='2020-01-01T00:00:00+00:00'")
+    assert store.reserve_workbench_usage(
+        "alice", "next-request", "model-a", 200_000, 692
+    )["status"] == "reserved"
+    assert store.get_workbench_credit_balance("alice")["balance_micro_cny"] == 600_000
+    with store.connect() as db:
+        assert db.execute(
+            "SELECT status FROM workbench_usage_events WHERE request_id='old-request'"
+        ).fetchone()["status"] == status
+        assert db.execute(
+            "SELECT COUNT(*) FROM workbench_credit_transactions WHERE kind='usage_refund'"
+        ).fetchone()[0] == 0
+
+
+def test_delayed_receipt_does_not_interrupt_agent_tool_loop(tmp_path, monkeypatch):
+    store = Store(tmp_path)
+    store.grant_workbench_payment_credits("alice", "payment-tool-loop", 1_000_000)
+    meter = WorkbenchMeter(store, "alice", 692)
+    monkeypatch.setattr("proposal.workbench_metering.time.sleep", lambda _: None)
+    meter.usage.find = lambda *args: None
+    first = meter.reserve("deepseek-v4-flash")
+    assert meter.settle(first, "deepseek-v4-flash") is None
+    second = meter.reserve("deepseek-v4-flash")
+    assert second != first
+    meter.usage.find = lambda *args: (50_000, "provider-delayed")
+    assert meter.settle(first, "deepseek-v4-flash")["status"] == "settled"
+    assert store.get_workbench_credit_balance("alice")["balance_micro_cny"] == 750_000
+
+
+def test_concurrent_reservations_still_cannot_overdraw_or_double_charge(tmp_path):
+    store = Store(tmp_path)
+    store.grant_workbench_payment_credits("alice", "payment-concurrent", 1_000_000)
+
+    def reserve(index):
+        try:
+            return store.reserve_workbench_usage(
+                "alice", f"parallel-{index}", "model-a", 200_000, 692
+            )
+        except InsufficientCreditsError:
+            return None
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(reserve, range(12)))
+    assert sum(result is not None for result in results) == 5
+    assert store.get_workbench_credit_balance("alice")["balance_micro_cny"] == 0
+    with store.connect() as db:
+        request_id = db.execute("SELECT request_id FROM workbench_usage_events LIMIT 1").fetchone()[0]
+    assert store.reserve_workbench_usage("alice", request_id, "model-a", 200_000, 692)["duplicate"]
+    assert store.get_workbench_credit_balance("alice")["balance_micro_cny"] == 0
