@@ -2,8 +2,8 @@ name: Production Uptime
 
 on:
   schedule:
-    # 避开整点拥塞，约每十分钟一次；GitHub 调度可能延迟，不保证实例常驻。
-    - cron: '7,17,27,37,47,57 * * * *'
+    # 避开整点拥塞，约每五分钟一次；GitHub 调度可能延迟，不保证实例常驻。
+    - cron: '2,7,12,17,22,27,32,37,42,47,52,57 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -23,3 +23,7 @@ jobs:
           persist-credentials: false
       - name: 检查生产存活并进行轻量预热
         run: python3 scripts/check_site_health.py
+      - name: 后台核对模型用量并报告逾期异常
+        env:
+          BILLING_RECONCILIATION_TOKEN: ${{ secrets.BILLING_RECONCILIATION_TOKEN }}
+        run: python3 scripts/run_billing_reconciliation.py

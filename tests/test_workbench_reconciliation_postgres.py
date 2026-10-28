@@ -102,5 +102,49 @@ def test_nonblocking_billing_rpc_preserves_wallet_and_authorization():
         assert sql("select count(*) from workbench_credit_transactions where kind='usage_refund'") == "0"
         assert sql(f"""set role authenticated; set request.jwt.claim.sub='{OTHER}';
           select count(*) from workbench_usage_events""") == "0"
+
+        # The background worker is independently authenticated and never
+        # treats an absent receipt as proof of a zero-cost request.
+        worker_migration = next((ROOT / "supabase/migrations").glob("*_billing_reconciliation_worker.sql"))
+        sql(worker_migration.read_text())
+        sql("""
+          insert into billing_private.worker_capability(secret_hash)
+          values(sha256(convert_to(repeat('b',64),'UTF8')));
+          update public.workbench_usage_events set created_at=now()-interval '2 hours'
+          where request_id in ('original-request','allowed-request');
+        """)
+
+        def worker(action, args=None, worker_secret="b" * 64, backend_secret="a" * 64, ok=True):
+            payload = json.dumps(args or {}).replace("'", "''")
+            return sql(f"""set role anon;
+              select public.billing_reconciliation_worker(
+                '{backend_secret}','{worker_secret}','{action}','{payload}'::jsonb);""", ok=ok)
+
+        worker("claim", worker_secret="c" * 64, ok=False)
+        worker("claim", backend_secret="c" * 64, ok=False)
+        sql("set role anon; select * from billing_private.reconciliation_queue", ok=False)
+        job = json.loads(worker("claim"))
+        assert job["status"] == "claimed" and job["request_id"] == "allowed-request"
+        assert json.loads(worker("claim"))["status"] == "idle"
+        args = {"request_id": job["request_id"], "lease_id": job["lease_id"]}
+        wrong_lease = {**args, "lease_id": str(uuid.uuid4())}
+        assert json.loads(worker("complete", {**wrong_lease, "actual_micro_cny": 10000,
+                                               "provider_request_id": "provider-1"}))["status"] == "lease_expired"
+        assert json.loads(worker("complete", {**args, "actual_micro_cny": 10000,
+                                              "provider_request_id": "provider-1"}))["status"] == "settled"
+        assert json.loads(worker("complete", {**args, "actual_micro_cny": 10000,
+                                              "provider_request_id": "provider-1"}))["status"] == "lease_expired"
+        assert sql(f"select balance_micro_cny from workbench_credit_wallets where user_id='{UID}'") == "190000"
+        assert json.loads(worker("alerts"))["alert_count"] == 1  # needs_review
+        assert json.loads(worker("alerts"))["alert_count"] == 0  # no alert flood
+        sql("""update public.workbench_usage_events set created_at=now()-interval '3 minutes'
+          where request_id='review-does-not-block';""")
+        pending = json.loads(worker("claim"))
+        assert pending["request_id"] == "review-does-not-block"
+        assert json.loads(worker("defer", {"request_id": pending["request_id"],
+          "lease_id": pending["lease_id"], "reason": "receipt_not_found"}))["status"] == "deferred"
+        assert sql("select status from workbench_usage_events where request_id='review-does-not-block'") == "reserved"
+        assert sql("select count(*) from workbench_credit_transactions where kind='usage_refund'") == "0"
+        assert json.loads(worker("claim"))["status"] == "idle"  # exponential backoff
     finally:
         subprocess.run(["docker", "rm", "-f", name], capture_output=True, timeout=20)

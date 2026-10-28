@@ -1,6 +1,8 @@
 """Read-only, content-free inspection of one provider receipt for operators."""
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_CEILING
+import os
 import re
+import urllib.parse
 
 from .official_pricing import official_2x_charge, official_v1_charge
 from .wopally_client import WopallyClient, WopallyUnavailable
@@ -13,11 +15,31 @@ NUMERIC_FIELDS = (
 )
 
 
+class UsageOnlyClient(WopallyClient):
+    """Only read usage; unlike redemption, does not depend on card endpoints."""
+
+    @property
+    def is_configured(self):
+        url = urllib.parse.urlparse(self.base_url)
+        has_login = bool(self.access_token or (
+            os.environ.get("WOPALLY_SERVICE_EMAIL", "").strip()
+            and os.environ.get("WOPALLY_SERVICE_PASSWORD", "")
+        ))
+        return has_login and url.scheme == "https" and bool(url.hostname)
+
+    def _request(self, path, method="GET", body=None, *, retried_login=False):
+        if method != "GET" or body is not None or not re.fullmatch(
+            r"/api/v1/usage\?page=[1-5]&page_size=100&api_key_id=[1-9][0-9]*", path
+        ):
+            raise ValueError("Only bounded read-only usage requests are allowed")
+        return super()._request(path, method, body, retried_login=retried_login)
+
+
 def inspect_receipt(request_id: str, api_key_id: int, client=None):
     """Never invokes inference, changes balances, or returns prompts/credentials."""
     if not re.fullmatch(REQUEST_ID, request_id) or api_key_id <= 0:
         raise ValueError("Invalid receipt lookup")
-    client = client or WopallyClient(timeout=8)
+    client = client or UsageOnlyClient(timeout=8)
     matches = []
     for page in range(1, 6):
         data = client._request(
@@ -33,6 +55,9 @@ def inspect_receipt(request_id: str, api_key_id: int, client=None):
                 matches.append(row)
         if len(rows) < 100:
             break
+    # Reaching the page limit with full pages cannot prove uniqueness.
+    if page == 5 and len(rows) == 100:
+        return {"status": "incomplete_scan", "pages_scanned": page}
     if not matches:
         return {"status": "receipt_not_found", "pages_scanned": page}
     if len(matches) != 1:
@@ -62,7 +87,11 @@ def inspect_receipt(request_id: str, api_key_id: int, client=None):
         elif request_id.startswith("o90v1_"):
             charge = official_v1_charge(row, model)
         else:
-            return {**result, "status": "historical_price_requires_review"}
+            cost = Decimal(str(row["actual_cost"]))
+            if not cost.is_finite() or cost < 0:
+                raise ValueError("invalid historical cost")
+            multiplier = 12 if request_id.startswith("m12_") else 3
+            charge = int((cost * multiplier * 1_000_000).to_integral_value(rounding=ROUND_CEILING))
     except (KeyError, ValueError, TypeError, InvalidOperation):
         return {**result, "status": "invalid_receipt_pricing"}
     provider_id = str(row.get("id") or row.get("request_id") or "")

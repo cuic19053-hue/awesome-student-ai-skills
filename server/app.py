@@ -338,6 +338,7 @@ async def _require_supabase_session(request: Request, call_next):
             "/health", "/api/health", "/api/config", "/api/skills", "/api/skill-cards", "/api/route",
             "/api/models/preset", "/api/pay/notify", "/api/admin/provider-health",
             "/api/admin/provider-usage",
+            "/api/admin/reconcile-usage",
             "/api/auth/login", "/api/auth/signup",
             "/api/ping",
         }
@@ -1050,7 +1051,13 @@ def get_preset_models() -> dict[str, Any]:
 def get_user_balance(request: Request) -> dict[str, Any]:
     user_id = _current_user_id(request)
     try:
-        if _platform_bundle_ready():
+        # Keep the old on-demand retry as a rollback path until the independent
+        # worker has been deployed and verified in this environment.
+        background_ready = (
+            CLOUD_MODE
+            and os.environ.get("BILLING_BACKGROUND_RECONCILIATION", "").lower() == "true"
+        )
+        if _platform_bundle_ready() and not background_ready:
             for pending in store.pending_workbench_usage(user_id):
                 if pending.get("api_key_id") != int(os.environ["WOPALLY_WORKBENCH_API_KEY_ID"]):
                     continue
@@ -1450,6 +1457,21 @@ def inspect_provider_receipt(payload: BillingReceiptInput, request: Request):
         raise HTTPException(503, "上游用量暂不可查询") from None
     except ValueError:
         raise HTTPException(503, "用量诊断配置无效") from None
+
+
+@app.post("/api/admin/reconcile-usage")
+def reconcile_usage(request: Request):
+    expected = os.environ.get("BILLING_DIAGNOSTIC_TOKEN", "")
+    if not expected:
+        raise HTTPException(503, "用量对账尚未配置")
+    if not hmac.compare_digest(request.headers.get("x-billing-probe-token", ""), expected):
+        raise HTTPException(403, "无权执行用量对账")
+    from proposal.billing_reconcile import run_batch
+    try:
+        return run_batch(store)
+    except RuntimeError:
+        logger.exception("Background billing reconciliation failed")
+        raise HTTPException(503, "后台对账暂不可用") from None
 
 
 @app.get("/api/projects/{project_id}/usage")
