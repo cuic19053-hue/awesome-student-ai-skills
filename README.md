@@ -334,7 +334,7 @@ awesome-student-ai-skills/
 
 ## 📅 Star 解锁路线图
 
-> 已达 100 ⭐，「讲莲杯 / 创青春 / 三创赛」进入开发队列。**点 Star = 催更。**
+> 已突破 140 ⭐，「讲莲杯 / 创青春 / 三创赛」已进入开发队列。**点 Star = 催更。**
 
 | 里程碑 | 解锁赛道 |
 |---|---|
@@ -404,7 +404,15 @@ MIT License —— 随便用、随便改，但请保留原作者署名和免责�
 
 ## 📈 Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=cuic19053-hue/awesome-student-ai-skills&type=Date)](https://star-history.com/#cuic19053-hue/awesome-student-ai-skills&Date)
+<div align="center">
+  <a href="https://star-history.com/#cuic19053-hue/awesome-student-ai-skills&Date">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=cuic19053-hue/awesome-student-ai-skills&type=Date&theme=dark" />
+      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=cuic19053-hue/awesome-student-ai-skills&type=Date" />
+      <img src="https://api.star-history.com/svg?repos=cuic19053-hue/awesome-student-ai-skills&type=Date" alt="Star History Chart" style="max-width: 100%; height: auto;" />
+    </picture>
+  </a>
+</div>
 
 ---
 
