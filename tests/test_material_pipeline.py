@@ -42,7 +42,7 @@ def pilot(monkeypatch, tmp_path):
     return store, project
 
 
-def test_context_plans_are_not_achievements_and_unknown_types_unchanged(pilot):
+def test_context_plans_are_not_achievements_and_other_skills_are_enabled(pilot):
     store, project = pilot
     facts, plans = context_values(project)
     assert plans["method"] == "滚动规划测试"
@@ -51,8 +51,71 @@ def test_context_plans_are_not_achievements_and_unknown_types_unchanged(pilot):
     view = material_view(project)
     assert view["facts"]["advisor_name"]["verification"] == "user_provided_not_externally_verified"
     other = store.update_project(project["id"], state={"skill_id": "national-scholarship"})
-    assert "material" not in other
-    assert material_view(other)["pipeline"] == "legacy"
+    assert other["material"]["enabled"] is True
+    assert material_view(other)["pipeline"] == "material-v1"
+
+
+def test_every_catalogue_skill_is_supported_and_unknown_types_fail_closed(monkeypatch):
+    from proposal.materials import enabled
+    from proposal.skills import registry
+    monkeypatch.setenv("MATERIAL_PIPELINE_ENABLED", "true")
+    assert len(registry.list()) == 35
+    for skill in registry.list():
+        assert enabled({"state": {"skill_id": skill["id"]}}), skill["id"]
+    assert not enabled({"state": {"skill_id": "unknown-skill"}})
+    monkeypatch.setenv("MATERIAL_PIPELINE_ENABLED", "false")
+    assert not enabled({"state": {"skill_id": "national-scholarship"}})
+
+
+def test_cloud_rpc_and_skill_catalogue_cannot_silently_drift():
+    import re
+    from proposal.skills import registry
+    migration = next((ROOT / "supabase/migrations").glob("*_material_pipeline_all_skills.sql")).read_text()
+    allowlist = migration.split("= any(array[", 1)[1].split("]::text[]", 1)[0]
+    assert set(re.findall(r"'([a-z0-9-]+)'", allowlist)) == {skill["id"] for skill in registry.list()}
+    assert "security invoker" in migration.lower()
+    assert "owner_id=uid" in migration
+
+
+def test_non_innovation_export_does_not_invent_innovation_identity(pilot, tmp_path):
+    from docx import Document
+    store, project = pilot
+    project = store.update_project(project["id"], state={"skill_id": "national-scholarship"})
+    folder = tmp_path / "national-scholarship"
+    export_material(store, project["id"], folder)
+    doc = Document(folder / "proposal.docx")
+    content = "\n".join(p.text for p in doc.paragraphs)
+    cells = "\n".join(cell.text for table in doc.tables for row in table.rows for cell in row.cells)
+    assert "国家奖学金" in content
+    assert "大学生创新创业训练计划" not in content
+    assert "创新训练项目" not in cells
+
+
+def test_all_catalogue_skills_get_correct_generic_export_identity(pilot, tmp_path):
+    from docx import Document
+    from proposal.skills import registry
+    store, project = pilot
+    for skill in registry.list():
+        if skill["id"] == "innovation-research":
+            continue
+        project = store.update_project(project["id"], state={"skill_id": skill["id"]})
+        folder = tmp_path / skill["id"]
+        export_material(store, project["id"], folder)
+        doc = Document(folder / "proposal.docx")
+        content = "\n".join(p.text for p in doc.paragraphs)
+        assert skill["name"] in content, skill["id"]
+        assert "大学生创新创业训练计划" not in content, skill["id"]
+
+
+def test_non_innovation_dependencies_are_conservative(pilot):
+    store, project = pilot
+    project = store.update_project(project["id"], state={
+        "skill_id": "national-scholarship", "method": "计划一",
+    })
+    project = store.update_project(project["id"], state={
+        **project["state"], "method": "计划二",
+    })
+    assert "section:foundation" in material_view(project)["stale"]
 
 
 def rule(value, kind="official", **changes):

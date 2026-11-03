@@ -2,7 +2,7 @@
 
 The existing project fields remain the source of truth. Only dependency review
 metadata is persisted, avoiding a second copy of the document or a DB migration.
-Currently only innovation-research opts in; other skills keep their old chain.
+The pipeline supports catalogue skills when explicitly enabled by the operator.
 """
 from __future__ import annotations
 
@@ -39,10 +39,11 @@ class Requirement(BaseModel):
 
 
 def enabled(project: dict[str, Any]) -> bool:
-    return (
-        os.environ.get("MATERIAL_PIPELINE_ENABLED", "").lower() == "true"
-        and project.get("state", {}).get("skill_id", PILOT) == PILOT
-    )
+    if os.environ.get("MATERIAL_PIPELINE_ENABLED", "").lower() != "true":
+        return False
+    from .skills import registry
+    skill_id = project.get("state", {}).get("skill_id", PILOT)
+    return bool(registry.get(skill_id))
 
 
 class MaterialConflict(ValueError):
@@ -156,6 +157,11 @@ def affected(project: dict[str, Any], node: str, changed: str) -> bool:
     if node.startswith("diagram:"):
         # Old figures have no dependency declaration: conservatively flag them.
         return True
+    # Innovation-specific dependency shortcuts must not suppress warnings for
+    # unrelated materials, whose chapter relationships have not been modelled.
+    from .skills import normalize_skill_id
+    if normalize_skill_id(project.get("state", {}).get("skill_id", PILOT)) != PILOT:
+        return not changed.startswith("diagram:")
     group = section_group(project, node.removeprefix("section:"))
     if group is None:
         return True
@@ -214,12 +220,14 @@ def prepare_update(previous: dict[str, Any], fields: dict[str, Any]) -> dict[str
 
 def material_view(project: dict[str, Any], documents: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     pilot = enabled(project)
+    from .skills import normalize_skill_id
+    skill_id = normalize_skill_id(project.get("state", {}).get("skill_id", PILOT))
     facts, plans = context_values(project) if pilot else ({}, {})
     meta = project.get("state", {}).get(TRACKING, {})
     snapshot = digest(sources(project))
     return {
-        "schema_version": 1, "material_type": project.get("state", {}).get("skill_id", PILOT),
-        "pipeline": "innovation-research-v1" if pilot else "legacy",
+        "schema_version": 1, "material_type": skill_id,
+        "pipeline": ("innovation-research-v1" if skill_id == PILOT else "material-v1") if pilot else "legacy",
         "enabled": pilot, "snapshot": snapshot,
         "facts": {k: {"value": v, "source": project.get("state", {}).get("fact_sources", {}).get(k, "用户填写/确认"),
                        "verification": "user_provided_not_externally_verified",
@@ -250,7 +258,7 @@ def requirement_prompt(project: dict[str, Any]) -> str:
         return ""
     resolved = requirements(project)
     return (
-        "\n\n【大创创新训练链路：要求优先级】\n"
+        "\n\n【材料链路：要求优先级】\n"
         "适用的正式要求 > 用户明确要求 > 当前材料类型 Skill 规则 > 参考示例 > 默认样式。"
         "此顺序仅适用于材料内容与格式，不能覆盖真实性、安全、权限规则。"
         "参考示例只用于风格，不能借用示例事实。正式要求的适用性由用户确认，不代表系统已外部核验。"

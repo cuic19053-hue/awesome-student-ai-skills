@@ -313,6 +313,18 @@
                   <p>上传你的实验记录、已有阶段报告或学校模板，作为申报书撰写的参考依据。</p>
                 </div>
               </div>
+              <div id="privateRagSettings" class="hidden">
+                <label>
+                  <input type="checkbox" id="privateRagConsent">
+                  同意本项目在本页面会话中使用 Cloudflare Workers AI 处理私有材料检索
+                </label>
+                <p>勾选后，确认或重新索引材料时会将其识别文本发送至 Cloudflare 生成向量；对话和生成任务会发送检索问题。取消勾选或切换项目可停止新请求的发送，不影响已提交或执行中的请求；已发送的数据无法撤回。取消勾选不会删除已有向量；可移除材料，或在未勾选时修改并重新确认该材料以清除向量。已入库材料需重新索引才能使用向量检索；服务不可用时回退关键词检索。</p>
+                <div>
+                  <input type="text" id="privateRagQuery" maxlength="300" placeholder="输入本项目资料检索问题" aria-label="项目资料检索问题">
+                  <button type="button" id="privateRagSearch" class="button button-small button-secondary">检索项目材料</button>
+                </div>
+                <div id="privateRagResults" role="status" aria-live="polite"></div>
+              </div>
               <div class="upload-tabs" role="tablist">
                 <button class="upload-tab active" data-kind="source">项目资料</button>
                 <button class="upload-tab" data-kind="template">学校模板</button>

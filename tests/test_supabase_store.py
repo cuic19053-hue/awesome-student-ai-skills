@@ -37,6 +37,24 @@ def test_explicit_revision_uses_atomic_cas_even_for_legacy_type(monkeypatch, tmp
     assert len(calls) == 1
 
 
+def test_switch_to_supported_material_type_uses_atomic_cas(monkeypatch, tmp_path):
+    monkeypatch.setenv("MATERIAL_PIPELINE_ENABLED", "true")
+    store = SupabaseStore("https://example.supabase.co", "public-test", tmp_path)
+    project = {"id": "a" * 32, "state": {"skill_id": "unknown"},
+               "material_revision": 4, "sections": {}, "outline": [], "diagrams": []}
+    monkeypatch.setattr(store, "get_project", lambda _: project)
+    monkeypatch.setattr(store, "_project_row", lambda row: row)
+    calls = []
+    def rest(table, method, payload):
+        calls.append((table, method, payload))
+        return {"material_revision": 5}
+    monkeypatch.setattr(store, "_rest", rest)
+    store.update_project(project["id"], state={"skill_id": "national-scholarship"})
+    assert calls[0][0] == "rpc/material_patch"
+    assert calls[0][2]["p_revision"] == 4
+    assert "_material_tracking" in calls[0][2]["p_fields"]["state"]
+
+
 def test_rest_requests_forward_the_current_user_jwt_and_insert_owner(monkeypatch, tmp_path):
     captured = {}
     user_id = "b1d96922-0042-47c5-a1ec-f82c16bf226e"

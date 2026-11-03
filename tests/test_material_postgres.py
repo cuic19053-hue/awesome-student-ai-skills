@@ -79,6 +79,7 @@ def sql():
         run((ROOT/"supabase/migrations/20261023143437_enable_worker_capability_rls.sql").read_text())
         run((ROOT/"supabase/migrations/20261023164211_material_worker_context.sql").read_text())
         run((ROOT/"supabase/migrations/20261023165858_authorize_worker_byok_calls.sql").read_text())
+        run(next((ROOT/"supabase/migrations").glob("*_material_pipeline_all_skills.sql")).read_text())
         run(f"""
          insert into auth.users values('{UID}'),('{OTHER}');
          insert into public.projects(id,owner_id,sections_json) values('p','{UID}','{{"abstract":"old"}}'),('other','{OTHER}','{{}}');
@@ -117,6 +118,26 @@ def test_sql_ownership_idempotency_and_cas(sql):
     conflict = json.loads(sql(as_user("select public.material_patch('p',0,'{\"sections\":{\"abstract\":\"lost\"}}');")))
     assert conflict["conflict"]
     assert sql("select sections_json->>'abstract' from projects where id='p'") == "human"
+
+
+def test_catalogue_job_types_and_owner_isolation(sql):
+    skills = json.loads((ROOT / "index.json").read_text())["skills"]
+    assert len(skills) == 35
+    for index, skill in enumerate(skills):
+        project = f"skill_{index}"
+        sql(f"insert into public.projects(id,owner_id,state_json) values"
+            f"('{project}','{UID}', '{{\"skill_id\":\"{skill['name']}\"}}');")
+        args = {"id": f"{index:032x}", "project_id": project, "kind": "export",
+                "target": "", "idempotency": "one", "payload": {"base_revision": 0}}
+        result = json.loads(sql(as_user(f"select public.material_jobs_api('submit','{json.dumps(args)}');")))
+        assert result["id"] == args["id"]
+        sql(as_user(f"select public.material_jobs_api('list','{json.dumps({'project_id': project})}');", OTHER),
+            ok=False)
+    sql(f"insert into public.projects(id,owner_id,state_json) values"
+        f"('unknown','{UID}', '{{\"skill_id\":\"unknown-skill\"}}');")
+    args = {"id": "f" * 32, "project_id": "unknown", "kind": "export",
+            "target": "", "idempotency": "one", "payload": {"base_revision": 0}}
+    sql(as_user(f"select public.material_jobs_api('submit','{json.dumps(args)}');"), ok=False)
 
 
 def test_worker_capability_budget_lease_and_cross_job_metering(sql):

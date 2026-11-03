@@ -128,7 +128,7 @@ def test_failed_reconfirmation_never_reveals_stale_chunks(client, monkeypatch):
     doc_id = uploaded["id"]
     assert client.patch(f"/api/documents/{doc_id}/confirm", json={"confirmed": True}).status_code == 200
     assert server_app.tools.search_project_materials(project["id"], "珍贵原始数据")["results"]
-    monkeypatch.setattr(server_app.retriever, "index_document",
+    monkeypatch.setattr(server_app.retriever, "index_document_result",
                         lambda *a, **kw: (_ for _ in ()).throw(RuntimeError("index failure")))
     with pytest.raises(RuntimeError, match="index failure"):
         client.patch(f"/api/documents/{doc_id}/confirm",
@@ -152,7 +152,7 @@ def test_concurrent_newer_confirmation_is_not_overwritten(client, monkeypatch):
             doc_id, "另一个请求更新的文本", "ready", confirmed=True, confirmed_by_user=True
         )
         raise MaterialConflict("材料已更改")
-    monkeypatch.setattr(server_app.retriever, "index_document", concurrent_update)
+    monkeypatch.setattr(server_app.retriever, "index_document_result", concurrent_update)
     response = client.patch(f"/api/documents/{doc_id}/confirm",
                             json={"confirmed": True, "corrected_text": "本次提交的文本"})
     assert response.status_code == 409
@@ -351,6 +351,7 @@ def test_app_config_exposes_only_supabase_publishable_configuration(client, monk
         "preset_enabled": False,
         "storage_upload_endpoint": "",
         "max_upload_bytes": 50_000_000,
+        "private_embedding_configured": False,
     }
     assert "service_role" not in response.text
 

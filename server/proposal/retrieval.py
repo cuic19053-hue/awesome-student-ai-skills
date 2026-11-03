@@ -13,6 +13,30 @@ from .documents import split_into_chunks
 from .storage import Store
 
 
+def outline_material_query(project: dict[str, Any]) -> str:
+    from .skills import normalize_skill_id, registry
+    skill_id = normalize_skill_id(project.get("state", {}).get("skill_id", "innovation-research"))
+    if skill_id == "innovation-research":
+        return "研究问题 研究内容 方法 创新点"
+    skill = registry.get(skill_id) or {}
+    return f"{skill.get('display_name') or skill_id} 申请 事实 要求"
+
+
+def section_material_query(project: dict[str, Any], section_id: str) -> str:
+    section = next((item for item in project.get("outline", []) if item.get("id") == section_id), {})
+    return f"{section.get('title', '')} {project.get('discipline', '')}"
+
+
+def diagram_material_query(title: str) -> str:
+    return title + " 方法 流程"
+
+
+def plan_diagram_title(project: dict[str, Any]) -> str:
+    from .skills import normalize_skill_id
+    skill_id = normalize_skill_id(project.get("state", {}).get("skill_id", "innovation-research"))
+    return "研究流程与技术路线" if skill_id == "innovation-research" else "材料流程与要点"
+
+
 class Embedder:
     def __init__(self, base_url: str = "http://127.0.0.1:11434", model: str = "bge-m3"):
         parsed = urllib.parse.urlsplit(base_url)
@@ -92,7 +116,10 @@ class ProjectRetriever:
         # No remote reranker is configured by default for private project materials.
         self.reranker = reranker
 
-    def _embed_verified(self, texts: list[str]) -> tuple[list[list[float]] | None, str]:
+    def _embed_verified(self, texts: list[str], project_id: str = "") -> tuple[list[list[float]] | None, str]:
+        authorized_for = getattr(self.embedder, "authorized_for", None)
+        if callable(authorized_for) and not authorized_for(project_id):
+            return None, ""
         revision_fn = getattr(self.embedder, "revision", None)
         if not callable(revision_fn):
             return None, ""
@@ -109,15 +136,18 @@ class ProjectRetriever:
         return vectors, before
 
     def index_document(self, document_id: str, extracted_text: str) -> int:
+        return self.index_document_result(document_id, extracted_text)[0]
+
+    def index_document_result(self, document_id: str, extracted_text: str) -> tuple[int, str]:
         document = self.store.get_document(document_id)
         if (not document or not document.get("confirmed") or document.get("kind") == "template"
                 or document.get("confirmation_origin") != "user"):
-            return 0
+            return 0, "not_indexed"
         if extracted_text != document.get("extracted_text", ""):
             from .materials import MaterialConflict
             raise MaterialConflict("材料在索引前已发生变化，请重新核对。")
         chunks = split_into_chunks(extracted_text)
-        vectors, embedding_revision = self._embed_verified([chunk for chunk in chunks])
+        vectors, embedding_revision = self._embed_verified([chunk for chunk in chunks], document["project_id"])
         items = []
         # Preserve page/paragraph references when they are present in extracted text.
         for index, chunk in enumerate(chunks):
@@ -135,10 +165,10 @@ class ProjectRetriever:
                 }
             )
         self.store.replace_chunks(document_id, items, expected_text=extracted_text)
-        return len(items)
+        return len(items), "vector" if vectors else "keyword_fallback"
 
     def search(self, project_id: str, query: str, top_k: int = 5) -> dict[str, Any]:
-        query_embedding, query_revision = self._embed_verified([query])
+        query_embedding, query_revision = self._embed_verified([query[:1000]], project_id)
         query_vector = query_embedding[0] if query_embedding else None
         terms = sorted(_tokens(query), key=lambda term: (-len(term), term))[:80]
         db_search = (
@@ -173,6 +203,8 @@ class ProjectRetriever:
             for c in chunks
         )
         mode = "hybrid" if have_vectors else "keyword_fallback"
+        if not have_vectors and not failure:
+            failure = getattr(self.embedder, "fallback_notice", "")
         query_tokens = _tokens(query)
         lexical, semantic = [], []
         for index, chunk in enumerate(chunks):

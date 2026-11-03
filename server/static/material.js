@@ -1,4 +1,4 @@
-/* Pilot UI: all user/project text uses textContent, never injected HTML. */
+/* Material UI: all user/project text uses textContent, never injected HTML. */
 (() => {
   "use strict";
   let host, data, root, projectId, urls = [], fillPlan;
@@ -8,7 +8,10 @@
     if (cls) n.className = cls;
     return n;
   };
-  const active = () => Boolean(host?.state.project?.material?.enabled);
+  const configured = () => Boolean(host?.state.project?.material?.enabled);
+  // Do not route generation away from the existing chain until the operator
+  // has explicitly declared the Worker ready.
+  const active = () => Boolean(configured() && projectId === host.state.project.id && data?.worker_ready);
   const path = suffix => `/api/projects/${encodeURIComponent(host.state.project.id)}/material${suffix}`;
   const request = (suffix, method = "GET", body) => host.api(path(suffix), {
     method, ...(body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
@@ -62,7 +65,7 @@
     return objectUrl;
   }
   async function refresh() {
-    if (!active()) return;
+    if (!configured()) return;
     const id = host.state.project.id;
     const next = await request("");
     if (host.state.project?.id !== id) return;
@@ -79,19 +82,20 @@
       root.id = "materialPilot";
       document.querySelector("#templateStatus").after(root);
     }
-    root.classList.toggle("hidden", !active());
-    if (!active()) { projectId = null; data = null; return; }
+    root.classList.toggle("hidden", !configured());
+    if (!configured()) { projectId = null; data = null; return; }
+    if (projectId !== host.state.project.id) data = null;
     projectId = host.state.project.id;
     try { await refresh(); } catch (e) {
-      root.replaceChildren(el("p", `大创链路暂不可用：${e.message}`));
+      root.replaceChildren(el("p", `材料链路暂不可用：${e.message}`));
     }
   }
   function draw() {
-    if (!data || !active()) return;
+    if (!data || !configured()) return;
     urls.forEach(u => URL.revokeObjectURL(u)); urls = [];
     root.replaceChildren();
     const details = el("details"); details.open = true;
-    details.append(el("summary", "大创创新训练 · 信息、要求、配图与交付"));
+    details.append(el("summary", "材料工作流 · 信息、要求、配图与交付"));
     details.append(el("p", data.worker_ready
       ? "已启用持久任务。付费模型须明确确认；失败不自动重复调用。"
       : "Worker 尚未配置：可整理信息和计划，完整生成与页面检查尚未启用。"));
@@ -166,7 +170,7 @@
           })[check.status] || "未完成"} · ${check.detail}`));
           action("下载可编辑 Word 草稿", async () => {
             const link = el("a"); link.href = await blobUrl(path(`/jobs/${job.id}/files/proposal.docx`));
-            link.download = "大创创新训练申报书草稿.docx"; link.click();
+            link.download = "申报材料草稿.docx"; link.click();
           }, row);
           action("查看逐页预览", async () => {
             const pages = el("div", undefined, "material-pages"); row.append(pages);
@@ -192,7 +196,7 @@
         await request("/requirements", "PUT", { revision: data.context.revision, items: data.requirements.filter((_, i) => i !== index) }); await refresh();
       }, row); box.append(row);
     });
-    const kind = select(box, "来源类型", [["official", "正式通知／学校模板"], ["user", "我的明确要求"], ["material", "大创规则"], ["example", "参考示例"], ["default", "默认样式"]]);
+    const kind = select(box, "来源类型", [["official", "正式通知／学校模板"], ["user", "我的明确要求"], ["material", "当前材料类型规则"], ["example", "参考示例"], ["default", "默认样式"]]);
     const key = select(box, "约束对象", [["word_count", "字数"], ["page_limit", "页数"], ["sections", "章节栏目"], ["font", "字体"], ["format", "版式"], ["content", "内容要求"]]);
     const value = input(box, "具体要求", "", true);
     const source = input(box, "出处／文件名");
@@ -371,7 +375,7 @@
         if (host.state.project?.id !== id) return;
         const link = el("a");
         link.href = url;
-        link.download = "大创创新训练申报书草稿.docx";
+        link.download = "申报材料草稿.docx";
         document.body.append(link); link.click(); link.remove();
         host.toast("Word 草稿已生成并下载；缺项与排版提示请在任务区核对。");
         return;

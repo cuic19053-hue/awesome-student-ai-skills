@@ -1,9 +1,9 @@
 """Fail-closed Cloudflare Workers AI adapter for explicitly free-only accounts.
 
-Only public corpus may be indexed. Project query text may be sent only when the
-caller supplies explicit, per-request consent. No paid plan or AI Gateway route
-is ever selected by this client. A billing-readable token is required to check
-that the account has no subscriptions before each inference call.
+The public interface accepts only public material and explicitly consented
+queries. Private material requires the separate explicitly consented method.
+No paid plan or AI Gateway route is selected by this client. A billing-readable
+token is required to check that the account has no subscriptions before inference.
 """
 from __future__ import annotations
 
@@ -63,6 +63,15 @@ class CloudflareFreeClient:
     def embed(self, texts: list[str], *, scope: str, query_consent: bool = False) -> list[list[float]] | None:
         if scope not in {"public", "query"} or (scope == "query" and query_consent is not True):
             return None
+        return self._embed(texts)
+
+    def embed_private(self, texts: list[str], *, consent: bool = False) -> list[list[float]] | None:
+        """The caller must obtain user consent outside any model tool call."""
+        if consent is not True:
+            return None
+        return self._embed(texts)
+
+    def _embed(self, texts: list[str]) -> list[list[float]] | None:
         if not texts:
             return []
         if not self._free_only_verified():

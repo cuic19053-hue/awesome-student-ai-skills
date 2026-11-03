@@ -73,6 +73,7 @@
     llmConfig: readSavedLlmConfig(),
     chatCollapsed: false,
     cloudMode: false,
+    privateRagConsentProjectId: null,
     ollamaLocal: null,
     userCredits: null,
     freeChatsRemaining: 0,
@@ -193,7 +194,14 @@
       headers.set("Authorization", `Bearer ${state.authSession.access_token}`);
     }
     const method = (requestOptions.method || "GET").toUpperCase();
-    const path = new URL(url, window.location.href).pathname;
+    const targetUrl = new URL(url, window.location.href);
+    const path = targetUrl.pathname;
+    const targetProject = path.match(/^\/api\/projects\/([^/]+)/)?.[1];
+    if (targetUrl.origin === new URL(window.location.href).origin
+        && privateRagConsented() && (!targetProject || targetProject === state.project.id)) {
+      headers.set("X-Private-RAG-Consent", "cloudflare-bge-m3-v1");
+      headers.set("X-Private-RAG-Project", state.project.id);
+    }
     const usesLlm = method === "POST" && /\/api\/projects\/[^/]+\/(?:chat|outline\/generate|sections\/[^/]+\/generate|diagrams\/propose|facts\/propose|images\/generate)$/.test(path);
     if (usesLlm) {
       if (state.cloudMode && state.modelConfigSyncStatus === "loading")
@@ -219,6 +227,12 @@
     return body;
   }
   const originalApi = api;
+
+  function privateRagConsented() {
+    return Boolean(state.authConfig?.private_embedding_configured && state.project?.id
+      && state.privateRagConsentProjectId === state.project.id
+      && $("#privateRagConsent")?.checked);
+  }
 
   function button(label, cls = "button button-small button-secondary") {
     const node = document.createElement("button");
@@ -893,6 +907,8 @@
     const subscription = state.authClient.auth.onAuthStateChange((event, session) => {
       if (state.authSession?.user?.id && session?.user?.id
           && state.authSession.user.id !== session.user.id) {
+        state.privateRagConsentProjectId = null;
+        if ($("#privateRagConsent")) $("#privateRagConsent").checked = false;
         clearExportArtifacts();
         modelConfigRevision++;
         state.appStarted = false;
@@ -903,6 +919,8 @@
         // 不在 Auth 回调锁内调用 SDK，避免 setSession/getSession 死锁。
         setTimeout(() => { void startApplication(session); }, 0);
       } else if (!session && event === "SIGNED_OUT") {
+        state.privateRagConsentProjectId = null;
+        if ($("#privateRagConsent")) $("#privateRagConsent").checked = false;
         state.appStarted = false;
         state.userCredits = null;
         state.balanceRequestSeq++;
@@ -1014,6 +1032,10 @@
     if (!state.authClient) return;
     const { error } = await state.authClient.auth.signOut();
     if (error) toast("退出失败：" + error.message, true);
+    else {
+      state.privateRagConsentProjectId = null;
+      if ($("#privateRagConsent")) $("#privateRagConsent").checked = false;
+    }
   }
 
   function renderProjectList(projects, filterKeyword = "") {
@@ -1145,6 +1167,9 @@
       });
       const project = await api(`/api/projects/${projectId}`);
       if (state.project?.id !== projectId) {
+        state.privateRagConsentProjectId = null;
+        if ($("#privateRagConsent")) $("#privateRagConsent").checked = false;
+        $("#privateRagResults")?.replaceChildren();
         $("#uploadResult").classList.add("hidden");
         clearExportArtifacts();
       }
@@ -1886,13 +1911,15 @@
             return;
           }
           try {
-            await api(`/api/documents/${doc.id}/confirm`, {
+            const result = await api(`/api/documents/${doc.id}/confirm`, {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ confirmed: true, corrected_text: text.value }),
             });
             await loadProject(state.project.id);
-            toast("已确认材料并建立检索索引。");
+            toast(result.index_mode === "keyword_fallback" && privateRagConsented()
+              ? "材料已确认，但云向量未建立；当前仅能关键词检索，请核对服务或缩短材料。"
+              : "已确认材料并建立检索索引。", result.index_mode === "keyword_fallback" && privateRagConsented());
           } catch (error) {
             toast(error.message, true);
           }
@@ -1902,6 +1929,17 @@
           confirmBtn.addEventListener("click", confirmText);
           actions.append(confirmBtn);
         } else {
+          if (state.authConfig?.private_embedding_configured) {
+            const reindex = button("重新建立向量索引", "button button-small button-secondary");
+            reindex.addEventListener("click", () => {
+              if (!privateRagConsented()) {
+                toast("请先阅读并勾选本项目的 Cloudflare 私有检索授权。", true);
+                return;
+              }
+              void confirmText();
+            });
+            actions.append(reindex);
+          }
           const edit = button("修改识别文字", "button button-small button-secondary");
           edit.addEventListener("click", () => {
             text.readOnly = false;
@@ -2649,6 +2687,7 @@
           toast(result.notice || "结果已保留为备选");
           continue;
         }
+        if (result.material_revision !== undefined) state.project.material_revision = result.material_revision;
         state.project.sections = state.project.sections || {};
         state.project.sections[section.id] = result.content;
 
@@ -2921,6 +2960,7 @@
               renderReviewCard(wrapper, result.review_card);
             }
           } else if (result.content) {
+            if (result.material_revision !== undefined) state.project.material_revision = result.material_revision;
             editor.value = result.content;
             wordBadge.textContent = `${countWords(result.content)} 字`;
             const evidence = (result.evidence || []).map((e) => `${e.source_name} · ${e.source_ref}`).join("；");
@@ -2973,7 +3013,7 @@
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ content: currentVal,
-              ...(window.MaterialPilot?.active() ? { expected_revision: state.project.material_revision,
+              ...(state.project?.material?.enabled ? { expected_revision: state.project.material_revision,
                 base_content: previousContent } : {}) }),
           });
           if (saved.material_revision !== undefined) state.project.material_revision = saved.material_revision;
@@ -2984,7 +3024,7 @@
             save.textContent = "保存";
             save.disabled = false;
           }, 800);
-          if (window.MaterialPilot?.active()) void window.MaterialPilot.refresh();
+          if (state.project?.material?.enabled) void window.MaterialPilot?.refresh();
           toast(`已保存“${section.title}”。`);
         } catch (error) {
           save.disabled = false;
@@ -3427,6 +3467,10 @@
       });
       if (state.authSession?.access_token) {
         headers.set("Authorization", `Bearer ${state.authSession.access_token}`);
+      }
+      if (privateRagConsented() && state.project?.id === projectId) {
+        headers.set("X-Private-RAG-Consent", "cloudflare-bge-m3-v1");
+        headers.set("X-Private-RAG-Project", projectId);
       }
       const body = {
         message,
@@ -4049,6 +4093,30 @@
     $$('input[name="hasTemplate"]').forEach((radio) => radio.addEventListener("change", updateTemplateExplain));
     $$(".upload-tab").forEach((tab) => tab.addEventListener("click", () => setUploadKind(tab.dataset.kind)));
     $("#chooseFileBtn").addEventListener("click", () => $("#fileInput").click());
+    $("#privateRagConsent")?.addEventListener("change", (event) => {
+      state.privateRagConsentProjectId = event.target.checked ? state.project?.id || null : null;
+    });
+    $("#privateRagSearch")?.addEventListener("click", async () => {
+      if (!state.project?.id) return;
+      const targetId = state.project.id;
+      const output = $("#privateRagResults");
+      try {
+        const result = await api(`/api/projects/${targetId}/search/materials`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: $("#privateRagQuery").value }),
+        });
+        if (state.project?.id !== targetId) return;
+        output.replaceChildren();
+        const status = document.createElement("p");
+        status.textContent = `检索模式：${result.retrieval_mode}。${result.fallback_reason || result.message || ""}`;
+        output.append(status);
+        for (const item of result.results || []) {
+          const paragraph = document.createElement("p");
+          paragraph.textContent = `${item.source_name} · ${item.source_ref}：${item.text}`;
+          output.append(paragraph);
+        }
+      } catch (error) { toast(error.message, true); }
+    });
     $("#fileInput").addEventListener("change", (event) => uploadFiles([...event.target.files]));
     $("#chatAttachBtn").addEventListener("click", () => $("#chatFileInput").click());
     $("#chatUploadKind").addEventListener("change", (event) => {
@@ -4298,6 +4366,7 @@
     void loadSkills().catch(() => console.warn("赛道目录暂不可用，可稍后重试"));
     void loadPresetModelsAndPlans();
     const config = await api("/api/config");
+    $("#privateRagSettings")?.classList.toggle("hidden", !config.private_embedding_configured);
     $("#deleteCloudModelConfigBtn")?.classList.toggle("hidden", !config.cloud_mode);
     $("#syncCloudModelConfigBtn")?.classList.toggle("hidden", !config.cloud_mode);
     state.turnstileSiteKey = config.turnstile_site_key || "";

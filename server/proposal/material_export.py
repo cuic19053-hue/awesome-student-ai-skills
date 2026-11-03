@@ -1,4 +1,4 @@
-"""Production DOCX renderer for the innovation pilot (no demonstration data)."""
+"""DOCX renderer for the material pipeline (no demonstration data)."""
 from __future__ import annotations
 
 import re
@@ -131,7 +131,7 @@ def export_material(store, project_id: str, folder: Path) -> dict[str, Any]:
     docs = store.list_documents(project_id)
     project["_documents"] = docs
     view = material_view(project, docs)
-    effective = view["requirements"]["effective"]
+    effective = (view.get("requirements") or {}).get("effective", {})
     template = next((d for d in docs if d["id"] == project.get("template_document_id")), None)
     warnings, containers, token_sections, paragraph_anchors = [], {}, set(), {}
     used_template = bool(template and Path(template["stored_path"]).suffix.lower() == ".docx")
@@ -171,6 +171,11 @@ def export_material(store, project_id: str, folder: Path) -> dict[str, Any]:
             if sid not in containers:
                 warnings.append(f"章节 {sid} 已填入段落区域，附图单独保留，请核对模板位置")
     else:
+        from .skills import normalize_skill_id, registry
+        skill_id = normalize_skill_id(project.get("state", {}).get("skill_id", "innovation-research"))
+        skill = registry.get(skill_id)
+        skill_name = (skill or {}).get("display_name") or (skill or {}).get("name") or "申报材料"
+        is_innovation = skill_id == "innovation-research"
         document, filled = Document(), set()
         section = document.sections[0]
         section.page_width, section.page_height = Cm(21), Cm(29.7)
@@ -189,24 +194,27 @@ def export_material(store, project_id: str, folder: Path) -> dict[str, Any]:
                 warnings.append(f"要求字体为 {requested}，需核对渲染环境是否发生字体替代")
             else:
                 warnings.append("字体要求无法自动解释，已保留原文要求，请人工核对")
-        cover_org = _text(document, "大学生创新创业训练计划", heading=True, size=22)
+        cover_org = _text(document, "大学生创新创业训练计划" if is_innovation else "申报材料", heading=True, size=22)
         cover_org.alignment = WD_ALIGN_PARAGRAPH.CENTER
         cover_org.paragraph_format.space_before = Pt(28)
         cover_org.paragraph_format.space_after = Pt(20)
-        cover_kind = _text(document, "创新训练项目申报书（草稿）", heading=True, size=26)
+        cover_kind = _text(document, "创新训练项目申报书（草稿）" if is_innovation else f"{skill_name}（草稿）", heading=True, size=26)
         cover_kind.alignment = WD_ALIGN_PARAGRAPH.CENTER
         cover_kind.paragraph_format.space_after = Pt(24)
         _text(document, project["title"], heading=True, size=16).alignment = WD_ALIGN_PARAGRAPH.CENTER
         info = document.add_table(rows=0, cols=2)
         info.style = "Table Grid"
-        for label, value in (
+        fields = (
             ("项目类别", "创新训练项目"), ("申报级别", project.get("level")),
             ("所属学科", project.get("discipline")), ("申报学校", project.get("school")),
             ("项目负责人", project["state"].get("leader_name")),
             ("指导教师", project["state"].get("advisor_name")),
             ("项目周期", project["state"].get("duration")),
             ("申请经费", project["state"].get("budget")),
-        ):
+        ) if is_innovation else (
+            ("材料类型", skill_name), ("学校", project.get("school")),
+        )
+        for label, value in fields:
             cells = info.add_row().cells
             cells[0].text, cells[1].text = label, value or "待补充"
         info.alignment = 1

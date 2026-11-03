@@ -53,6 +53,9 @@ from proposal.credit_security import (
     workbench_voucher_digest,
 )
 from proposal.retrieval import ProjectRetriever
+from proposal.private_embeddings import (
+    CloudPrivateEmbedder, private_embedding_configured, private_embedding_consent, private_embedding_project,
+)
 from utils.skill_cards import build_skill_cards, infer_honor_variant, infer_task_type
 from proposal.storage import CreditRateLimitError, InsufficientCreditsError, PendingUsageError, Store
 from proposal.supabase_store import SupabaseStore, request_identity
@@ -229,14 +232,6 @@ class OfficialURLInput(BaseModel):
     url: str = Field(min_length=12, max_length=2000)
 
 
-class KeywordOnlyEmbedder:
-    """Cloud functions cannot assume a private Ollama embedding service is running."""
-
-    @staticmethod
-    def embed(_texts: list[str]) -> None:
-        return None
-
-
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 SUPABASE_PUBLISHABLE_KEY = os.environ.get("SUPABASE_PUBLISHABLE_KEY", "")
 TURNSTILE_SITE_KEY = os.environ.get("TURNSTILE_SITE_KEY", "").strip()
@@ -246,7 +241,7 @@ store = (
     if CLOUD_MODE
     else Store()
 )
-retriever = ProjectRetriever(store, KeywordOnlyEmbedder() if CLOUD_MODE else None)
+retriever = ProjectRetriever(store, CloudPrivateEmbedder() if CLOUD_MODE else None)
 tools = ProposalTools(store, retriever)
 agent = OllamaAgent(store, tools)
 job_runner = GenerationJobRunner(store)
@@ -307,7 +302,25 @@ async def validation_error(request: Request, exc: RequestValidationError):
 
 @app.middleware("http")
 async def require_supabase_session(request: Request, call_next):
-    response = await _require_supabase_session(request, call_next)
+    path = request.url.path
+    allowed_path = bool(
+        request.method == "PATCH" and re.fullmatch(r"/api/documents/[a-f0-9]{32}/confirm", path)
+        or request.method == "POST" and re.fullmatch(
+            r"/api/projects/[a-f0-9]{32}/(?:chat|outline/generate|sections/[^/]+/generate|"
+            r"diagrams/propose|material/jobs|search/materials)", path)
+    )
+    consent_project = request.headers.get("x-private-rag-project", "")
+    consent = bool(
+        CLOUD_MODE and allowed_path and re.fullmatch(r"[a-f0-9]{32}", consent_project)
+        and request.headers.get("x-private-rag-consent") == "cloudflare-bge-m3-v1"
+    )
+    consent_token = private_embedding_consent.set(consent)
+    project_token = private_embedding_project.set(consent_project if consent else "")
+    try:
+        response = await _require_supabase_session(request, call_next)
+    finally:
+        private_embedding_project.reset(project_token)
+        private_embedding_consent.reset(consent_token)
     if request.url.path.startswith("/api/"):
         response.headers["Cache-Control"] = "private, no-store"
         response.headers["Pragma"] = "no-cache"
@@ -533,6 +546,7 @@ def app_config() -> dict[str, Any]:
         "storage_upload_endpoint": "/uploads/resumable"
         if CLOUD_MODE and os.environ.get("STORAGE_UPLOAD_PROXY_ENABLED", "").lower() == "true" else "",
         "max_upload_bytes": MAX_UPLOAD_BYTES,
+        "private_embedding_configured": bool(CLOUD_MODE and private_embedding_configured()),
     }
 
 
@@ -1918,7 +1932,7 @@ def confirm_document(document_id: str, payload: ConfirmDocument) -> dict[str, An
         confirmed_by_user=payload.confirmed,
     )
     try:
-        chunks = retriever.index_document(document_id, text) if payload.confirmed else 0
+        chunks, index_mode = retriever.index_document_result(document_id, text) if payload.confirmed else (0, "not_indexed")
         if payload.confirmed and not chunks:
             raise MaterialConflict("材料在索引期间已撤回或不可用，请重新核对。")
     except MaterialConflict:
@@ -1951,6 +1965,7 @@ def confirm_document(document_id: str, payload: ConfirmDocument) -> dict[str, An
     return {
         "document": _public_document(store.get_document(document_id) or document),
         "indexed_chunks": chunks,
+        "index_mode": index_mode,
     }
 
 
@@ -2316,8 +2331,9 @@ def generate_section(
                 payload.llm_config if payload else None, request, f"section:{section_id}", project_id,
                 lambda model: model.generate_section(project_id, section_id, persist=False))
             try:
-                store.update_project(project_id, expected_revision=project["material_revision"],
+                updated = store.update_project(project_id, expected_revision=project["material_revision"],
                     sections={**project["sections"], section_id: result["content"]})
+                result.update(material_applied=True, material_revision=updated["material_revision"])
                 source = "ai_generated"
             except MaterialConflict:
                 source = "ai_generated_alternative"
@@ -2529,6 +2545,15 @@ def search_public_knowledge(project_id: str, payload: dict[str, Any]) -> dict[st
         project_id, query, external_query_consent=payload.get("external_query_consent") is True,
         include_examples=payload.get("include_examples") is True,
     )
+
+
+@app.post("/api/projects/{project_id}/search/materials")
+def search_private_materials(project_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    _safe_project(project_id)
+    query = str(payload.get("query", "")).strip()
+    if not 2 <= len(query) <= 300:
+        raise HTTPException(status_code=400, detail="请输入 2–300 字的检索问题")
+    return retriever.search(project_id, query)
 
 
 @app.post("/api/projects/{project_id}/search/official")
@@ -2905,7 +2930,7 @@ def _validate_material_config(config):
     _agent_for_config(normalized)
     return normalized.model_dump()
 
-register_material_api(app, lambda: store, _validate_material_config)
+register_material_api(app, lambda: store, _validate_material_config, lambda: retriever)
 register_chat_drafts(app, lambda: store)
 
 
@@ -2916,7 +2941,7 @@ def _material_worker_bridge(request: Request, job_id: str, lease: str):
         os.environ.get("MATERIAL_PIPELINE_ENABLED", "").lower() != "true"
         or os.environ.get("MATERIAL_WORKER_READY", "").lower() != "true"
     ):
-        raise HTTPException(503, "大创 Worker 尚未启用")
+        raise HTTPException(503, "材料 Worker 尚未启用")
     scheme, _, secret = request.headers.get("authorization", "").partition(" ")
     if scheme.lower() != "bearer" or len(secret.strip()) < 32:
         raise HTTPException(401, "Worker 凭据无效")

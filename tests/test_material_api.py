@@ -29,11 +29,76 @@ def api(monkeypatch, tmp_path):
         yield client,store,p
 
 
-def test_pilot_gated_other_types_unchanged(api):
+def test_material_api_supports_catalogue_types_and_rejects_unknown(api):
     client,store,p = api
     assert client.get(f"/api/projects/{p['id']}/material").status_code == 200
     store.update_project(p["id"],state={"skill_id":"national-scholarship"})
+    assert client.get(f"/api/projects/{p['id']}/material").status_code == 200
+    store.update_project(p["id"],state={"skill_id":"not-a-catalogue-skill"})
     assert client.get(f"/api/projects/{p['id']}/material").status_code == 404
+
+
+def test_non_innovation_export_job_runs_end_to_end(api, monkeypatch):
+    import material_worker
+    from docx import Document
+    client, store, project = api
+    project = store.update_project(project["id"], state={
+        "skill_id": "national-scholarship", "outline_confirmed": True,
+    })
+    response = client.post(f"/api/projects/{project['id']}/material/jobs", json={
+        "revision": project["material_revision"], "kind": "export",
+        "idempotency_key": "national-export",
+    })
+    assert response.status_code == 202, response.text
+    assert material_worker.run_one(local_store=store)
+    job = MaterialJobs(store).call("get", project_id=project["id"], id=response.json()["id"])
+    assert job["status"] == "completed", job
+    path = store.files_dir / project["id"] / "_material" / job["id"] / "proposal.docx"
+    assert "国家奖学金" in "\n".join(p.text for p in Document(path).paragraphs)
+
+
+def test_cloud_job_snapshots_retrieval_only_with_matching_user_consent(api, monkeypatch):
+    import app
+    import proposal.material_api as material_api
+    client, store, project = api
+    saved, queries = [], []
+
+    class FakeQueue:
+        cloud = True
+        def __init__(self, _store):
+            pass
+        def find(self, *_args):
+            return None
+        def submit(self, project_id, kind, target, payload, idempotency):
+            saved.append(payload)
+            return {"id": payload["job_id"]}
+
+    class FakeRetriever:
+        def search(self, project_id, query, top_k=5):
+            queries.append((project_id, query, top_k))
+            return {"retrieval_mode": "hybrid", "results": [{"text": "已确认资料"}]}
+
+    async def bypass_auth(request, call_next):
+        return await call_next(request)
+
+    monkeypatch.setattr(app, "CLOUD_MODE", True)
+    monkeypatch.setattr(app, "_require_supabase_session", bypass_auth)
+    monkeypatch.setattr(app, "_agent_for_config", lambda *a, **kw: object())
+    monkeypatch.setattr(app, "retriever", FakeRetriever())
+    monkeypatch.setattr(material_api, "MaterialJobs", FakeQueue)
+    monkeypatch.setattr(store, "_identity", lambda: {"user_id": "owner"}, raising=False)
+    url = f"/api/projects/{project['id']}/material/jobs"
+    body = {"revision": project["material_revision"], "kind": "outline", "idempotency_key": "one",
+            "llm_config": {"provider": "ollama"}, "confirm_paid": True}
+    assert client.post(url, json=body).status_code == 202
+    assert not queries and "private_retrieval" not in saved[-1]
+    wrong = {"X-Private-RAG-Consent": "cloudflare-bge-m3-v1", "X-Private-RAG-Project": "a" * 32}
+    assert client.post(url, headers=wrong, json=body).status_code == 202
+    assert not queries and "private_retrieval" not in saved[-1]
+    correct = {**wrong, "X-Private-RAG-Project": project["id"]}
+    assert client.post(url, headers=correct, json=body).status_code == 202
+    assert queries == [(project["id"], "研究问题 研究内容 方法 创新点", 5)]
+    assert saved[-1]["private_retrieval"]["result"]["retrieval_mode"] == "hybrid"
 
 
 def test_requirements_and_revision_conflict(api):
@@ -103,3 +168,17 @@ def test_manual_section_cas(api):
     assert first.status_code == 200
     assert client.put(url,json={"content":"覆盖","expected_revision":p["material_revision"]}).status_code == 409
     assert store.get_project(p["id"])["sections"]["method"] == ""
+
+
+def test_direct_section_generation_reports_atomic_persistence_when_worker_unready(api, monkeypatch):
+    import app
+    client, store, project = api
+    monkeypatch.setenv("MATERIAL_WORKER_READY", "false")
+    monkeypatch.setattr(app, "_metered_invoke",
+                        lambda *args, **kwargs: {"content": "新的生成草稿"})
+    response = client.post(f"/api/projects/{project['id']}/sections/method/generate")
+    assert response.status_code == 200
+    result = response.json()
+    assert result["material_applied"] is True
+    assert result["material_revision"] == store.get_project(project["id"])["material_revision"]
+    assert store.get_project(project["id"])["sections"]["method"] == "新的生成草稿"

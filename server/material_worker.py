@@ -29,8 +29,26 @@ from proposal.materials import MaterialConflict
 from proposal.storage import Store
 from proposal.model_config_security import decrypt_config
 from proposal.observability import error_code
+from proposal.retrieval import ProjectRetriever
 
 log = logging.getLogger("material_worker")
+
+
+class SnapshotRetriever(ProjectRetriever):
+    """Use only the exact, authorized query snapshot captured on submission."""
+    def __init__(self, store, project_id, snapshot):
+        class NoEmbed:
+            def embed(self, _):
+                return None
+        super().__init__(store, NoEmbed())
+        self.project_id = project_id
+        self.snapshot = snapshot
+
+    def search(self, project_id, query, top_k=5):
+        if (project_id == self.project_id and isinstance(self.snapshot, dict)
+                and self.snapshot.get("query") == query and isinstance(self.snapshot.get("result"), dict)):
+            return self.snapshot["result"]
+        return super().search(project_id, query, top_k)
 
 
 class CloudQueue:
@@ -263,12 +281,8 @@ def execute(job, workspace, checkpoint, local_source=None, queue=None):
     checkpoint("preparing_inputs")
     store, base = hydrate(job, workspace, local_source)
     from proposal.tools import ProposalTools
-    from proposal.retrieval import ProjectRetriever
     from proposal.agent import OllamaAgent
-    class NoEmbed:
-        def embed(self, _):
-            return None
-    tools = ProposalTools(store, ProjectRetriever(store, NoEmbed()))
+    tools = ProposalTools(store, SnapshotRetriever(store, job["project_id"], payload.get("private_retrieval")))
     config = payload.get("config", {})
     if payload.get("config_ciphertext") and queue is None:
         config = decrypt_config(payload["owner_id"], payload["config_ciphertext"])
@@ -347,10 +361,12 @@ def execute(job, workspace, checkpoint, local_source=None, queue=None):
         return {"outline": outline, "confirmed": False, "input_snapshot": payload["input_snapshot"]}
     if job["kind"] == "plan":
         checkpoint("planning_figure")
-        proposed = candidate.propose_diagram(job["project_id"], "研究流程与技术路线")
+        from proposal.retrieval import plan_diagram_title
+        title = plan_diagram_title(payload["project"])
+        proposed = candidate.propose_diagram(job["project_id"], title)
         spec = FigureSpec(id=("suggested_"+job["target"])[:60], section_id=job["target"],
             title=proposed["title"][:100], renderer="svg", nodes=proposed["nodes"],
-            source="依据已确认项目资料拟定的研究计划，待用户核对", confirmed=False)
+            source="依据已确认资料拟定，待用户核对", confirmed=False)
         return {"plan": spec.model_dump(), "notice": proposed.get("notice", "请核对节点与顺序后再确认生成"),
                 "input_snapshot": payload["input_snapshot"]}
     if job["kind"] == "section":

@@ -1,4 +1,4 @@
-"""Pilot-only APIs, mounted alongside (not replacing) the legacy workbench."""
+"""Material APIs, mounted alongside (not replacing) the legacy workbench."""
 from __future__ import annotations
 
 import copy
@@ -78,7 +78,7 @@ def artifact_folder(store, project_id: str, raw: dict) -> Path:
     return folder
 
 
-def register_material_api(app, get_store, validate_config):
+def register_material_api(app, get_store, validate_config, get_retriever=None):
     router = APIRouter(prefix="/api/projects/{project_id}/material")
 
     def project_for(project_id):
@@ -89,7 +89,7 @@ def register_material_api(app, get_store, validate_config):
         if not project:
             raise HTTPException(404, "项目不存在")
         if not enabled(project):
-            raise HTTPException(404, "当前材料沿用原链路，或大创试点尚未启用")
+            raise HTTPException(404, "当前材料沿用原链路，或材料管线尚未启用")
         return store, project
 
     def save(store, project, revision, **fields):
@@ -151,7 +151,7 @@ def register_material_api(app, get_store, validate_config):
     def submit(project_id: str, payload: JobInput):
         store, project = project_for(project_id)
         if os.environ.get("MATERIAL_WORKER_READY", "").lower() != "true":
-            raise HTTPException(503, "大创 Worker 尚未启用，不能提交长任务")
+            raise HTTPException(503, "材料 Worker 尚未启用，不能提交长任务")
         queue = MaterialJobs(store)
         # Retry an accepted HTTP submission before checking stale input or signing files.
         existing = queue.find(project_id, payload.idempotency_key)
@@ -206,6 +206,27 @@ def register_material_api(app, get_store, validate_config):
             "paid": bool(model_call), "platform": bool(platform), "downloads": [],
             "environment": os.environ.get("VERCEL_ENV", "local"),
         }
+        # A queued Worker cannot inherit an HTTP request's consent or JWT. If
+        # the user opted in for this submission, fetch the bounded, project-
+        # scoped candidate snapshot while that authenticated request is live.
+        # The Worker never receives provider credentials or an open-ended grant.
+        from .private_embeddings import private_embedding_consent, private_embedding_project
+        if (queue.cloud and private_embedding_consent.get() is True
+                and private_embedding_project.get() == project_id and get_retriever):
+            from .retrieval import (
+                diagram_material_query, outline_material_query, plan_diagram_title, section_material_query,
+            )
+            query, top_k = "", 5
+            if payload.kind == "outline":
+                query = outline_material_query(project)
+            elif payload.kind == "section":
+                query, top_k = section_material_query(project, payload.target), 7
+            elif payload.kind == "plan":
+                query = diagram_material_query(plan_diagram_title(project))
+            if query:
+                found = get_retriever().search(project_id, query, top_k=top_k)
+                if found.get("retrieval_mode") == "hybrid":
+                    job_payload["private_retrieval"] = {"query": query, "result": found}
         if model_call:
             if config.get("provider") == "preset":
                 job_payload["config"] = {"provider": "preset"}
