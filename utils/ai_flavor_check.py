@@ -539,12 +539,46 @@ def _check_abstract_nouns(text: str, cjk_total: int) -> Tuple[List[FlavorHit], f
 
 
 def _check_specificity(text: str, cjk_total: int) -> Tuple[List[FlavorHit], float, Dict[str, float]]:
-    """维度 4：具体性（数字 / 专有名词 / 时间）密度。"""
+    """维度 4：具体性（数字 / 专有名词 / 时间）密度。
+
+    注意：短文本（<120 字）的密度统计失真——一句话 30 字不可能有 8 个锚点，
+    但这不是「AI 味」。对短文本改用「绝对锚点数」判定，避免误伤单句引用
+    （如团章原文「共青团是党联系青年的桥梁和纽带」）。
+    """
     hits: List[FlavorHit] = []
     numbers = _NUMBERISH.findall(text)
     proper = _PROPER_NOUN_HINT.findall(text)
     evidence_total = len(numbers) + len(proper)
     density = (evidence_total / cjk_total * 1000) if cjk_total else 0.0
+
+    # 短文本：按绝对数量判定，不做密度惩罚（整篇申报书才会有密度意义）。
+    # 但「多句且零锚点」仍属空洞，需判罚；单句引用（如团章原文）则豁免。
+    if cjk_total < 120:
+        sentence_like = text.count("。") + text.count("！") + text.count("？")
+        if evidence_total == 0 and sentence_like >= 2:
+            hits.append(
+                FlavorHit(
+                    dimension="SPECIFICITY",
+                    label="具体性不足",
+                    detail=f"本段 {cjk_total} 字 / {sentence_like} 句，无任何数字/专名锚点",
+                    evidence="",
+                    position=-1,
+                    severity="high",
+                    advice="补具体数字或专有名词；纯抒情/表态句应删除",
+                )
+            )
+            return hits, 30.0, {
+                "evidence_anchor_count": evidence_total,
+                "evidence_anchor_per_kchar": density,
+                "number_count": len(numbers),
+                "proper_noun_count": len(proper),
+            }
+        return hits, 0.0, {
+            "evidence_anchor_count": evidence_total,
+            "evidence_anchor_per_kchar": density,
+            "number_count": len(numbers),
+            "proper_noun_count": len(proper),
+        }
 
     # 每千字至少 8 个具体锚点才算合格（1500 字约 12 个）
     if density < 4:

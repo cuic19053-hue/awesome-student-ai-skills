@@ -706,7 +706,10 @@ build.py 通过 `word_count_target` 字段（P2 可选）切换档位，但实�
 
 ## §10 段落模板与金句（速查）
 
-### 10.1 各段金句模板填空
+### 10.1 各段骨架填空
+
+> ⚠️ `{ }` 内全部是**必填占位符**，必须替换为真实数据；填不出说明素材不足，先补素材。
+> 骨架只提供段落逻辑与字段顺序，不提供可照抄的句子。
 
 - **开头**：`我是{current_college}{current_major}{grade}学生{name}，现申请转入{target_college}{target_major}专业。现就转专业事宜汇报如下：`
 - **一、个人基本情况**：`{gaokao_year}年高考{gaokao_score}分（{province}），{admission_mode}进入{current_college}{current_major}专业。{current_reason}。经过大一一年的学习与思考，我希望转入{target_college}{target_major}专业。`
@@ -718,7 +721,9 @@ build.py 通过 `word_count_target` 字段（P2 可选）切换档位，但实�
 - **五、转后规划**：`转入后第 1 学期补修《{course1}》（{credit1} 学分）、《{course2}》（{credit2} 学分）共 {total} 学分；第 2~3 学期 {research_plan}；{competition_plan}。本科毕业后 {graduation_plan}。`
 - **结尾**：`以上是我的转专业申请。无论审批结果如何，我都将继续努力学习，以更高标准要求自己。恳请评审委员会予以考虑。`
 
-### 10.2 中性表述金句（不贬低现专业）
+### 10.2 中性表述结构（不贬低现专业）
+
+> 结构参考：先陈述客观事实，再说明个人方向差异，避免评价现专业「不好」。
 
 - `经过大一一年的学习与思考，我发现自己的兴趣/优势/职业目标更适合 {target_major} 专业。`
 - `{current_major} 专业的课程体系侧重 {field1}，与我希望深入探索的 {field2} 方向有所不同。`

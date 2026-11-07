@@ -770,7 +770,10 @@ build.py 通过 `word_count_target` 字段（P2 可选）切换档位，但实�
 
 ## §11 段落模板与金句（速查）
 
-### 11.1 各段金句模板填空
+### 11.1 各段骨架填空
+
+> ⚠️ `{ }` 内全部是**必填占位符**，必须替换为真实数据；填不出说明素材不足，先补素材。
+> 骨架只提供段落逻辑与字段顺序，不提供可照抄的句子。
 
 - **开头**：`我是{current_college}{current_major}{grade}学生{name}，现申请赴{target_university}参加{exchange_duration}交流项目。现就交流项目申请事宜汇报如下：`
 - **一、个人基本情况**：`大一至大二学年 GPA {current_gpa}，加权平均分 {current_weighted_avg}，专业排名第 {current_rank}（前 {percent}）。本学年修读 {course_count} 门课程，{high_score_count} 门 85 分以上。语言成绩：{language_score}（{language_breakdown}）。`
@@ -785,7 +788,9 @@ build.py 通过 `word_count_target` 字段（P2 可选）切换档位，但实�
 - **五、安全保障**：`法律遵守方面，{legal_commitment}。保险购买方面，{insurance_commitment}。定期汇报方面，{report_commitment}。紧急预案方面，{emergency_commitment}。`
 - **结尾**：`以上是我的交流项目申请。无论审批结果如何，我都将继续努力学习，以更高标准要求自己。恳请评审委员会予以考虑。`
 
-### 11.2 具体表述金句（替换空泛表述）
+### 11.2 具体化改写对照（左空泛 → 右具体）
+
+> 用法：先把左边这类空泛表述找出来，再按右边结构填真实数据。
 
 - `通过参与 {event} 与 {n} 个国家学生组成小组，提升跨文化沟通能力`（替换"开阔视野"）
 - `通过 {course} 课程与 {teacher} 教授课题组研究，目标发表 {n} 篇 {conf} 论文`（替换"学习先进知识"）
