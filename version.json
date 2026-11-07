@@ -4,7 +4,7 @@
   "description": "35 个大学生竞赛与立项 AI Skill 集合 | 覆盖大创/挑战杯/互联网+/国家级项目/答辩模拟等 | 零门槛即用 | Agent Skills 标准",
   "generated_at": "2026-11-08",
   "total_skills": 35,
-  "total_lines": 35241,
+  "total_lines": 35227,
   "categories_count": 9,
   "categories_breakdown": {
     "scholarship": {
@@ -107,7 +107,10 @@
         "35 个 SKILL.md 从 47049 行精简到 35241 行（-25%），外移内容完整保留在 references/ 中",
         "新增 scripts/check_skill_description.py：按官方规范校验 description 长度/触发词/唯一性",
         "修复重构工具缺陷：写作规范块被章节切分卷走导致标记截断（已加保护块边界）",
-        "修复重构工具缺陷：多个「附录」章节写入同一 references 文件互相覆盖（已加 slug 去重）"
+        "修复重构工具缺陷：多个「附录」章节写入同一 references 文件互相覆盖（已加 slug 去重）",
+        "修复 AI 味检测器误判：表格/列表/框图/分号列举/档位说明不再判为排比；短文本改用绝对锚点判定，避免误伤团章原文",
+        "按官方规范精简 35 个 description：总字符 7750 -> 5532（-29%），check_skill_description --strict 零警告",
+        "改造 6 个 skill 的「金句模板」：区分真实口号/含数据示例/AI 排比句，删除后者，改为填空骨架与改写公式"
       ]
     },
     {
