@@ -54,6 +54,13 @@ metadata:
 
 ---
 
+<!-- REFERENCES-INDEX -->
+> 📚 **按需加载的参考资料**（渐进式披露，不需要时不要读）：
+> - [`references/appendix.md`](references/appendix.md) — 二十二、附录
+> - [`references/json-schema.md`](references/json-schema.md) — 十六、JSON Schema
+> - [`references/math-formulas.md`](references/math-formulas.md) — 十、数学公式规范（11 项必加章节之六）
+> - [`references/intake-checklist.md`](references/intake-checklist.md) — 三、信息采集清单
+
 ## 一、适用场景与触发条件
 
 **适用**：用户提到"互联网+""互联网+大赛""高教主赛道""红色之旅""职教赛道""互联网+商业计划书""中国国际大学生创新大赛"等关键词，且需提交"商业计划书"形态文档（非学术论文、非调研报告）。
@@ -112,143 +119,11 @@ metadata:
 
 ---
 
-## 三、信息采集清单
+## 三、信息采集清单（已外移至 references/intake-checklist.md）
 
-### 3.1 通用必采（12 字段）
-
-| 字段 | 说明 | 示例 | 缺失追问策略 |
-|------|------|------|--------------|
-| project_name | 项目名称，≤25 字 | 校园闲置流转平台"易舍" | "项目正式名称？含产品代号，≤25 字" |
-| track | 三大赛道 | main/red_journey/vocational | "报哪个赛道？高教/红色/职教" |
-| group | 组别 | 本科生组/研究生组/高职组 | "赛道内组别？" |
-| leader_name | 负责人姓名 | 张三 | "项目负责人全名？" |
-| leader_id | 负责人学号 | 202212345 | "学号？" |
-| leader_major | 负责人专业 | 工商管理 | "专业全称？" |
-| leader_grade | 负责人年级 | 2022 级 大三 | "入学年份与年级？" |
-| leader_phone | 联系电话 | 138XXXXXXXX | "手机号？" |
-| college | 学院全称 | 工商管理学院 | "学院全称？" |
-| school | 学校全称 | XX 大学 | "学校全称？" |
-| apply_date | 申报日期 | 2025 年 4 月 20 日 | "校赛/省赛提交日期？" |
-| advisor_name | 指导教师姓名 | 李教授 | "指导教师全名？建议有创业/投资背景" |
-
-### 3.2 项目核心（10 字段）
-
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| one_liner | 项目一句话 | "为高校在校生解决闲置流转低效，通过 LBS 同校面交实现信任交易" |
-| industry | 所属行业 | 互联网/二手交易 |
-| target_user | 目标用户 | 高校 18~24 岁在校生 |
-| pain_point | 用户痛点 | 跨城交易邮费高、面交难、信任度低 |
-| stage | 项目阶段 | 创意/种子/MVP/早期运营/成长期 |
-| registered | 是否注册公司 | 否（创意/种子期）/ 是（含公司名+时间） |
-| revenue | 当前营收 | 0 / 12 万元/年 |
-| users | 当前用户数 | 0 / 注册 5000 / 月活 1500 |
-| ip_status | 知识产权 | 软著 1 项/专利申请中/无 |
-| partnerships | 合作 | 3 家高校社团 / 5 家校企 / 无 |
-
-### 3.3 市场分析素材
-
-- 行业规模数据（TAM 总市场容量，需权威来源：艾瑞/IDC/国家统计局/白皮书）
-- 可服务市场 SAM（按地域/人群/场景切分）
-- 可获取市场 SOM（项目 1~3 年实际可拿份额，SAM 的 1%~10%）
-- 3~5 个直接竞品 + 2~3 个间接竞品，每个含：名称/定位/用户规模/融资阶段/优劣势
-- 用户调研记录（建议访谈 10+ 用户，记录痛点/付费意愿/价格敏感度）
-
-### 3.4 商业模式素材
-
-- 商业模式画布 9 要素：客户细分/价值主张/渠道通路/客户关系/收入来源/核心资源/关键业务/重要伙伴/成本结构
-- 盈利模式：抽佣/订阅/增值/广告/数据/SaaS，至少 1 类清晰
-- 定价策略：单次/月度/年度价格，对照竞品与付费意愿
-- CAC 估算 = 推广预算 / 新增用户数
-- LTV 估算 = 客单价 × 复购次数 × 毛利率
-
-### 3.5 运营现状素材
-
-- 已取得成绩：用户数、营收、合作客户、签约订单
-- 团队架构：核心成员分工、外部顾问
-- 关键里程碑：MVP 上线时间、首批用户、首笔营收、首个合作
-- 关键指标 KPI：北极星指标 + 次级指标（注册转化/留存/复购/付费率）
-- 红色之旅赛道额外采集：帮扶老区/乡村名称、带动农户数、增收数据
-
-### 3.6 财务与融资素材
-
-- 5 年营收预测（按月或季度，Year1 细 Year5 粗）
-- 5 年成本结构（固定：人员/服务器/办公；变动：获客/履约/客服）
-- 毛利率估算（行业平均 + 项目实际）
-- 盈亏平衡点（用户数/月营收达到多少时不再亏损）
-- 本轮融资需求：金额、估值、出让股权、资金用途分配
-- 5 年三表：利润表/现金流量表/资产负债表
-
-### 3.7 团队素材（每人 5 字段）
-
-姓名/学号/专业年级/职务分工/相关经历（实习/项目/获奖）。核心成员 3~8 人，总团队≤15 人。建议商科 + 技术 + 设计 + 运营复合，纯商科或纯技术团队扣分。指导教师 1~2 名，写明职称/研究方向/指导创业经历。
-
-### 3.8 个人成长素材（2025 评审 30% 维度）
-
-- 你在项目中承担的具体角色与动作
-- 你从 XX 状态变为 YY 状态（如"从不理解 CAC 到独立完成 LTV/CAC 模型"）
-- 你学到的硬技能（市场测算/财务建模/产品原型）+ 软技能（沟通/协调/抗压）
-- 你失败过的事 + 复盘收获
-- 你在团队协作中解决的冲突
-
-### 3.9 国家政策文件素材（新增）
-
-- 政策文件 10+ 篇，覆盖近 5 年
-- 每篇含：发文机关 + 文号 + 标题 + 时间 + 与项目相关的关键表述摘录
-- 必须按时间倒序排列（最新在前）
-- 必须含最高领导人讲话（如适用，如习近平总书记关于创新创业/应急救援/乡村振兴的讲话）
-- 时序跨度建议 5 年以上
-
-### 3.10 技术深度素材（新增，技术型项目必采）
-
-- 3 个科学挑战（层层递进：数据→算法→系统 / 感知→认知→决策）
-- 30+ 篇国内外研究现状文献（英文 ≥60%，含 SCI 一区/二区）
-- 算法对比表（≥3 维度，含选型结论）
-- 3 张技术路线图（研究内容关系图 + 研究方法图 + 技术路线图）
-- 数学公式（每个核心算法含公式+变量定义+编号）
-- 算法流程图（用文字描述流程）
-
-### 3.11 实践过程素材（新增）
-
-- 团队学习照片说明（≥5 张，含图号+说明文字）
-- 企业考察照片说明
-- 实物制作/试飞验证照片说明
-- 合作协议（≥3 家企业/单位，含合作内容）
-
-### 3.12 技术壁垒素材（新增）
-
-- 已申请/已授权专利（≥1 项，含专利号+名称）
-- 软件检测报告
-- 系统/实物验证截图说明
-- 知识产权清单
-
-### 3.13 社会经济效益素材（新增）
-
-- 12 项量化指标，每项含：指标名/传统模式基准/系统模式预期/提升幅度
-- 4 维度产业价值：市场规模/就业带动/税收贡献/社会效益
-- 4 维度团队协作：分工/互补/共识/危机处理
-- 3 套项目创新点：技术/模式/业态
-
-### 3.14 字段优先级与追问
-
-| 优先级 | 字段 | 缺失影响 |
-|--------|------|----------|
-| P0 必填 | project_name/track/leader_name/college/school/advisor_name | 无法生成 BP |
-| P0 必填 | one_liner/industry/target_user/pain_point | 执行摘要无法撰写 |
-| P0 必填 | executive_summary/market_analysis/business_model/financial_forecast | 核心栏目空白 |
-| P0 必填 | personal_growth | 2025 评审 30% 维度失分 |
-| P0 必填 | policy_citations/scientific_challenges/literature_review | 项目创新 30% 维度失分 |
-| P0 必填 | economic_benefits/industry_value | 产业价值 25% 维度失分 |
-| P0 必填 | team_collaboration | 团队协作 15% 维度失分 |
-| P1 强烈建议 | team_members/competitors/canvas/risks | 评审大扣分 |
-| P1 强烈建议 | algorithm_comparison/tech_roadmap/formulas | 技术深度不足 |
-| P1 强烈建议 | marketing_4p/pricing_3c/financial_statements | 商业部分不完整 |
-| P2 建议 | operations/financing/advisor_bg/practice_process/tech_barriers | 影响评分但可补 |
-| P3 可选 | ip_status/partnerships/user_research_data | 看赛道是否强调 |
-
-P0 缺失：必须追问到底，不允许"先放空"。P1 缺失：追问 2 次，无则用合理默认并告知。P2/P3 缺失：1 次追问后无则跳过。
-
----
+> 📎 **逐字段信息采集清单** 已移至 [`references/intake-checklist.md`](references/intake-checklist.md)，保持 SKILL.md 精简。
+> **何时阅读**：需要逐条向用户提问采集信息时。
+> 其余情况下不需要读取该文件。
 
 ## 四、栏目结构详解
 
@@ -715,80 +590,11 @@ P0 缺失：必须追问到底，不允许"先放空"。P1 缺失：追问 2 次
 
 ---
 
-## 十、数学公式规范（11 项必加章节之六）
+## 十、数学公式规范（11 项必加章节之六）（已外移至 references/math-formulas.md）
 
-### 10.1 规范要求
-
-**案例 case2 含 4 个核心算法**，每个含：
-1. 问题描述
-2. 算法名称（缩写，如 ASCN/Fire-Transformer/Fire-LIO-SAM）
-3. 数学公式（含变量定义）
-4. 算法流程图（用文字描述流程）
-5. 核心创新点
-
-### 10.2 数学公式规范
-
-1. 每个核心算法必须含**数学公式**（至少 1 个）
-2. 公式必须**编号**（如式(1)、式(2)）
-3. 公式后必须**解释每个变量的含义**
-4. 必须**配算法流程图**（用文字描述流程）
-5. 算法名称必须**有缩写**（如 PI-STGNN = Physics-Informed Spatio-Temporal Graph Neural Network）
-
-### 10.3 公式撰写模板
-
-```
-（1）ASCN 算法
-
-ASCN（Adaptive Spatial Clustering Network）是本项目提出的自适应空间聚类
-网络，用于多模态点云数据融合。核心公式如下：
-
-密度计算公式：
-  ρ(p) = |N(p, r)| / V(r)                              式(1)
-
-其中 N(p, r) 表示以点 p 为中心、半径为 r 的邻域内的点集，V(r) 为该邻域球
-体积，ρ(p) 为点 p 处的局部密度。
-
-动态扩张率：
-  δ = δ_min + (δ_max - δ_min) · (1 - ρ̂)               式(2)
-
-其中 ρ̂ 为归一化密度值，δ_max 和 δ_min 分别为扩张率的上下界。当密度高时
-（ρ̂ → 1），扩张率趋近 δ_min（保守扩张）；当密度低时（ρ̂ → 0），扩张率
-趋近 δ_max（积极扩张）。
-
-算法流程：
-Step 1：输入多模态点云 P = {p_1, p_2, ..., p_n}
-Step 2：对每个点 p_i，计算密度 ρ(p_i)（式 1）
-Step 3：归一化密度得 ρ̂(p_i)
-Step 4：计算动态扩张率 δ_i（式 2）
-Step 5：基于 δ_i 进行邻域扩张聚类
-Step 6：输出聚类结果 C = {C_1, C_2, ..., C_m}
-
-核心创新点：
-1. 引入动态扩张率，自适应不同密度区域；
-2. 多模态信息融合，提升聚类稳定性；
-3. 时间复杂度 O(n log n)，满足实时性要求。
-```
-
-### 10.4 通用公式池（可参考）
-
-**密度计算**：ρ(p) = |N(p, r)| / V(r)
-**动态扩张率**：δ = δ_min + (δ_max - δ_min) · (1 - ρ̂)
-**注意力机制**：Attention(Q, K, V) = softmax(QK^T / √d_k) V
-**损失函数**：L = L_task + λ · L_reg
-**梯度下降**：θ_{t+1} = θ_t - η · ∇L(θ_t)
-**卡尔曼滤波**：x̂_k = A·x̂_{k-1} + K_k·(z_k - H·A·x̂_{k-1})
-**贝叶斯估计**：P(A|B) = P(B|A)·P(A) / P(B)
-
-### 10.5 数学公式避坑
-
-- ❌ 公式无编号
-- ❌ 公式无变量定义
-- ❌ 算法无缩写名
-- ❌ 无算法流程描述
-- ❌ 无核心创新点
-- ✅ 公式编号 + 变量定义 + 算法缩写 + 流程描述 + 创新点 5 要素齐全
-
----
+> 📎 **数学公式书写与排版规范** 已移至 [`references/math-formulas.md`](references/math-formulas.md)，保持 SKILL.md 精简。
+> **何时阅读**：正文含公式、需要按规范排版时。
+> 其余情况下不需要读取该文件。
 
 ## 十一、社会经济效益量化（11 项必加章节之七）
 
@@ -1431,429 +1237,11 @@ build.py 根据 `data.competition_level` 字段自动选择字数档：
 
 ---
 
-## 十六、JSON Schema
+## 十六、JSON Schema（已外移至 references/json-schema.md）
 
-### 16.1 顶层字段（45 字段）
-
-```json
-{
-  // 通用必采（12 字段）
-  "project_name": "string",
-  "track": "main|red_journey|vocational",
-  "group": "string",
-  "team_name": "string",
-  "leader_name": "string",
-  "leader_id": "string",
-  "leader_major": "string",
-  "leader_grade": "string",
-  "leader_phone": "string",
-  "college": "string",
-  "school": "string",
-  "apply_date": "string",
-  "advisor_name": "string",
-  "advisor_title": "string",
-  "advisor_research": "string",
-
-  // 赛级与字数档
-  "competition_level": "school|province|national",
-
-  // 项目核心（10 字段）
-  "one_liner": "string",
-  "industry": "string",
-  "target_user": "string",
-  "pain_point": "string",
-  "stage": "string",
-  "registered": "string",
-  "revenue": "string",
-  "users": "string",
-  "ip_status": "string",
-  "partnerships": "string",
-
-  // 11 大栏目
-  "executive_summary": "string",
-  "market_analysis": "object",
-  "product_service": "object",
-  "business_model": "object",
-  "operations": "object",
-  "financial_forecast": "object",
-  "financing_plan": "object",
-  "team_intro": "object",
-  "risk_analysis": "array",
-  "personal_growth": "object",
-  "team_collaboration": "object",
-
-  // 11 项案例化必加章节（新增）
-  "policy_citations": "array",
-  "scientific_challenges": "array",
-  "literature_review": "object",
-  "algorithm_comparison": "object",
-  "tech_roadmap": "array",
-  "formulas": "array",
-  "economic_benefits": "array",
-  "project_innovation": "object",
-  "industry_value": "object",
-  "marketing_4p": "object",
-  "pricing_3c": "object",
-  "financial_statements": "object",
-  "practice_process": "object",
-  "tech_barriers": "object"
-}
-```
-
-### 16.2 policy_citations（国家政策引用，10+）
-
-```json
-"policy_citations": [
-  {
-    "order": 1,
-    "date": "2026.03",
-    "issuer": "国务院办公厅",
-    "doc_number": "国办发〔2026〕XX 号",
-    "title": "关于加强基层消防工作的意见",
-    "key_excerpt": "推动智能化装备研发与实战化应用",
-    "relevance": "本项目研发的 XX 系统正是响应该号召，通过 XX 技术实现 XX"
-  }
-]
-```
-
-### 16.3 scientific_challenges（科学挑战，3 段）
-
-```json
-"scientific_challenges": [
-  {
-    "id": 1,
-    "title": "多模态数据时空融合与三维火场实时重构计算",
-    "description": "火场环境具有高温、浓烟、强遮挡、动态变化等极端特性...",
-    "sub_challenges": [
-      {
-        "title": "多模态数据时空配准",
-        "detail": "不同传感器采样频率、坐标系、视场角差异大...",
-        "literature_refs": [1, 2, 3]
-      },
-      {
-        "title": "实时三维重构算法",
-        "detail": "传统 SLAM 算法在动态火场中漂移严重...",
-        "literature_refs": [4, 5, 6]
-      }
-    ]
-  }
-]
-```
-
-### 16.4 literature_review（文献综述，30+）
-
-```json
-"literature_review": {
-  "research_significance": [
-    {
-      "direction": "多模态感知技术对火场信息获取的意义",
-      "content": "多模态感知技术通过融合...",
-      "literature_refs": [1, 2, 3]
-    }
-  ],
-  "research_status": [
-    {
-      "direction": "多模态感知研究现状",
-      "content": "国内外学者在多模态感知领域开展了大量研究...",
-      "literature_refs": [1, 2, 3, 4, 5]
-    }
-  ],
-  "gap_analysis": "现有研究存在以下不足：1. ... 2. ... 3. ...",
-  "references": [
-    {
-      "id": 1,
-      "authors": "Wang Y, Zhang X, Li H",
-      "title": "Multi-modal sensor fusion for fire detection using deep learning",
-      "journal": "IEEE Transactions on Geoscience and Remote Sensing",
-      "year": 2024,
-      "volume": "62",
-      "issue": "3",
-      "pages": "1-15",
-      "type": "journal",
-      "language": "en"
-    }
-  ]
-}
-```
-
-### 16.5 algorithm_comparison（算法对比表）
-
-```json
-"algorithm_comparison": {
-  "title": "主流自适应路径规划算法对比表",
-  "headers": ["维度", "DQN 算法", "DDPG 算法", "SAC 算法"],
-  "rows": [
-    {"dimension": "技术特点", "values": ["基于值函数", "基于 Actor-Critic", "基于最大熵"]},
-    {"dimension": "优势", "values": ["离散动作空间稳定", "连续动作空间", "探索与利用平衡"]},
-    {"dimension": "劣势", "values": ["连续动作失效", "探索能力弱", "计算复杂度高"]},
-    {"dimension": "适用场景", "values": ["离散决策", "路径跟踪", "复杂动态环境"]},
-    {"dimension": "计算效率", "values": ["中", "高", "低"]},
-    {"dimension": "文献来源", "values": ["[15]", "[16]", "[17]"]}
-  ],
-  "conclusion": "基于上表对比分析，本项目选用 SAC 算法，理由如下：1. ... 2. ... 3. ... 4. ..."
-}
-```
-
-### 16.6 tech_roadmap（技术路线图，3 张）
-
-```json
-"tech_roadmap": [
-  {
-    "figure_number": "图 1",
-    "title": "项目开展的主要研究内容及其相互关系",
-    "description": "本项目研究内容分为 4 大模块：模块 1（多模态感知）→ 模块 2（三维重构）→ 模块 3（目标检测）→ 模块 4（路径规划）",
-    "nodes": [
-      {"id": 1, "name": "多模态感知", "content": "数据采集与融合", "section": "§3.1", "input": "多源传感数据", "output": "融合特征"},
-      {"id": 2, "name": "三维重构", "content": "火场三维建模", "section": "§3.2", "input": "融合特征", "output": "三维点云"}
-    ]
-  }
-]
-```
-
-### 16.7 formulas（数学公式）
-
-```json
-"formulas": [
-  {
-    "algorithm_name": "ASCN",
-    "algorithm_full_name": "Adaptive Spatial Clustering Network",
-    "description": "ASCN 算法用于多模态点云数据融合",
-    "formulas": [
-      {
-        "number": "式(1)",
-        "name": "密度计算公式",
-        "expression": "ρ(p) = |N(p, r)| / V(r)",
-        "variables": [
-          {"symbol": "N(p, r)", "meaning": "以点 p 为中心、半径为 r 的邻域内的点集"},
-          {"symbol": "V(r)", "meaning": "邻域球体积"},
-          {"symbol": "ρ(p)", "meaning": "点 p 处的局部密度"}
-        ]
-      }
-    ],
-    "flow_steps": ["Step 1：输入多模态点云 P", "Step 2：计算密度 ρ(p_i)", "Step 3：归一化密度"],
-    "innovations": ["引入动态扩张率", "多模态信息融合", "时间复杂度 O(n log n)"]
-  }
-]
-```
-
-### 16.8 economic_benefits（社会经济效益量化，12 项）
-
-```json
-"economic_benefits": [
-  {
-    "indicator": "单次城市火灾平均经济损失",
-    "traditional_baseline": "100%（基准）",
-    "system_expected": "60%-80%",
-    "improvement": "降低 20%-40%",
-    "improvement_multiplier": "1.25-1.67 倍"
-  }
-]
-```
-
-### 16.9 personal_growth（个人成长 3 段）
-
-```json
-"personal_growth": {
-  "learning_growth": "作为 [项目角色]，我在本项目中承担 [具体动作]...",
-  "practice_experience": "项目过程中，我参与了 [实践活动]...",
-  "reflection_breakthrough": "项目过程中最深刻的反思来自 [失败案例]...",
-  "role": "（旧字段保留，与新字段互补）",
-  "transformation": "从 X 变为 Y 的具体变化",
-  "hard_skills": "硬技能：市场测算/财务建模/产品原型",
-  "soft_skills": "软技能：沟通/协调/抗压",
-  "failure": "至少 1 个具体失败案例 + 复盘收获"
-}
-```
-
-### 16.10 project_innovation（项目创新 3 套）
-
-```json
-"project_innovation": {
-  "tech_innovation": {
-    "name": "Fire-Transformer 算法",
-    "description": "本项目提出 Fire-Transformer 算法，相较现有 Transformer...",
-    "quantitative_improvement": "在准确率上提升 15%，延迟降低 40%",
-    "patent_refs": ["专利号 1"]
-  },
-  "model_innovation": {
-    "name": "校园认证 + 信用积分双轨模式",
-    "description": "本项目创新性提出...",
-    "quantitative_improvement": "CAC 降低 30%，转化率提升 25%"
-  },
-  "business_innovation": {
-    "name": "无人机 + 应急救援新业态",
-    "description": "本项目开创...",
-    "quantitative_improvement": "3 年内为行业节约 10 亿元"
-  }
-}
-```
-
-### 16.11 industry_value（产业价值 4 维度）
-
-```json
-"industry_value": {
-  "market_scale": {
-    "tam": "250 亿元/年",
-    "sam": "6.4 亿元/年",
-    "som": "1272 万元/年",
-    "data_source": "艾瑞咨询《2024 中国二手电商报告》",
-    "share_in_3_years": "SOM × 30% = 380 万元/年"
-  },
-  "employment_driving": {
-    "direct_employment": "团队 5 人 + 公司员工 10 人 = 15 人",
-    "indirect_employment": "上游供应商 5 人 + 下游客户 8 人 + 配套服务 7 人 = 20 人",
-    "total_in_3_years": "3 年内带动就业 35 人"
-  },
-  "tax_contribution": {
-    "year1": "0 万元（亏损）",
-    "year3": "9 万元（所得税）",
-    "year5": "55.5 万元（所得税）",
-    "cumulative_5_years": "约 92.7 万元"
-  },
-  "social_benefit": {
-    "description": "本项目通过 XX 技术实现 XX 功能，在 12 项核心指标上实现显著提升...",
-    "indicator_count": 12,
-    "key_metrics": ["响应时间缩短 50%-70%", "识别召回率提升 ≥22 个百分点"]
-  }
-}
-```
-
-### 16.12 team_collaboration（团队协作 4 维度）
-
-```json
-"team_collaboration": {
-  "division": "CEO 张三负责战略+融资；CTO 王五负责技术+架构...",
-  "complementarity": "团队 5 人覆盖工商管理+计算机+软件工程+市场营销+视觉传达 5 专业",
-  "consensus": "团队愿景：成为校园闲置流转第一品牌。价值观：用户第一、数据驱动、快速迭代",
-  "crisis_handling": "曾就'先扩张 10 校 vs 深耕 5 校'产生分歧，通过用户调研数据 + 投票机制解决",
-  "tools": "（旧字段保留）飞书+Notion+Figma+周会+日站会"
-}
-```
-
-### 16.13 marketing_4p（4P 营销）
-
-```json
-"marketing_4p": {
-  "product": "产品定位：校园闲置流转第一品牌。产品组合：核心小程序 + 拓展 PC 端 + 衍生同城服务",
-  "price": "定价方法：竞品对标 + 用户价值。价格体系：基础免费 + 增值会员 9.9/月 + 企业版 99/月",
-  "place": "渠道：微信小程序 + 校园社团 + 社群裂变。覆盖：本市 5 所高校 → 本省 50 所 → 全国",
-  "promotion": "推广：地推 + KOL + 内容营销。预算 30 万，预期 ROI 1:5"
-}
-```
-
-### 16.14 pricing_3c（3C 定价）
-
-```json
-"pricing_3c": {
-  "cost": "变动成本 30 元/件 + 固定成本分摊 10 元/件 = 40 元/件，加成率 50% → 单价 60 元",
-  "competitor": "竞品 A 100 元（高端），竞品 B 60 元（中端），竞品 C 30 元（低端），本项目 50 元（中端偏下）",
-  "customer": "50 份调研：35% 接受 5 元/月，68% 接受 9.9 元/月，22% 接受 19.9 元/月，定价 9.9 元/月"
-}
-```
-
-### 16.15 financial_statements（5 年三表）
-
-```json
-"financial_statements": {
-  "income_statement": {
-    "title": "5 年利润表（单位：万元）",
-    "headers": ["项目", "Year1", "Year2", "Year3", "Year4", "Year5"],
-    "rows": [
-      {"item": "营业收入", "y1": "12", "y2": "60", "y3": "200", "y4": "500", "y5": "1000"},
-      {"item": "净利润", "y1": "-3", "y2": "6.8", "y3": "51", "y4": "153", "y5": "314.5"}
-    ]
-  },
-  "cash_flow_statement": {
-    "title": "5 年现金流量表（单位：万元）",
-    "headers": ["项目", "Year1", "Year2", "Year3", "Year4", "Year5"],
-    "rows": [
-      {"item": "经营活动现金流", "y1": "-2", "y2": "8", "y3": "60", "y4": "180", "y5": "370"}
-    ]
-  },
-  "balance_sheet": {
-    "title": "5 年资产负债表（单位：万元）",
-    "headers": ["项目", "Year1", "Year2", "Year3", "Year4", "Year5"],
-    "rows": [
-      {"item": "资产总计", "y1": "50", "y2": "57", "y3": "118", "y4": "395", "y5": "765"},
-      {"item": "负债合计", "y1": "5", "y2": "8", "y3": "25", "y4": "130", "y5": "230"},
-      {"item": "所有者权益", "y1": "45", "y2": "49", "y3": "93", "y4": "265", "y5": "535"}
-    ]
-  },
-  "solvency_ratios": {
-    "title": "偿债能力指标",
-    "headers": ["指标", "Year1", "Year2", "Year3", "Year4", "Year5"],
-    "rows": [
-      {"item": "流动比率", "y1": "8.0", "y2": "5.6", "y3": "4.0", "y4": "4.6", "y5": "4.8"},
-      {"item": "资产负债率", "y1": "10%", "y2": "14%", "y3": "21%", "y4": "33%", "y5": "30%"}
-    ]
-  },
-  "npv": {
-    "discount_rate": "10%",
-    "calculation": "NPV = -50 + 38/1.1 + 41/1.21 + ... = 772.4 万元",
-    "conclusion": "NPV > 0，项目可行"
-  }
-}
-```
-
-### 16.16 practice_process（实践过程）
-
-```json
-"practice_process": {
-  "activities": [
-    {
-      "figure_number": "图 31",
-      "title": "项目成员组织专业性学习",
-      "description": "2024 年 9 月，项目团队在指导教师闫教授带领下，组织为期 2 周的专业性学习...",
-      "activity_type": "team_learning"
-    }
-  ],
-  "cooperation_agreements": [
-    {
-      "partner": "河南工业大学安保科",
-      "type": "学校内部",
-      "content": "校园火灾防卫安全巡逻协议"
-    }
-  ]
-}
-```
-
-### 16.17 tech_barriers（技术壁垒）
-
-```json
-"tech_barriers": {
-  "patents": [
-    {
-      "name": "一种消防无人机用转动压紧夹持式可旋转水枪装置",
-      "application_number": "CN2024XXXXXXXXXX.X",
-      "application_date": "2024 年 X 月 X 日",
-      "abstract": "...",
-      "relation_to_project": "本专利解决 [技术问题]，是本项目 [核心模块] 的关键技术"
-    }
-  ],
-  "inspection_reports": [
-    {
-      "institution": "[检测机构名称]",
-      "date": "2024 年 X 月 X 日",
-      "report_number": "[编号]",
-      "key_metrics": ["指标 1", "指标 2", "指标 3"]
-    }
-  ],
-  "system_verifications": [
-    {
-      "scenario": "[验证场景]",
-      "date": "2024 年 X 月 X 日",
-      "results": ["结果 1", "结果 2"],
-      "screenshot_description": "[图号 + 说明]"
-    }
-  ]
-}
-```
-
-### 16.18 完整 JSON 示例
-
-完整 JSON 示例见 build.py 中 DEFAULT_DATA。
-
----
+> 📎 **完整 JSON Schema 定义** 已移至 [`references/json-schema.md`](references/json-schema.md)，保持 SKILL.md 精简。
+> **何时阅读**：构造 --data 输入文件、或 build.py 报字段校验错误时。
+> 其余情况下不需要读取该文件。
 
 ## 十七、build.py 接口
 
@@ -1887,6 +1275,96 @@ build.py 根据 `data.competition_level` 字段自动选择字数档：
 
 ---
 
+<!-- WRITING-STYLE:START -->
+## 写作风格硬约束（去 AI 味 · 强制）
+
+> 完整规范见 [`docs/design/WRITING_STYLE.md`](../../docs/design/WRITING_STYLE.md)。
+> 本节是压缩版，**撰写正文前必读，交付前必须过检测**。
+
+### 一条总原则
+
+**每个句子都必须能落到具体的人、事、时间、数字或对象上；落不到的句子，删掉。**
+自检方法：读完一句问「这句能换成别人吗？」——能换，就是套话。
+
+### 六条硬约束（及格线 75/100）
+
+| # | 约束 | 量化判据 |
+|---|---|---|
+| 1 | 不写空话套话 | 每千字命中套话 ≤3 次 |
+| 2 | 不用排比对仗 | 同构句连续 ≤2 句 |
+| 3 | 不堆抽象大词 | 每千字抽象词 ≤4 次 |
+| 4 | 必须具体 | 每千字数字/专名 ≥8 处 |
+| 5 | 句长要参差 | 句长变异系数 ≥0.35 |
+| 6 | 不用模板开头 | 禁止「时光荏苒」「本人自入学以来」 |
+
+### 高频禁用词（出现即改）
+
+具有重要意义、具有重大意义、意义重大、影响深远、作用显著、效果显著、成效显著、
+成绩斐然、成果丰硕、高度重视、切实增强、切实提升、不断提升、持续提升、
+进一步加强、进一步完善、进一步深化、不断深化、深入推进、全面推进、扎实开展、
+稳步推进、着力打造、全力推动、取得显著成效、获得一致好评、受到广泛好评、
+得到充分肯定、获得高度评价、与此同时、在此基础上、综上所述、总而言之、
+值得一提的是、不难看出、由此可见、众所周知、不懈努力、刻苦钻研、勤奋刻苦、
+锐意进取、开拓创新、勇于探索、敢于突破、迈上新台阶、开创新局面、谱写新篇章、
+踏上新征程、展现新作为、彰显新担当、焕发新气象、贡献青春力量、绽放青春光彩、
+书写青春华章、以青春之我、坚定理想信念、厚植家国情怀、锤炼过硬本领、砥砺意志品质、
+综合素质突出、全面发展、品学兼优、德智体美劳、起到了模范带头作用、
+发挥了示范引领作用、树立了良好榜样、得到了师生的一致认可、深受老师和同学的好评、
+为集体作出了积极贡献、为团队贡献了自己的力量、奠定了坚实的基础、
+打下了坚实的基础、提供了有力支撑、注入了强劲动力、开辟了新的途径、探索了新的模式
+
+抽象大词（无具体指涉时禁用）：格局、境界、高度、深度、广度、维度、层面、体系、
+机制、路径、抓手、载体、平台、生态、闭环、赋能、助力、引领、驱动、融合、协同、
+联动、统筹、底层逻辑、顶层设计、系统性思维、全局视野、战略高度、核心素养、
+综合能力、内生动力、长效机制
+
+### 替换动作（照做即可）
+
+| 原写法 | 改写成 |
+|---|---|
+| 学习成绩优异，名列前茅 | 专业 3/127，加权 91.4，`<课程名>` 98 分 |
+| 积极参加学科竞赛 | 2024 年 11 月 `<赛事全名>` 省赛二等奖，作品 `<名称>`，我负责 `<模块>` |
+| 在导师指导下参与科研 | 参与 `<导师>` 的 `<课题名>`，负责 `<具体工作>`，产出 `<论文/专利/数据>` |
+| 具有较强的团队协作能力 | 删掉。改为：`<时间>` 带 `<人数>` 人完成 `<任务>`，遇到 `<冲突>`，怎么解决 |
+| 思想上积极向党组织靠拢 | `<年/月>` 提交入党申请书，`<年/月>` 成为积极分子，参加 `<次数>` 次党课 |
+| 热心公益，积极参加志愿服务 | `<机构>` 志愿服务 `<小时>` 小时，服务 `<对象>` `<人数>` 人 |
+
+### 句式要求
+
+1. **长短句交替**：每 3~5 句里至少有一句 ≤12 字或 ≥60 字。
+2. **一段一个事实**：段首句不要用「在……方面」。
+3. **少用第一人称抒情**：「我深深感到」「我深刻认识到」一律删除。
+4. **数字优先**：能用数字就不用形容词。「多次」→「7 次」，「大量」→「4200 张」。
+5. 不用破折号堆叠解释，不连续套用「不仅……而且……」。
+
+### 交付前强制质检（任一项不过 → 不允许交付）
+
+```bash
+# 1) AI 味检测（及格线 75）
+python3 utils/ai_flavor_check.py --file draft.txt --min-score 75
+
+# 2) 查重预检（阈值 30%）
+python3 utils/plagiarism_checker.py --file draft.txt --skill <skill_name>
+
+# 3) 评审模拟（含文风维度）
+python3 utils/review_simulator.py --skill <skill_name> --file draft.txt
+```
+
+### 冲突处理
+
+政策条文、领导讲话、文件原名**允许庄重书面语**，不算套话。
+检测时加 `--allow-policy-quotes`（该维度扣分减半）。
+但引用必须写成 `《文件全名》（发文号）`，且只引与论点直接相关的 1~2 句。
+
+### 反模式
+
+- ❌ 把子 skill 里的「金句模板」当范文直接套用
+- ❌ 用排比段凑字数
+- ❌ 通篇无一个数字、无一个专有名词
+- ❌ 检测得分 <75 仍交付
+- ❌ 只删套话不补事实（删完变空段落，同样不及格）
+
+<!-- WRITING-STYLE:END -->
 ## 十八、质检清单
 
 提交前逐项检查（30 项）：
@@ -2132,90 +1610,9 @@ A：跨学科项目的政策引用、文献综述、科学挑战需覆盖 2 个�
 
 ---
 
-## 二十二、附录
+## 二十二、附录（已外移至 references/appendix.md）
 
-### 22.1 案例参考
+> 📎 **附录与 FAQ** 已移至 [`references/appendix.md`](references/appendix.md)，保持 SKILL.md 精简。
+> **何时阅读**：遇到正文未覆盖的边界问题、或查常见疑问时。
+> 其余情况下不需要读取该文件。
 
-- 案例 1：项目申报案例参考1.pdf（科研立项，28 页）
-- 案例 2：附件3：校级创业项目申报表(姚奕晗).pdf（创业训练，79 页，本 skill 主要参考）
-
-### 22.2 通用政策池（10 篇，可跨项目复用）
-
-见第五章 §5.4。
-
-### 22.3 通用算法对比表模板
-
-见第八章 §8.4。
-
-### 22.4 通用公式池
-
-见第十章 §10.4。
-
-### 22.5 12 项社会效益指标池
-
-见第十一章 §11.3。
-
-### 22.6 字段优先级速查
-
-见第三章 §3.14。
-
-### 22.7 4 维度评审对应表
-
-见第十二章 §12.5。
-
-### 22.8 3 档字数版本对比
-
-见第十五章。
-
-### 22.9 30 项质检清单
-
-见第十八章。
-
-### 22.10 build.py 字段映射表
-
-| build.py 字段 | SKILL.md 章节 | JSON Schema |
-|---------------|---------------|-------------|
-| project_name | §4.1 封面 | §16.1 顶层 |
-| executive_summary | §4.2 执行摘要 | §16.1 顶层 |
-| market_analysis | §4.3 市场分析 | §16.1 顶层 |
-| product_service | §4.4 产品介绍 | §16.1 顶层 |
-| business_model | §4.5 商业模式 | §16.1 顶层 |
-| operations | §4.6 运营现状 | §16.1 顶层 |
-| financial_forecast | §4.7 财务预测 | §16.1 顶层 |
-| financing_plan | §4.8 融资计划 | §16.1 顶层 |
-| team_intro | §4.9 团队介绍 | §16.1 顶层 |
-| risk_analysis | §4.10 风险分析 | §16.1 顶层 |
-| personal_growth | §4.11+§12.1 | §16.9 |
-| team_collaboration | §12.4 | §16.12 |
-| policy_citations | §5 | §16.2 |
-| scientific_challenges | §6 | §16.3 |
-| literature_review | §7 | §16.4 |
-| algorithm_comparison | §8 | §16.5 |
-| tech_roadmap | §9 | §16.6 |
-| formulas | §10 | §16.7 |
-| economic_benefits | §11 | §16.8 |
-| project_innovation | §12.2 | §16.10 |
-| industry_value | §12.3 | §16.11 |
-| marketing_4p | §13.1 | §16.13 |
-| pricing_3c | §13.2 | §16.14 |
-| financial_statements | §13.4 | §16.15 |
-| practice_process | §14.1 | §16.16 |
-| tech_barriers | §14.2 | §16.17 |
-
-### 22.11 版本历史
-
-- v2.1.0（2025-07-25）：基于案例 case2 优化，新增 11 项案例化必加章节（国家政策/科学挑战/文献综述/算法对比/技术路线图/数学公式/社会效益量化/4 维度评审/完整商业部分/实践过程+技术壁垒/JSON Schema+build.py+3 档字数+质检清单），SKILL.md ≥2200 行，build.py ≥1500 行
-- v2.0.0（2025-06）：新增 4 维度评审（个人成长 30% + 项目创新 30% + 产业价值 25% + 团队协作 15%）
-- v1.x（2024-2025）：初版，11 栏目结构
-
-### 22.12 鸣谢
-
-本 skill v2.1 基于以下真实案例分析优化：
-- 案例 1：项目申报案例参考1.pdf（科研立项）
-- 案例 2：附件3：校级创业项目申报表(姚奕晗).pdf（创业训练）
-
-感谢案例提供者授权使用案例分析。本 skill 不复制案例原文，仅借鉴结构、规范、方法论。
-
----
-
-**本 skill v2.1 完成**。SKILL.md ≥2200 行，build.py ≥1500 行，含 11 项案例化必加章节，适配 2025 互联网+ 4 维度评审。执行流程：触发 → 赛道确认 → 竞级确认 → 信息采集 → 撰写 11 大栏目 + 11 项案例化章节 → 调 build.py 生成 docx → 30 项质检 → 提交。

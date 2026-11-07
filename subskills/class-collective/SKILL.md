@@ -44,6 +44,11 @@ metadata:
 
 ---
 
+<!-- REFERENCES-INDEX -->
+> 📚 **按需加载的参考资料**（渐进式披露，不需要时不要读）：
+> - [`references/defense-ppt.md`](references/defense-ppt.md) — §9 集体答辩 PPT 框架（必加章节 9）
+> - [`references/json-schema.md`](references/json-schema.md) — §6 信息采集清单与 JSON Schema（必加章节 6）
+
 ## §0 适用场景与定位
 
 ### 0.1 适用范围
@@ -432,349 +437,108 @@ metadata:
 
 ---
 
-## §6 信息采集清单与 JSON Schema（必加章节 6）
+## §6 信息采集清单与 JSON Schema（必加章节 6）（已外移至 references/json-schema.md）
 
-### 6.1 信息采集清单（21 项必填 + 8 项选填）
+> 📎 **完整 JSON Schema 定义** 已移至 [`references/json-schema.md`](references/json-schema.md)，保持 SKILL.md 精简。
+> **何时阅读**：构造 --data 输入文件、或 build.py 报字段校验错误时。
+> 其余情况下不需要读取该文件。
 
-#### 6.1.1 班级基本信息（5 项必填）
+## §7 build.py 接口说明（必加章节 7）（已外移至 references/build-usage.md）
 
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| class_name | 班级全称 | "计算机科学与技术 2023 级 1 班" |
-| college | 学院全称 | "计算机学院" |
-| major | 专业全称 | "计算机科学与技术" |
-| class_size | 班级总人数 | 38 |
-| collective_type | 申报类别 | advanced_class / good_study_class / may_fourth_flag / civilized_class |
+> 📎 **build.py 接口说明** 已移至 [`references/build-usage.md`](references/build-usage.md)，保持 SKILL.md 精简。
+> **何时阅读**：需要调用 build.py 或了解接口参数时。
+> 其余情况下不需要读取该文件。
 
-#### 6.1.2 人员构成（4 项必填）
+<!-- WRITING-STYLE:START -->
+## 写作风格硬约束（去 AI 味 · 强制）
 
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| male_count | 男生人数 | 26 |
-| female_count | 女生人数 | 12 |
-| member_count | 团员人数 | 36 |
-| party_member_count | 党员（含预备）人数 | 4 |
+> 完整规范见 [`docs/design/WRITING_STYLE.md`](../../docs/design/WRITING_STYLE.md)。
+> 本节是压缩版，**撰写正文前必读，交付前必须过检测**。
 
-#### 6.1.3 班委建制（2 项必填）
+### 一条总原则
 
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| class_committee | 班委列表（职务 + 姓名 + 任期） | [{"post":"班长","name":"张三","term":"2024.09-2025.06"},...] |
-| head_teacher | 班主任 / 辅导员信息 | {"name":"李老师","title":"副教授","unit":"计算机学院软件工程系"} |
+**每个句子都必须能落到具体的人、事、时间、数字或对象上；落不到的句子，删掉。**
+自检方法：读完一句问「这句能换成别人吗？」——能换，就是套话。
 
-#### 6.1.4 5 维度量化数据（5 项必填）
+### 六条硬约束（及格线 75/100）
 
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| ideology_score | 思想建设得分（含 5 子项） | {"party_ratio":5,"member_ratio":3,"youth_study":4,"theme_meeting":4,"ideology_grade":4,"total":18,"max":20} |
-| study_score | 学习建设得分（含 5 子项） | {"gpa":6,"top10":5,"pass_rate":4,"competition":4,"cet":3,"total":22,"max":25} |
-| activity_score | 活动建设得分（含 5 子项） | {"collective_activity":4,"school_participation":3,"volunteer":3,"culture_award":4,"social_practice":3,"total":17,"max":20} |
-| discipline_score | 纪律建设得分（含 5 子项） | {"attendance":5,"late":3,"violation":5,"cheating":4,"network":2,"total":18,"max":20} |
-| hygiene_score | 卫生建设得分（含 4 子项） | {"excellent_rate":5,"civilized_dormitory":3,"pass_rate":3,"safety":2,"total":13,"max":15} |
+| # | 约束 | 量化判据 |
+|---|---|---|
+| 1 | 不写空话套话 | 每千字命中套话 ≤3 次 |
+| 2 | 不用排比对仗 | 同构句连续 ≤2 句 |
+| 3 | 不堆抽象大词 | 每千字抽象词 ≤4 次 |
+| 4 | 必须具体 | 每千字数字/专名 ≥8 处 |
+| 5 | 句长要参差 | 句长变异系数 ≥0.35 |
+| 6 | 不用模板开头 | 禁止「时光荏苒」「本人自入学以来」 |
 
-#### 6.1.5 班级核心数据（5 项必填）
+### 高频禁用词（出现即改）
 
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| avg_gpa | 班级平均学分绩点 | 3.42 |
-| pass_rate | 课程及格率（百分比） | 98.5 |
-| competition_awards | 学科竞赛获奖（按级别） | {"national":3,"provincial":5,"school":12} |
-| cet4_pass_rate | 英语四级通过率 | 88.5 |
-| cet6_pass_rate | 英语六级通过率 | 65.8 |
+具有重要意义、具有重大意义、意义重大、影响深远、作用显著、效果显著、成效显著、
+成绩斐然、成果丰硕、高度重视、切实增强、切实提升、不断提升、持续提升、
+进一步加强、进一步完善、进一步深化、不断深化、深入推进、全面推进、扎实开展、
+稳步推进、着力打造、全力推动、取得显著成效、获得一致好评、受到广泛好评、
+得到充分肯定、获得高度评价、与此同时、在此基础上、综上所述、总而言之、
+值得一提的是、不难看出、由此可见、众所周知、不懈努力、刻苦钻研、勤奋刻苦、
+锐意进取、开拓创新、勇于探索、敢于突破、迈上新台阶、开创新局面、谱写新篇章、
+踏上新征程、展现新作为、彰显新担当、焕发新气象、贡献青春力量、绽放青春光彩、
+书写青春华章、以青春之我、坚定理想信念、厚植家国情怀、锤炼过硬本领、砥砺意志品质、
+综合素质突出、全面发展、品学兼优、德智体美劳、起到了模范带头作用、
+发挥了示范引领作用、树立了良好榜样、得到了师生的一致认可、深受老师和同学的好评、
+为集体作出了积极贡献、为团队贡献了自己的力量、奠定了坚实的基础、
+打下了坚实的基础、提供了有力支撑、注入了强劲动力、开辟了新的途径、探索了新的模式
 
-#### 6.1.6 6 段正文（6 项必填）
+抽象大词（无具体指涉时禁用）：格局、境界、高度、深度、广度、维度、层面、体系、
+机制、路径、抓手、载体、平台、生态、闭环、赋能、助力、引领、驱动、融合、协同、
+联动、统筹、底层逻辑、顶层设计、系统性思维、全局视野、战略高度、核心素养、
+综合能力、内生动力、长效机制
 
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| overview_text | §1 班级概况正文 | （300~500 字） |
-| ideology_text | §2 思想建设正文 | （500~900 字） |
-| study_text | §3 学风建设正文 | （600~1000 字） |
-| activity_text | §4 班级活动正文 | （500~900 字） |
-| honor_text | §5 班级荣誉正文 | （300~500 字） |
-| outlook_text | §6 工作展望正文 | （300~500 字） |
+### 替换动作（照做即可）
 
-#### 6.1.7 班级荣誉（选填 3 项）
+| 原写法 | 改写成 |
+|---|---|
+| 学习成绩优异，名列前茅 | 专业 3/127，加权 91.4，`<课程名>` 98 分 |
+| 积极参加学科竞赛 | 2024 年 11 月 `<赛事全名>` 省赛二等奖，作品 `<名称>`，我负责 `<模块>` |
+| 在导师指导下参与科研 | 参与 `<导师>` 的 `<课题名>`，负责 `<具体工作>`，产出 `<论文/专利/数据>` |
+| 具有较强的团队协作能力 | 删掉。改为：`<时间>` 带 `<人数>` 人完成 `<任务>`，遇到 `<冲突>`，怎么解决 |
+| 思想上积极向党组织靠拢 | `<年/月>` 提交入党申请书，`<年/月>` 成为积极分子，参加 `<次数>` 次党课 |
+| 热心公益，积极参加志愿服务 | `<机构>` 志愿服务 `<小时>` 小时，服务 `<对象>` `<人数>` 人 |
 
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| collective_honors | 集体荣誉清单 | [{"year":"2024","name":"校级先进班集体","level":"校级"}] |
-| personal_honors_summary | 个人荣誉汇总 | {"national":3,"provincial":5,"school":18,"total_count":26} |
-| signature_dates | 签字日期 | {"class_monitor":"2025-05-20","head_teacher":"2025-05-21","college":"2025-05-22"} |
+### 句式要求
 
-#### 6.1.8 字数版本与格式（选填 5 项）
+1. **长短句交替**：每 3~5 句里至少有一句 ≤12 字或 ≥60 字。
+2. **一段一个事实**：段首句不要用「在……方面」。
+3. **少用第一人称抒情**：「我深深感到」「我深刻认识到」一律删除。
+4. **数字优先**：能用数字就不用形容词。「多次」→「7 次」，「大量」→「4200 张」。
+5. 不用破折号堆叠解释，不连续套用「不仅……而且……」。
 
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| word_count_version | 字数版本 | 3000 / 4000 / 5000（默认 4000） |
-| class_slogan | 班级口号 / 班训 | "团结奋进，求实创新" |
-| target_honor | 申报目标荣誉全称 | "2024-2025 学年校级先进班集体" |
-| submit_date | 申报日期 | "2025-05-20" |
-| defense_needed | 是否需答辩 | true / false |
-
-### 6.2 JSON Schema 完整定义
-
-```json
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "ClassCollectiveApplication",
-  "description": "班集体申报书数据模型（先进班集体 / 优良学风班 / 五四红旗团支部 / 文明班级）",
-  "type": "object",
-  "required": [
-    "class_name", "college", "major", "class_size", "collective_type",
-    "male_count", "female_count", "member_count", "party_member_count",
-    "class_committee", "head_teacher",
-    "ideology_score", "study_score", "activity_score", "discipline_score", "hygiene_score",
-    "avg_gpa", "pass_rate", "competition_awards", "cet4_pass_rate", "cet6_pass_rate",
-    "overview_text", "ideology_text", "study_text", "activity_text", "honor_text", "outlook_text"
-  ],
-  "properties": {
-    "class_name": {"type": "string", "minLength": 4, "maxLength": 50, "description": "班级全称"},
-    "college": {"type": "string", "minLength": 2, "maxLength": 30, "description": "学院全称"},
-    "major": {"type": "string", "minLength": 2, "maxLength": 30, "description": "专业全称"},
-    "class_size": {"type": "integer", "minimum": 10, "maximum": 100, "description": "班级总人数"},
-    "collective_type": {
-      "type": "string",
-      "enum": ["advanced_class", "good_study_class", "may_fourth_flag", "civilized_class"],
-      "description": "申报类别"
-    },
-    "male_count": {"type": "integer", "minimum": 0, "maximum": 100},
-    "female_count": {"type": "integer", "minimum": 0, "maximum": 100},
-    "member_count": {"type": "integer", "minimum": 0, "maximum": 100, "description": "团员人数"},
-    "party_member_count": {"type": "integer", "minimum": 0, "maximum": 100, "description": "党员（含预备）人数"},
-    "class_committee": {
-      "type": "array",
-      "minItems": 5,
-      "maxItems": 15,
-      "items": {
-        "type": "object",
-        "required": ["post", "name", "term"],
-        "properties": {
-          "post": {"type": "string", "description": "职务"},
-          "name": {"type": "string", "description": "姓名"},
-          "term": {"type": "string", "description": "任期"}
-        }
-      }
-    },
-    "head_teacher": {
-      "type": "object",
-      "required": ["name", "title", "unit"],
-      "properties": {
-        "name": {"type": "string"},
-        "title": {"type": "string", "description": "职称"},
-        "unit": {"type": "string", "description": "所在单位"}
-      }
-    },
-    "ideology_score": {
-      "type": "object",
-      "required": ["party_ratio", "member_ratio", "youth_study", "theme_meeting", "ideology_grade", "total", "max"],
-      "properties": {
-        "party_ratio": {"type": "number", "minimum": 0, "maximum": 5},
-        "member_ratio": {"type": "number", "minimum": 0, "maximum": 3},
-        "youth_study": {"type": "number", "minimum": 0, "maximum": 4},
-        "theme_meeting": {"type": "number", "minimum": 0, "maximum": 4},
-        "ideology_grade": {"type": "number", "minimum": 0, "maximum": 4},
-        "total": {"type": "number", "minimum": 0, "maximum": 20},
-        "max": {"type": "number", "const": 20}
-      }
-    },
-    "study_score": {
-      "type": "object",
-      "required": ["gpa", "top10", "pass_rate", "competition", "cet", "total", "max"],
-      "properties": {
-        "gpa": {"type": "number", "minimum": 0, "maximum": 8},
-        "top10": {"type": "number", "minimum": 0, "maximum": 5},
-        "pass_rate": {"type": "number", "minimum": 0, "maximum": 5},
-        "competition": {"type": "number", "minimum": 0, "maximum": 4},
-        "cet": {"type": "number", "minimum": 0, "maximum": 3},
-        "total": {"type": "number", "minimum": 0, "maximum": 25},
-        "max": {"type": "number", "const": 25}
-      }
-    },
-    "activity_score": {
-      "type": "object",
-      "required": ["collective_activity", "school_participation", "volunteer", "culture_award", "social_practice", "total", "max"],
-      "properties": {
-        "collective_activity": {"type": "number", "minimum": 0, "maximum": 5},
-        "school_participation": {"type": "number", "minimum": 0, "maximum": 4},
-        "volunteer": {"type": "number", "minimum": 0, "maximum": 4},
-        "culture_award": {"type": "number", "minimum": 0, "maximum": 4},
-        "social_practice": {"type": "number", "minimum": 0, "maximum": 3},
-        "total": {"type": "number", "minimum": 0, "maximum": 20},
-        "max": {"type": "number", "const": 20}
-      }
-    },
-    "discipline_score": {
-      "type": "object",
-      "required": ["attendance", "late", "violation", "cheating", "network", "total", "max"],
-      "properties": {
-        "attendance": {"type": "number", "minimum": 0, "maximum": 5},
-        "late": {"type": "number", "minimum": 0, "maximum": 4},
-        "violation": {"type": "number", "minimum": 0, "maximum": 5},
-        "cheating": {"type": "number", "minimum": 0, "maximum": 4},
-        "network": {"type": "number", "minimum": 0, "maximum": 2},
-        "total": {"type": "number", "minimum": 0, "maximum": 20},
-        "max": {"type": "number", "const": 20}
-      }
-    },
-    "hygiene_score": {
-      "type": "object",
-      "required": ["excellent_rate", "civilized_dormitory", "pass_rate", "safety", "total", "max"],
-      "properties": {
-        "excellent_rate": {"type": "number", "minimum": 0, "maximum": 5},
-        "civilized_dormitory": {"type": "number", "minimum": 0, "maximum": 4},
-        "pass_rate": {"type": "number", "minimum": 0, "maximum": 3},
-        "safety": {"type": "number", "minimum": 0, "maximum": 3},
-        "total": {"type": "number", "minimum": 0, "maximum": 15},
-        "max": {"type": "number", "const": 15}
-      }
-    },
-    "avg_gpa": {"type": "number", "minimum": 0, "maximum": 4, "description": "班级平均学分绩点"},
-    "pass_rate": {"type": "number", "minimum": 0, "maximum": 100, "description": "课程及格率（百分比）"},
-    "competition_awards": {
-      "type": "object",
-      "required": ["national", "provincial", "school"],
-      "properties": {
-        "national": {"type": "integer", "minimum": 0},
-        "provincial": {"type": "integer", "minimum": 0},
-        "school": {"type": "integer", "minimum": 0}
-      }
-    },
-    "cet4_pass_rate": {"type": "number", "minimum": 0, "maximum": 100},
-    "cet6_pass_rate": {"type": "number", "minimum": 0, "maximum": 100},
-    "overview_text": {"type": "string", "minLength": 200, "maxLength": 600},
-    "ideology_text": {"type": "string", "minLength": 400, "maxLength": 1000},
-    "study_text": {"type": "string", "minLength": 500, "maxLength": 1100},
-    "activity_text": {"type": "string", "minLength": 400, "maxLength": 1000},
-    "honor_text": {"type": "string", "minLength": 200, "maxLength": 600},
-    "outlook_text": {"type": "string", "minLength": 200, "maxLength": 600},
-    "collective_honors": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["year", "name", "level"],
-        "properties": {
-          "year": {"type": "string"},
-          "name": {"type": "string"},
-          "level": {"type": "string", "enum": ["国家级", "省级", "校级", "院级"]}
-        }
-      }
-    },
-    "personal_honors_summary": {
-      "type": "object",
-      "properties": {
-        "national": {"type": "integer"},
-        "provincial": {"type": "integer"},
-        "school": {"type": "integer"},
-        "total_count": {"type": "integer"}
-      }
-    },
-    "word_count_version": {"type": "integer", "enum": [3000, 4000, 5000], "default": 4000},
-    "class_slogan": {"type": "string", "maxLength": 50},
-    "target_honor": {"type": "string"},
-    "submit_date": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
-    "defense_needed": {"type": "boolean", "default": false}
-  }
-}
-```
-
-### 6.3 最小可用 JSON 示例
-
-```json
-{
-  "class_name": "计算机科学与技术 2023 级 1 班",
-  "college": "计算机学院",
-  "major": "计算机科学与技术",
-  "class_size": 38,
-  "collective_type": "advanced_class",
-  "male_count": 26,
-  "female_count": 12,
-  "member_count": 36,
-  "party_member_count": 4,
-  "class_committee": [
-    {"post": "班长", "name": "张三", "term": "2024.09-2025.06"},
-    {"post": "团支书", "name": "李四", "term": "2024.09-2025.06"}
-  ],
-  "head_teacher": {"name": "王老师", "title": "副教授", "unit": "计算机学院软件工程系"},
-  "ideology_score": {"party_ratio": 5, "member_ratio": 3, "youth_study": 4, "theme_meeting": 4, "ideology_grade": 4, "total": 18, "max": 20},
-  "study_score": {"gpa": 6, "top10": 5, "pass_rate": 4, "competition": 4, "cet": 3, "total": 22, "max": 25},
-  "activity_score": {"collective_activity": 4, "school_participation": 3, "volunteer": 3, "culture_award": 4, "social_practice": 3, "total": 17, "max": 20},
-  "discipline_score": {"attendance": 5, "late": 3, "violation": 5, "cheating": 4, "network": 2, "total": 18, "max": 20},
-  "hygiene_score": {"excellent_rate": 5, "civilized_dormitory": 3, "pass_rate": 3, "safety": 2, "total": 13, "max": 15},
-  "avg_gpa": 3.42,
-  "pass_rate": 98.5,
-  "competition_awards": {"national": 3, "provincial": 5, "school": 12},
-  "cet4_pass_rate": 88.5,
-  "cet6_pass_rate": 65.8,
-  "overview_text": "（300~500 字班级概况正文）",
-  "ideology_text": "（500~900 字思想建设正文）",
-  "study_text": "（600~1000 字学风建设正文）",
-  "activity_text": "（500~900 字班级活动正文）",
-  "honor_text": "（300~500 字班级荣誉正文）",
-  "outlook_text": "（300~500 字工作展望正文）",
-  "word_count_version": 4000,
-  "class_slogan": "团结奋进，求实创新",
-  "target_honor": "2024-2025 学年校级先进班集体",
-  "submit_date": "2025-05-20",
-  "defense_needed": true
-}
-```
-
----
-
-## §7 build.py 接口说明（必加章节 7）
-
-### 7.1 命令行接口
+### 交付前强制质检（任一项不过 → 不允许交付）
 
 ```bash
-# 方式 1：使用 demo 数据生成示例文档
-python build.py --demo --out demo.docx
+# 1) AI 味检测（及格线 75）
+python3 utils/ai_flavor_check.py --file draft.txt --min-score 75
 
-# 方式 2：使用用户提供的数据生成正式文档
-python build.py --data data.json --out output.docx
+# 2) 查重预检（阈值 30%）
+python3 utils/plagiarism_checker.py --file draft.txt --skill <skill_name>
 
-# 方式 3：同时指定字数版本（覆盖 data.json 中的 word_count_version）
-python build.py --data data.json --out output.docx --word-count 5000
+# 3) 评审模拟（含文风维度）
+python3 utils/review_simulator.py --skill <skill_name> --file draft.txt
 ```
 
-### 7.2 参数说明
+### 冲突处理
 
-| 参数 | 必填 | 说明 |
-|------|------|------|
-| `--demo` | 二选一 | 使用内置 DEFAULT_DATA 生成示例文档 |
-| `--data` | 二选一 | 用户数据 JSON 文件路径 |
-| `--out` | 是 | 输出 docx 文件路径 |
-| `--word-count` | 否 | 字数版本（3000/4000/5000），覆盖 JSON 中的设置 |
+政策条文、领导讲话、文件原名**允许庄重书面语**，不算套话。
+检测时加 `--allow-policy-quotes`（该维度扣分减半）。
+但引用必须写成 `《文件全名》（发文号）`，且只引与论点直接相关的 1~2 句。
 
-### 7.3 输出格式标准
+### 反模式
 
-- **纸张**：A4（21.0 × 29.7 cm）
-- **页边距**：上下 2.54 cm，左右 2.5 cm
-- **标题**：黑体二号（22pt），居中
-- **正文**：宋体小四（12pt），1.5 倍行距，首行缩进 2 字符
-- **段落标题**：黑体小三（15pt），加粗
-- **表格**：宋体五号（10.5pt），居中，表头加粗
-- **落款**：右对齐，含班长 / 团支书 / 班主任签字位
-- **页眉页脚**：页脚居中页码
+- ❌ 把子 skill 里的「金句模板」当范文直接套用
+- ❌ 用排比段凑字数
+- ❌ 通篇无一个数字、无一个专有名词
+- ❌ 检测得分 <75 仍交付
+- ❌ 只删套话不补事实（删完变空段落，同样不及格）
 
-### 7.4 输出文档结构
-
-1. **封面**（首页）：标题（"XX 班集体申报书"）+ 班级全称 + 申报类别 + 申报日期
-2. **正文 6 段**：班级概况 → 思想建设 → 学风建设 → 班级活动 → 班级荣誉 → 工作展望
-3. **5 维度量化表**（嵌入 §5 班级荣誉段或附录）
-4. **班委建制表**（嵌入 §1 班级概况段）
-5. **班级荣誉表**（嵌入 §5 班级荣誉段）
-6. **落款**：班长签字 + 团支书签字 + 班主任签字 + 学院盖章位 + 日期
-
-### 7.5 错误处理
-
-- JSON 字段缺失：报错并提示缺失字段名
-- 字数版本非法：报错"word_count_version 必须为 3000/4000/5000"
-- collective_type 非法：报错"collective_type 必须为 advanced_class/good_study_class/may_fourth_flag/civilized_class"
-- 5 维度分数超限：报错并提示具体超限项
-- 班级人数与硬门槛不符：警告（不阻塞生成）
-
----
-
+<!-- WRITING-STYLE:END -->
 ## §8 质检清单（必加章节 8）
 
 ### 8.1 字数与结构质检
@@ -840,58 +604,11 @@ python build.py --data data.json --out output.docx --word-count 5000
 
 ---
 
-## §9 集体答辩 PPT 框架（必加章节 9）
+## §9 集体答辩 PPT 框架（必加章节 9）（已外移至 references/defense-ppt.md）
 
-校级及以上先进班集体、五四红旗团支部需现场答辩（10 分钟陈述 + 5 分钟答辩），以下为 10 页 PPT 框架。
-
-### 9.1 10 页 PPT 框架
-
-| 页码 | 标题 | 内容要点 | 时长 |
-|------|------|---------|------|
-| P1 | 封面 | 班级全称 + 申报类别 + 班训 + 班主任 + 班长姓名 + 日期 | 30s |
-| P2 | 班级概况 | 班级建制（人数 / 党团员 / 班委）+ 班训 + 班级定位 + 班级合影 | 1min |
-| P3 | 思想建设 | 党团建设 + 主题班会 + 青年大学习 + 思政成绩（五四红旗团支部需扩充至 P3-P4 两页） | 1.5min |
-| P4 | 学风建设 | 平均 GPA + 及格率 + 竞赛获奖 + 四六级 + 学习互助（优良学风班需扩充至 P4-P5 两页） | 1.5min |
-| P5 | 班级活动 | 集体活动 + 文体活动 + 志愿服务 + 社会实践（配照片） | 1.5min |
-| P6 | 班级荣誉 | 集体荣誉 + 个人荣誉汇总 + 荣誉墙照片 | 1min |
-| P7 | 5 维度量化 | 5 维度雷达图 + 总分 + 维度单项得分 | 1min |
-| P8 | 亮点展示 | 3 个班级亮点（特色活动 / 重大荣誉 / 突出个人） | 1min |
-| P9 | 工作展望 | 3 不足 + 3 目标 + 3 措施 | 1min |
-| P10 | 致谢 | "恳请评审委员会予以批准" + 班训 + 全体班委合影 | 30s |
-
-### 9.2 答辩 PPT 制作要点
-
-1. **数据可视化**：5 维度量化必须用雷达图展示，平均 GPA / 及格率用柱状图，荣誉时间线用时间轴
-2. **照片占比**：每页至少 1 张班级活动照片，照片清晰、内容正面
-3. **文字精简**：每页正文 ≤80 字，关键数据加粗放大
-4. **配色统一**：建议使用学校 VI 色（如北大红、清华紫），全 PPT 配色不超过 3 种
-5. **动画克制**：仅用淡入淡出，避免飞入、旋转等花哨动画
-6. **节奏控制**：10 页 / 10 分钟，平均每页 1 分钟，P3-P5 重点段适当延长
-
-### 9.3 答辩问题预判（10 大高频问题）
-
-1. 你们班最大的亮点是什么？（答：5 维度量化 XX 分 + 特色活动品牌 + 重大荣誉）
-2. 5 维度量化中哪个维度最弱？如何改进？（答：诚实承认最弱维度 + 具体改进措施）
-3. 班级学习互助如何开展？（答：学习互助小组 X 个 + 一帮一结对 X 对 + 学习打卡）
-4. 团日活动如何创新？（答：沉浸式 / 实践式 / 联合团日，举例说明）
-5. 班级违纪 0 起是如何做到的？（答：班规 + 考核 + 班委带头 + 同学监督）
-6. 宿舍卫生如何保持？（答：值日表 + 周检查 + 月评比 + 文明宿舍奖励）
-7. 班委如何分工协作？（答：班委建制表 + 周例会 + 月总结 + 学期换届）
-8. 班主任在班级建设中的作用？（答：思想引领 + 学业指导 + 心理关怀 + 资源对接）
-9. 下一学年最重要的目标是什么？（答：1 个核心目标 + 量化指标 + 时间节点）
-10. 与同专业其他班级相比，你们班的差异化优势？（答：差异化亮点，避免泛泛而谈）
-
-### 9.4 答辩评分维度
-
-| 评分维度 | 权重 | 评分要点 |
-|---------|------|---------|
-| 班级建设成效 | 40% | 5 维度量化数据 + 实际成效 |
-| 答辩表现 | 25% | 陈述清晰度 + 答辩应对 + 时间控制 |
-| PPT 制作 | 15% | 内容完整 + 视觉效果 + 数据可视化 |
-| 班级特色 | 10% | 特色活动 + 差异化亮点 |
-| 师生互动 | 10% | 班主任参与度 + 班委协作 |
-
----
+> 📎 **答辩 PPT 框架** 已移至 [`references/defense-ppt.md`](references/defense-ppt.md)，保持 SKILL.md 精简。
+> **何时阅读**：用户要求配套答辩 PPT 时。
+> 其余情况下不需要读取该文件。
 
 ## §10 写作流程（端到端）
 

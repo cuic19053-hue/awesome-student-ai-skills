@@ -22,6 +22,12 @@ metadata:
 
 输出文件：可提交的 .docx（A4 纸张，宋体小四正文，黑体三号标题，1.5 倍行距，首行缩进 2 字符，参考文献宋体五号）。
 
+<!-- REFERENCES-INDEX -->
+> 📚 **按需加载的参考资料**（渐进式披露，不需要时不要读）：
+> - [`references/json-schema.md`](references/json-schema.md) — 十七、JSON Schema 完整字段定义【v2.1 必加章节 9】
+> - [`references/math-formulas.md`](references/math-formulas.md) — 十一、数学公式规范【v2.1 必加章节 6】
+> - [`references/intake-checklist.md`](references/intake-checklist.md) — 三、信息采集清单
+
 ## 院级科研立项核心特征（v2.1 调整）
 
 院级科研立项比校级更轻量：
@@ -86,125 +92,11 @@ metadata:
 
 ---
 
-## 三、信息采集清单
+## 三、信息采集清单（已外移至 references/intake-checklist.md）
 
-### 3.1 通用必采（10 字段）
-
-| 字段 | 说明 | 示例 | 缺失追问策略 |
-|------|------|------|--------------|
-| project_name | 课题名称，≤30 字 | 本院学生学习拖延行为干预研究 | "课题正式名称？不超过 30 字" |
-| leader_name | 负责人姓名 | 王晓 | "负责人全名？" |
-| leader_id | 学号 | 2023123456 | "学号？" |
-| leader_major | 专业 | 应用心理学 | "专业全称？" |
-| leader_grade | 年级 | 2023 级 大二 | "入学年份与年级？" |
-| leader_phone | 联系电话 | 138XXXXXXXX | "手机号？" |
-| college | 学院全称 | 教育科学学院 | "学院全称？" |
-| apply_date | 申报日期 | 2025 年 3 月 10 日 | "申报提交日期？" |
-| advisor_name | 指导教师姓名 | 刘敏副教授 | "指导教师全名？" |
-| advisor_title | 指导教师职称 | 副教授 | "职称？讲师/副教授/教授？" |
-
-### 3.2 课题专属（8 字段）
-
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| research_type | 研究类型三选一 | 基础研究 / 应用研究 / 开发研究 |
-| discipline | 一级学科代码 | 0402 心理学 |
-| duration | 起止时间 | 2025.04-2025.09（共 6 个月） |
-| budget_total | 申请经费 | 1300 元（院级 500~2000 元） |
-| team_members | 团队成员 1~2 人 | 每人：姓名/学号/专业年级/分工/联系方式 |
-| advisor_research | 指导教师研究方向 | 学习心理学、行为干预 |
-| advisor_phone | 指导教师电话 | 139XXXXXXXX |
-| project_source | 课题来源 | 自主选题 / 教师科研转化 / 社会委托 |
-
-### 3.3 内容素材（按栏目逐一采集）
-
-**背景与意义素材**（400~700 字）：时代背景关键词（政策/行业/学术趋势，2~3 句）+ 现实痛点（具体场景/人群/数据，必须可量化，聚焦本院学生群体）+ 课题意义（理论/实践/社会，三选二）。
-
-**国内外研究现状素材**（600~1000 字）：国内研究 2~3 篇（作者+年份+主要观点+局限）+ 国外研究 2~3 篇（同上）+ 综合评述（已有研究不足 + 本课题差异点）。每条研究必须对应参考文献编号 [1]~[8]。
-
-**研究目标内容关键问题素材**（600~1000 字）：研究目标（1 总目标 + 2~3 阶段目标，全可量化）+ 研究内容（2~4 子任务，每任务讲"做什么+方法+产出"）+ 关键问题（1~2 个技术难点）。
-
-**研究方案及技术路线素材**：总体技术路线 4 阶段（院级简化版）+ 每阶段方法 + 数据来源/实验设备/软件工具。
-
-**创新之处素材**（200~400 字）：至少 1 个，必须含"对比对象 + 区别 + 量化优势"。
-
-**研究基础素材**：团队相关课程/项目经验 + 指导教师科研项目 + 实验室条件。
-
-**预期成果素材**：1 篇论文（注明拟投期刊级别）或 1 份调研报告（注明字数）。院级至少 1 项，不强制论文。
-
-**进度安排素材**：按月划分（共 3~6 个月），每阶段标注交付物。
-
-**经费预算素材**：6 类科目（资料费/调研费/材料费/会议费/印刷费/其他），每项金额 + 计算依据。院级经费 500~2000 元。
-
-### 3.4 v2.1 新增 7 项强化字段
-
-| 字段 | 采集要求 | 最小规模 | 追问示例 |
-|------|----------|----------|----------|
-| policy_citations | 国家政策引用，按时间倒序，含发文机关+文号+标题+时间+相关表述 | ≥3 文件 | "本课题相关的国家政策文件有哪些？请按时间倒序列出，每个含发文机关、文号、标题、时间及与课题相关的关键表述。" |
-| scientific_challenges | 科学挑战，独立成段，含一句话标题 + 3~5 句描述 | 1~2 个 | "本课题要解决的关键科学挑战是什么？每个挑战用一句话标题加 3~5 句描述。" |
-| literature_review | 国内外研究现状综述详尽版，含作者+年份+观点+局限，每条对应文献编号 | ≥10 条（含 ≥3 篇英文） | "请提供 ≥10 篇相关文献，含至少 3 篇英文文献。每篇含作者/年份/标题/期刊/主要观点/局限。" |
-| method_comparison | 方法对比表，2 个候选方法 × 3 维度（技术特点/优势/劣势）+ 选型结论 | 2 方法 × 3 维度 | "本课题核心方法有哪些候选方案？请填 2 个方法，每个填技术特点/优势/劣势 3 维度，并给出选型结论。" |
-| tech_roadmap | 技术路线图，1 张图（图片路径或文字描述）+ 图注 | 1 张 | "请提供技术路线图（图片路径或文字描述 4 阶段流程），含图号 + 标题。" |
-| formulas | 核心方法的数学公式（含公式编号 + 变量定义），可选 | ≥1 公式 | "本课题核心方法涉及的数学公式是什么？请给出公式 + 公式编号 + 每个变量的含义。"（如本课题无公式可跳过） |
-| social_benefits | 社会效益量化，3 项指标（指标名/传统基准/系统预期/提升幅度） | 3 项 | "本课题预期带来哪些社会效益？请量化对比传统模式与系统模式，至少 3 项指标，每项含 4 列。" |
-
-### 3.5 参考文献专属字段【院级科研立项核心】
-
-| 字段 | 说明 | 必填条件 |
-|------|------|----------|
-| ref_type | journal/conference/book/thesis/web | 是 |
-| authors | 作者列表（≤3 全列；>3 列前 3 + 等） | 是 |
-| title | 题目（论文/章节名） | 是 |
-| year | 出版年 | 是 |
-| journal | 期刊名 | journal 必填 |
-| volume/issue/pages | 卷/期(半角括号)/页码(半角连字符) | journal 建议 |
-| publisher | 出版社 | book 必填 |
-| city | 出版地 | book/thesis 必填 |
-| conference | 会议名 | conference 必填 |
-| school | 学位授予单位 | thesis 必填 |
-| url/access_date | 网址/访问日期(YYYY-MM-DD) | web 必填 |
-| is_english | 是否英文文献（用于英文数量统计） | 强烈建议 |
-
-### 3.6 字段优先级
-
-| 优先级 | 字段 | 缺失影响 |
-|--------|------|----------|
-| P0 必填 | project_name/leader_name/leader_id/college/advisor_name | 申报书无法生成 |
-| P0 必填 | research_type/discipline/duration/budget_total | 基本信息不完整 |
-| P0 必填 | background/research_status/research_content/innovations | 核心栏目空白 |
-| P0 必填 | references（≥5 条，覆盖 3 类，含 3 篇英文） | 院级科研立项硬要求 |
-| P0 必填（v2.1 新增） | policy_citations（≥3 条）/scientific_challenges（≥1 个）/literature_review（≥10 条）/method_comparison（≥2 方法×3 维度）/tech_roadmap（1 张）/social_benefits（≥3 项）/project_schedule（≥4 阶段） | v2.1 强化章节硬要求 |
-| P1 强烈建议 | team_members（含分工）/expected_outcomes/budget_items | 评审会扣分 |
-| P1 建议（v2.1） | formulas（≥1 公式，如适用） | 影响评分但可补 |
-| P2 建议 | tech_route/methods/team_foundation/advisor_foundation/lab_condition | 影响评分但可补 |
-
-P0 缺失：必须追问到底，不允许"先放空"。P1 缺失：追问 2 次，仍无则用合理默认值并告知用户。P2 缺失：1 次追问后无则跳过。
-
-### 3.7 追问话术
-
-| 场景 | 话术 |
-|------|------|
-| 课题名称超 30 字 | "名称超 30 字评审会扣分，建议精简为 XXX（X 字），是否同意？" |
-| 经费超 2000 元 | "院级经费上限 2000 元，您填了 X 元，请调整至 500~2000 元区间或说明必要性" |
-| 团队超 2 人 | "院级团队限 1~2 人，您列了 X 人，是否精简？" |
-| 周期超 6 个月 | "院级周期上限 6 个月，您填了 X 个月，是否调整为 3~6 个月？" |
-| 参考文献少于 5 条 | "院级科研立项需 ≥5 条参考文献，您只提供了 X 条，请补充至少 Y 条" |
-| 参考文献单一类型 | "参考文献需覆盖期刊/会议/专著/学位论文/网络资源至少 3 类，请补充" |
-| 英文文献少于 3 篇 | "v2.1 要求 ≥3 篇英文文献，您提供了 X 篇，请补充" |
-| 选题与本院专业无关 | "选题与本院专业方向契合度不高，院级评审由本院老师担任，是否调整？" |
-| 国家政策引用少于 3 条 | "v2.1 要求 ≥3 条国家政策引用（含发文机关+文号+标题+时间+相关表述），请补充" |
-| 文献综述少于 10 条 | "v2.1 要求 ≥10 条文献综述，您提供了 X 条，请补充" |
-| 国内外研究现状无评述 | "已有研究有什么不足？本课题与已有研究的差异是什么？" |
-| 创新点无对比对象 | "传统方法是什么？为什么你的更好？有数据支撑吗？" |
-| 预期成果写"若干" | "具体几篇论文或几份报告？什么级别？拟投哪个期刊？" |
-
-### 3.8 复述确认
-
-全部采集完后，按申报书栏目顺序复述给用户："我已采集所有信息，按申报书顺序复述如下：① 课题名称：XXX ② 负责人：XXX ③ ... ⑭ 参考文献：X 条（期刊 X/会议 X/专著 X/学位论文 X/网络 X，其中英文 X 篇）⑮ v2.1 强化字段：政策 X 条/科学挑战 X 个/文献综述 X 条/方法对比 X 方法 X 维度/技术路线图 1 张/公式 X 个/社会效益 X 项/进度 X 阶段 请确认无误或补充修正。"
-
-复述格式严格按 16 栏目 + 9 项强化章节顺序。参考文献必须复述条数与类型分布。用户确认后才进入撰写阶段。任何字段"待定""之后再说"——必须当场追问，不允许留空。
-
----
+> 📎 **逐字段信息采集清单** 已移至 [`references/intake-checklist.md`](references/intake-checklist.md)，保持 SKILL.md 精简。
+> **何时阅读**：需要逐条向用户提问采集信息时。
+> 其余情况下不需要读取该文件。
 
 ## 四、栏目结构详解
 
@@ -807,52 +699,11 @@ YYYY 年 MM 月，发文机关发布《文件标题》，指出/提出/强调 [�
 
 ---
 
-## 十一、数学公式规范【v2.1 必加章节 6】
+## 十一、数学公式规范【v2.1 必加章节 6】（已外移至 references/math-formulas.md）
 
-### 11.1 公式规范（可选，最简版）
-
-院级 v2.1 要求核心方法 ≥1 公式（可选；如本课题为纯质性研究或调研类，可省略）。规范：
-
-1. 公式必须**编号**（如式(1)、式(2)）
-2. 公式后必须**解释每个变量的含义**
-3. 公式必须**与正文研究方法对应**（不能孤立存在）
-4. 公式排版**居中**，编号右对齐
-
-### 11.2 院级示例（1 个公式，干预效应评估）
-
-> 式(1) 给出干预效应的效应量计算公式（Cohen's d）：
->
->                                        d = (μ₁ - μ₂) / s_p        (1)
->
-> 其中 μ₁ 为干预组后测均值，μ₂ 为对照组后测均值，s_p 为合并标准差，计算方式为 s_p = √((s₁² + s₂²) / 2)，s₁ 和 s₂ 分别为干预组与对照组的标准差。Cohen's d 解释：d ≥ 0.2 为小效应，d ≥ 0.5 为中等效应，d ≥ 0.8 为大效应。本课题预期干预效应 d ≥ 0.5（中等效应）。
-
-### 11.3 公式排版规范
-
-- 公式居中，编号右对齐："式(1)" 格式
-- 变量用斜体（如 *d*、*μ*、*s*），常量用正体
-- 数学符号用 Times New Roman 字体
-- 公式上下各空 1 行
-- 变量解释用"其中"开头，每个变量用顿号分隔
-- 公式中所有变量必须在变量解释段中说明
-
-### 11.4 常用公式类型
-
-| 公式类型 | 适用场景 | 院级示例 |
-|----------|----------|----------|
-| 效应量（Cohen's d / Hedges' g） | 干预效应评估 | 见 11.2 |
-| 信度系数（Cronbach α） | 问卷信度评估 | α = (k/(k-1)) × (1 - Σσᵢ²/σₜ²) |
-| 回归方程（Y = β₀ + β₁X₁ + ... + ε） | 影响因素分析 | 拖延得分 Y = β₀ + β₁×正念水平 + β₂×同伴监督 + β₃×学业规划 + ε |
-| 比例公式（p = n/N） | 调研占比分析 | 拖延发生率 p = 拖延人数 n / 总人数 N |
-
-### 11.5 反模式
-
-**反模式 1：公式无编号** ❌ "本课题采用 Cohen's d 计算效应量：d = (μ₁ - μ₂) / s_p"。 ✅ "式(1) 给出..."，公式末尾加 "(1)"。
-
-**反模式 2：变量无解释** ❌ 公式后直接进入下一段。 ✅ "其中 μ₁ 为...，μ₂ 为...，s_p 为..."。
-
-**反模式 3：公式与研究方法脱节** ❌ 公式出现但研究方法章节未提及。 ✅ 公式必须在第八章研究方案中应用。
-
----
+> 📎 **数学公式书写与排版规范** 已移至 [`references/math-formulas.md`](references/math-formulas.md)，保持 SKILL.md 精简。
+> **何时阅读**：正文含公式、需要按规范排版时。
+> 其余情况下不需要读取该文件。
 
 ## 十二、社会效益量化规范【v2.1 必加章节 7】
 
@@ -1155,390 +1006,108 @@ YYYY 年 MM 月，发文机关发布《文件标题》，指出/提出/强调 [�
 
 ---
 
-## 十七、JSON Schema 完整字段定义【v2.1 必加章节 9】
+## 十七、JSON Schema 完整字段定义【v2.1 必加章节 9】（已外移至 references/json-schema.md）
 
-### 17.1 顶层字段总览
+> 📎 **完整 JSON Schema 定义** 已移至 [`references/json-schema.md`](references/json-schema.md)，保持 SKILL.md 精简。
+> **何时阅读**：构造 --data 输入文件、或 build.py 报字段校验错误时。
+> 其余情况下不需要读取该文件。
 
-```jsonc
-{
-  // ===== 通用必采字段（P0） =====
-  "project_name": "string, 课题名称 ≤30 字",
-  "leader_name": "string, 负责人姓名",
-  "leader_id": "string, 学号",
-  "leader_gender": "string, 性别",
-  "leader_major": "string, 专业年级",
-  "leader_phone": "string, 联系电话",
-  "leader_email": "string, 邮箱",
-  "advisor_name": "string, 指导教师姓名+职称",
-  "advisor_phone": "string, 指导教师电话",
-  "college": "string, 学院全称",
-  "apply_date": "string, 申报日期",
+## 十八、build.py 接口说明【v2.1 必加章节 9】（已外移至 references/build-usage.md）
 
-  // ===== 课题专属字段（P0） =====
-  "basic_info": {
-    "research_type": "string, 基础研究|应用研究|开发研究",
-    "discipline": "string, 一级学科代码+名称",
-    "duration": "string, 起止时间（3~6 个月）",
-    "budget": "string, 申请经费（500~2000 元）"
-  },
-  "team_members": [
-    {"name": "string", "id": "string", "major": "string", "role": "string", "phone": "string"}
-  ],
+> 📎 **build.py 接口说明** 已移至 [`references/build-usage.md`](references/build-usage.md)，保持 SKILL.md 精简。
+> **何时阅读**：需要调用 build.py 或了解接口参数时。
+> 其余情况下不需要读取该文件。
 
-  // ===== 16 栏目内容字段（P0/P1） =====
-  "background": ["string×4, 时代背景/现实痛点/研究缺口/课题意义"],
-  "research_status": ["string×3, 国内/国外/综合评述（简版）"],
-  "research_goal": "string, 总目标+阶段目标",
-  "research_content": ["string×2~4, 子任务"],
-  "key_problems": ["string×1~2, 关键问题"],
-  "tech_route": "string, 总体技术路线（简版）",
-  "methods": ["string×3~4, 研究方法"],
-  "data_source": "string, 数据来源与实验条件",
-  "innovations": ["string×1~2, 创新点"],
-  "team_foundation": "string, 团队基础",
-  "advisor_foundation": "string, 指导教师基础",
-  "lab_condition": "string, 实验条件",
-  "expected_outcomes": ["string×1~3, 预期成果"],
-  "schedule": [{"phase": "string", "time": "string", "work": "string", "output": "string"}],
-  "budget_items": [{"item": "string", "amount": "string", "basis": "string"}],
-  "budget_total": "string, 合计金额",
-  "references": [{"ref_type": "string", "authors": "string", ...}],
+<!-- WRITING-STYLE:START -->
+## 写作风格硬约束（去 AI 味 · 强制）
 
-  // ===== v2.1 新增 7 项强化字段（P0） =====
-  "policy_citations": [{"agency": "string", "title": "string", "doc_no": "string", "date": "string", "excerpt": "string"}],
-  "scientific_challenges": [{"title": "string", "description": "string", "sub_challenges": ["string"], "references": ["int"]}],
-  "literature_review": {"significance": ["string"], "domestic": ["string"], "foreign": ["string"], "summary": "string"},
-  "method_comparison": {"table_headers": ["string"], "methods": [{"name": "string", "features": {"技术特点": "string", "优势": "string", "劣势": "string"}, "reference": "int"}], "conclusion": "string"},
-  "tech_roadmap": {"image_path": "string", "caption": "string", "description": "string"},
-  "formulas": [{"formula": "string", "number": "int", "variables": [{"name": "string", "meaning": "string"}]}],
-  "social_benefits": [{"indicator": "string", "baseline": "string", "expected": "string", "improvement": "string"}],
-  "project_schedule": [{"phase": "string", "time": "string", "tasks": ["string"], "output": "string"}]
-}
-```
+> 完整规范见 [`docs/design/WRITING_STYLE.md`](../../docs/design/WRITING_STYLE.md)。
+> 本节是压缩版，**撰写正文前必读，交付前必须过检测**。
 
-### 17.2 v2.1 新增字段详解
+### 一条总原则
 
-#### 17.2.1 policy_citations（国家政策引用，≥3 条）
+**每个句子都必须能落到具体的人、事、时间、数字或对象上；落不到的句子，删掉。**
+自检方法：读完一句问「这句能换成别人吗？」——能换，就是套话。
 
-```jsonc
-"policy_citations": [
-  {
-    "agency": "中国心理学会",                // 发文机关
-    "title": "大学生学习行为蓝皮书",          // 文件标题
-    "doc_no": "",                            // 文号（如有）
-    "date": "2024-09-20",                    // 发布日期 YYYY-MM-DD
-    "excerpt": "全国高校学生学习拖延行为发生率达 67.8%...",  // 与课题相关的关键表述
-    "url": "http://www.cps.org.cn/xxx",      // URL（如有）
-    "access_date": "2025-02-15"              // 访问日期（如有 URL）
-  }
-  // ... 至少 3 条
-]
-```
+### 六条硬约束（及格线 75/100）
 
-#### 17.2.2 scientific_challenges（科学挑战，1~2 个）
+| # | 约束 | 量化判据 |
+|---|---|---|
+| 1 | 不写空话套话 | 每千字命中套话 ≤3 次 |
+| 2 | 不用排比对仗 | 同构句连续 ≤2 句 |
+| 3 | 不堆抽象大词 | 每千字抽象词 ≤4 次 |
+| 4 | 必须具体 | 每千字数字/专名 ≥8 处 |
+| 5 | 句长要参差 | 句长变异系数 ≥0.35 |
+| 6 | 不用模板开头 | 禁止「时光荏苒」「本人自入学以来」 |
 
-```jsonc
-"scientific_challenges": [
-  {
-    "title": "三维干预中各维度的协同机制设计",  // 一句话标题，含关键技术词
-    "description": "本课题融合三维干预...",    // 3~5 句描述
-    "sub_challenges": [                        // 子挑战列表（1~2 个）
-      "子挑战 1：维度间剂量配比的优化..."
-    ],
-    "references": [3, 4]                       // 文献编号上标
-  }
-  // 1~2 个挑战
-]
-```
+### 高频禁用词（出现即改）
 
-#### 17.2.3 literature_review（国内外研究现状综述，≥10 条）
+具有重要意义、具有重大意义、意义重大、影响深远、作用显著、效果显著、成效显著、
+成绩斐然、成果丰硕、高度重视、切实增强、切实提升、不断提升、持续提升、
+进一步加强、进一步完善、进一步深化、不断深化、深入推进、全面推进、扎实开展、
+稳步推进、着力打造、全力推动、取得显著成效、获得一致好评、受到广泛好评、
+得到充分肯定、获得高度评价、与此同时、在此基础上、综上所述、总而言之、
+值得一提的是、不难看出、由此可见、众所周知、不懈努力、刻苦钻研、勤奋刻苦、
+锐意进取、开拓创新、勇于探索、敢于突破、迈上新台阶、开创新局面、谱写新篇章、
+踏上新征程、展现新作为、彰显新担当、焕发新气象、贡献青春力量、绽放青春光彩、
+书写青春华章、以青春之我、坚定理想信念、厚植家国情怀、锤炼过硬本领、砥砺意志品质、
+综合素质突出、全面发展、品学兼优、德智体美劳、起到了模范带头作用、
+发挥了示范引领作用、树立了良好榜样、得到了师生的一致认可、深受老师和同学的好评、
+为集体作出了积极贡献、为团队贡献了自己的力量、奠定了坚实的基础、
+打下了坚实的基础、提供了有力支撑、注入了强劲动力、开辟了新的途径、探索了新的模式
 
-```jsonc
-"literature_review": {
-  "significance": [                            // 研究意义段（3~5 段）
-    "学习拖延是大学生最常见的自我调节失效行为之一...",
-    "理论意义：本课题验证拖延行为三因素模型..."
-  ],
-  "domestic": [                                // 国内研究现状段（4~5 篇）
-    "张丽等（2022）对 3 所高校 600 名大学生调查发现学习拖延发生率 65.4% [1]，但仅描述现象未提出干预方案。",
-    // ...
-  ],
-  "foreign": [                                 // 国外研究现状段（3~5 篇，含 ≥3 篇英文）
-    "Steel (2020) 综述了近 20 年拖延研究，提出\"动机-时间感知-冲动性\"三因素模型 [3]。",
-    // ...
-  ],
-  "summary": "已有研究存在三个共性问题：① ...；② ...；③ ...。本课题的关键差异：（1）...；（2）...；（3）..."  // 总结与分析
-}
-```
+抽象大词（无具体指涉时禁用）：格局、境界、高度、深度、广度、维度、层面、体系、
+机制、路径、抓手、载体、平台、生态、闭环、赋能、助力、引领、驱动、融合、协同、
+联动、统筹、底层逻辑、顶层设计、系统性思维、全局视野、战略高度、核心素养、
+综合能力、内生动力、长效机制
 
-#### 17.2.4 method_comparison（方法对比表，2 方法 × 3 维度）
+### 替换动作（照做即可）
 
-```jsonc
-"method_comparison": {
-  "table_headers": ["维度", "单一正念干预", "三维融合干预（本课题）"],
-  "methods": [
-    {
-      "name": "单一正念干预",
-      "features": {
-        "技术特点": "仅采用正念冥想训练（每周 2 次 × 30 分钟）",
-        "优势": "实施简单、成本低、文献基础扎实 [4]",
-        "劣势": "见效慢（≥6 周）、单一维度效果有限（降 12~15%）"
-      },
-      "reference": 4
-    },
-    {
-      "name": "三维融合干预（本课题）",
-      "features": {
-        "技术特点": "正念+同伴监督+学业规划三维并行（每周 2+1+1 次）",
-        "优势": "多维协同、覆盖拖延行为多因素 [3]、效果更全面",
-        "劣势": "实施复杂、需多维度协调、对组织者要求高"
-      },
-      "reference": 3
-    }
-  ],
-  "conclusion": "基于上表，单一正念干预实施简单但效果有限，三维融合干预虽实施复杂但覆盖拖延行为的多因素模型。结合本课题实际条件，本课题选用三维融合干预。"
-}
-```
+| 原写法 | 改写成 |
+|---|---|
+| 学习成绩优异，名列前茅 | 专业 3/127，加权 91.4，`<课程名>` 98 分 |
+| 积极参加学科竞赛 | 2024 年 11 月 `<赛事全名>` 省赛二等奖，作品 `<名称>`，我负责 `<模块>` |
+| 在导师指导下参与科研 | 参与 `<导师>` 的 `<课题名>`，负责 `<具体工作>`，产出 `<论文/专利/数据>` |
+| 具有较强的团队协作能力 | 删掉。改为：`<时间>` 带 `<人数>` 人完成 `<任务>`，遇到 `<冲突>`，怎么解决 |
+| 思想上积极向党组织靠拢 | `<年/月>` 提交入党申请书，`<年/月>` 成为积极分子，参加 `<次数>` 次党课 |
+| 热心公益，积极参加志愿服务 | `<机构>` 志愿服务 `<小时>` 小时，服务 `<对象>` `<人数>` 人 |
 
-#### 17.2.5 tech_roadmap（技术路线图，1 张）
+### 句式要求
 
-```jsonc
-"tech_roadmap": {
-  "image_path": "/path/to/tech_roadmap.png",   // 图片路径（如无图则空字符串，使用文字描述版）
-  "caption": "图 1 课题技术路线图",            // 图号+标题
-  "description": "本课题技术路线分 4 阶段..."  // 图后说明文字 120~200 字
-}
-```
+1. **长短句交替**：每 3~5 句里至少有一句 ≤12 字或 ≥60 字。
+2. **一段一个事实**：段首句不要用「在……方面」。
+3. **少用第一人称抒情**：「我深深感到」「我深刻认识到」一律删除。
+4. **数字优先**：能用数字就不用形容词。「多次」→「7 次」，「大量」→「4200 张」。
+5. 不用破折号堆叠解释，不连续套用「不仅……而且……」。
 
-#### 17.2.6 formulas（数学公式，≥1，可选）
-
-```jsonc
-"formulas": [
-  {
-    "formula": "d = (μ₁ - μ₂) / s_p",          // 公式 LaTeX/Unicode
-    "number": 1,                                // 公式编号
-    "variables": [                              // 变量定义
-      {"name": "d", "meaning": "Cohen's d 效应量"},
-      {"name": "μ₁", "meaning": "干预组后测均值"},
-      {"name": "μ₂", "meaning": "对照组后测均值"},
-      {"name": "s_p", "meaning": "合并标准差，s_p = √((s₁² + s₂²) / 2)"}
-    ]
-  }
-  // ≥1 个公式（如本课题无公式可省略此字段）
-]
-```
-
-#### 17.2.7 social_benefits（社会效益量化，≥3 项）
-
-```jsonc
-"social_benefits": [
-  {
-    "indicator": "本院学生学习拖延发生率",
-    "baseline": "71.3%（基线调研，本院 3 年级 120 人）",
-    "expected": "≤51.3%",
-    "improvement": "降低 ≥20 个百分点"
-  },
-  {
-    "indicator": "期末挂科率（严重拖延学生）",
-    "baseline": "32%（基线）",
-    "expected": "≤20%",
-    "improvement": "降低 ≥12 个百分点"
-  },
-  {
-    "indicator": "学生自我效能感得分（SES 量表）",
-    "baseline": "25.4 分（基线均值，满分 40）",
-    "expected": "≥29.0 分",
-    "improvement": "提升 ≥3.6 分（+14.2%）"
-  }
-  // ≥3 项
-]
-```
-
-#### 17.2.8 project_schedule（进度安排，4 阶段 6 个月）
-
-```jsonc
-"project_schedule": [
-  {
-    "phase": "准备",
-    "time": "2025.04",
-    "tasks": ["文献综述 30 篇", "三维干预方案设计", "量表选型与预测试"],
-    "output": "综述 1 份 + 方案 1 份"
-  },
-  {
-    "phase": "试点",
-    "time": "2025.05-07",
-    "tasks": ["招募 200 人（干预 100+对照 100）", "4 周干预实施", "实施过程记录与质控"],
-    "output": "实施记录 + 原始数据"
-  },
-  {
-    "phase": "分析",
-    "time": "2025.08-09",
-    "tasks": ["SPSS 27 统计分析", "Amos 24 中介效应分析", "NVivo 14 访谈编码"],
-    "output": "分析报告 1 份"
-  },
-  {
-    "phase": "跟踪",
-    "time": "2025.09",
-    "tasks": ["2 个月跟踪测", "深度访谈 15 人", "撰写调研报告"],
-    "output": "跟踪报告 + 调研报告 1 份"
-  }
-  // ≥4 阶段
-]
-```
-
-### 17.3 references 子结构（5 类）
-
-```jsonc
-"references": [
-  // 期刊
-  {"ref_type": "journal", "authors": "张丽, 王伟", "title": "...", "journal": "...", "year": "2022", "volume": "45", "issue": "(3)", "pages": "612-619", "is_english": false},
-  // 会议
-  {"ref_type": "conference", "authors": "...", "title": "...", "conference": "...", "city": "...", "publisher": "...", "year": "...", "pages": "...", "is_english": true},
-  // 专著
-  {"ref_type": "book", "authors": "...", "title": "...", "edition": "2版", "city": "...", "publisher": "...", "year": "...", "pages": "...", "is_english": false},
-  // 学位论文
-  {"ref_type": "thesis", "authors": "...", "title": "...", "city": "...", "school": "...", "year": "..."},
-  // 网络资源
-  {"ref_type": "web", "authors": "...", "title": "...", "publish_date": "2024-09-20", "access_date": "2025-02-15", "url": "...", "is_government": true}
-]
-```
-
-### 17.4 字段与 build.py 方法对应表
-
-| 字段 | build.py 方法 | 章节位置 |
-|------|---------------|----------|
-| project_name/leader_name/...通用字段 | _add_cover / _add_leader_members / _add_basic_info | 封面 + §1~§4 |
-| background | _add_background | §5 |
-| **policy_citations** (v2.1) | _add_policy_citations | §5.5（v2.1 新增） |
-| research_status | _add_research_status | §6 |
-| **literature_review** (v2.1) | _add_literature_review | §6.5（v2.1 新增） |
-| research_goal/research_content/key_problems | _add_research_content | §7 |
-| **scientific_challenges** (v2.1) | _add_scientific_challenges | §7.5（v2.1 新增） |
-| tech_route/methods/data_source | _add_research_scheme | §8 |
-| **method_comparison** (v2.1) | _add_method_comparison | §8.5（v2.1 新增） |
-| **formulas** (v2.1) | _add_formulas | §8.6（v2.1 新增） |
-| **tech_roadmap** (v2.1) | _add_tech_roadmap | §8.7（v2.1 新增） |
-| innovations | _add_innovation | §9 |
-| team_foundation/advisor_foundation/lab_condition | _add_research_basis | §10 |
-| expected_outcomes | _add_expected_results | §11 |
-| **social_benefits** (v2.1) | _add_social_benefits | §11.5（v2.1 新增） |
-| schedule / **project_schedule** (v2.1) | _add_schedule / _add_project_schedule | §12 |
-| budget_items/budget_total | _add_budget | §13 |
-| references | _add_references | §14 |
-
-### 17.5 完整 JSON 示例（v2.1）
-
-完整 v2.1 JSON 示例见 build.py 的 `DEFAULT_DATA` 常量，包含全部 16 栏目 + 9 项 v2.1 强化字段。用户填充时按此结构组织 JSON。
-
-### 17.6 字段向后兼容
-
-v2.1 新增字段（policy_citations / scientific_challenges / literature_review / method_comparison / tech_roadmap / formulas / social_benefits / project_schedule）均为可选字段。当用户 JSON 缺少这些字段时，build.py 会跳过对应章节的渲染并记录 warning，不阻断生成。这保证 v2.0 用户的旧 JSON 仍可在 v2.1 build.py 中运行。
-
----
-
-## 十八、build.py 接口说明【v2.1 必加章节 9】
-
-### 18.1 命令行用法
+### 交付前强制质检（任一项不过 → 不允许交付）
 
 ```bash
-# 使用数据文件生成
-python build.py --data data.json --out output.docx
+# 1) AI 味检测（及格线 75）
+python3 utils/ai_flavor_check.py --file draft.txt --min-score 75
 
-# 使用内置示例数据生成演示文档
-python build.py --demo --out demo.docx
+# 2) 查重预检（阈值 30%）
+python3 utils/plagiarism_checker.py --file draft.txt --skill <skill_name>
+
+# 3) 评审模拟（含文风维度）
+python3 utils/review_simulator.py --skill <skill_name> --file draft.txt
 ```
 
-参数：
-- `--data`：数据 JSON 文件路径（必填，与 --demo 二选一）
-- `--out`：输出 docx 路径（必填，自动创建目录）
-- `--demo`：使用内置示例数据生成演示文档
+### 冲突处理
 
-### 18.2 架构概览
+政策条文、领导讲话、文件原名**允许庄重书面语**，不算套话。
+检测时加 `--allow-policy-quotes`（该维度扣分减半）。
+但引用必须写成 `《文件全名》（发文号）`，且只引与论点直接相关的 1~2 句。
 
-```
-build.py
-├── 字体与格式常量（FONT_SONG / SIZE_XIAO_SI / ...）
-├── 工具函数（set_run_font / set_cell_text / add_paragraph_with_format / ...）
-├── GB/T 7714 参考文献格式化（format_journal_ref / format_book_ref / ...）
-├── ApplicationDocBuilder 主类
-│   ├── __init__ / _get / add_h1 / add_h2 / add_para / add_table
-│   ├── _add_cover                          # 封面
-│   ├── _add_leader_members                 # §1 负责人+成员
-│   ├── _add_basic_info                     # §2/3/4 课题名/起止/类型
-│   ├── _add_background                     # §5 背景与意义
-│   ├── _add_policy_citations              # §5.5 国家政策引用（v2.1 新增）
-│   ├── _add_research_status                # §6 国内外研究现状（简版）
-│   ├── _add_literature_review             # §6.5 综述详尽版（v2.1 新增）
-│   ├── _add_research_content               # §7 研究目标/内容/关键问题
-│   ├── _add_scientific_challenges         # §7.5 科学挑战（v2.1 新增）
-│   ├── _add_research_scheme                # §8 研究方案及技术路线
-│   ├── _add_method_comparison             # §8.5 方法对比表（v2.1 新增）
-│   ├── _add_formulas                      # §8.6 数学公式（v2.1 新增）
-│   ├── _add_tech_roadmap                  # §8.7 技术路线图（v2.1 新增）
-│   ├── _add_innovation                     # §9 创新之处
-│   ├── _add_research_basis                 # §10 研究基础
-│   ├── _add_expected_results               # §11 预期成果
-│   ├── _add_social_benefits               # §11.5 社会效益量化（v2.1 新增）
-│   ├── _add_schedule                       # §12 进度安排（4 阶段 6 个月）
-│   ├── _add_budget                         # §13 经费预算
-│   ├── _add_references                     # §14 参考文献
-│   ├── _add_review_section                 # §15/16 指导教师+学院评审
-│   ├── build                               # 主构建方法
-│   ├── _save                               # 保存文档
-│   └── _validate_data                      # 数据校验
-├── DEFAULT_DATA 默认示例数据（含 v2.1 全部字段）
-└── main CLI 入口
-```
+### 反模式
 
-### 18.3 核心方法
+- ❌ 把子 skill 里的「金句模板」当范文直接套用
+- ❌ 用排比段凑字数
+- ❌ 通篇无一个数字、无一个专有名词
+- ❌ 检测得分 <75 仍交付
+- ❌ 只删套话不补事实（删完变空段落，同样不及格）
 
-| 方法 | 作用 | 触发字段 |
-|------|------|----------|
-| build(data, output_path) | 主构建方法，编排 16+9 章节 | 全部字段 |
-| _validate_data() | 数据校验，记录警告不阻断 | P0/P1 字段 |
-| _get(*keys, default) | 安全取嵌套字段 | - |
-| _add_*() | 各章节渲染方法 | 对应字段 |
-
-### 18.4 _validate_data 校验规则
-
-| 校验项 | 阈值 | 警告级别 |
-|--------|------|----------|
-| 经费合计 | ≤2000 元 | 超 2000 警告 |
-| 团队人数 | ≤2 人 | 超 2 警告 |
-| 周期月数 | 3~6 个月 | 超 6 或低于 3 警告 |
-| 参考文献数 | ≥5 条 | <5 警告 |
-| 参考文献类型覆盖 | ≥3 类 | <3 警告 |
-| 英文文献数（v2.1） | ≥3 篇 | <3 警告 |
-| 国家政策引用数（v2.1） | ≥3 条 | <3 警告 |
-| 文献综述条数（v2.1） | ≥10 条 | <10 警告 |
-| 科学挑战数（v2.1） | ≥1 个 | <1 警告 |
-| 方法对比方法数（v2.1） | ≥2 方法 | <2 警告 |
-| 社会效益项数（v2.1） | ≥3 项 | <3 警告 |
-| 进度阶段数（v2.1） | ≥4 阶段 | <4 警告 |
-
-### 18.5 字体规范常量
-
-```python
-FONT_SONG = "宋体"          # 正文
-FONT_HEI = "黑体"           # 标题
-FONT_FANGSONG = "仿宋"      # 备注
-FONT_KAI = "楷体"           # 引用
-FONT_TIMES = "Times New Roman"  # 英文/数字
-
-SIZE_ER = Pt(22)            # 二号（封面标题）
-SIZE_SAN = Pt(16)           # 三号（一级标题）
-SIZE_XIAO_SAN = Pt(15)      # 小三（二级标题）
-SIZE_SI = Pt(14)            # 四号（三级标题）
-SIZE_XIAO_SI = Pt(12)       # 小四（正文）
-SIZE_WU = Pt(10.5)          # 五号（表格、参考文献）
-```
-
-### 18.6 输出路径
-
-默认输出到当前目录。建议命名规则：`院级_{课题简称}_{申报日期}.docx`，如 `院级_学习拖延干预_20250310.docx`。
-
----
-
+<!-- WRITING-STYLE:END -->
 ## 十九、质检清单【v2.1 必加章节 9】
 
 ### 19.1 24 项硬质检清单

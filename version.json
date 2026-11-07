@@ -1,10 +1,10 @@
 {
   "project": "awesome-student-ai-skills",
-  "project_version": "v2.1",
+  "project_version": "v2.2",
   "description": "35 个大学生竞赛与立项 AI Skill 集合 | 覆盖大创/挑战杯/互联网+/国家级项目/答辩模拟等 | 零门槛即用 | Agent Skills 标准",
-  "generated_at": "2026-07-25",
+  "generated_at": "2026-11-08",
   "total_skills": 35,
-  "total_lines": 95317,
+  "total_lines": 35241,
   "categories_count": 9,
   "categories_breakdown": {
     "scholarship": {
@@ -91,6 +91,25 @@
     "youth-league-conversion"
   ],
   "changelog": [
+    {
+      "version": "v2.2",
+      "date": "2026-11-08",
+      "changes": [
+        "新增 utils/ai_flavor_check.py：AI 味检测（6 维度量化，0~100 分，及格线 75）",
+        "新增 docs/design/WRITING_STYLE.md：写作风格规范（去 AI 味）单一事实来源",
+        "新增 scripts/inject_writing_style.py：向 35 个子 skill 幂等注入写作规范块",
+        "新增 scripts/sync_readme_kb.py：README KB 数字与 SKILL.md 实际大小同步",
+        "review_simulator.py 接入文风维度：AI 味 <55 触发一票否决，<75 计入弱项与改进建议",
+        "根 SKILL.md 与 AGENT_PROMPT.md 将 AI 味检测列为 Step 5 硬门禁",
+        "CI 新增写作规范注入门禁（inject_writing_style.py --check）",
+        "新增测试 tests/test_ai_flavor.py（21 项）+ tests/test_writing_style.py（110 项）",
+        "新增 scripts/progressive_disclosure.py：按 Anthropic 官方最佳实践把大章节外移到 references/（渐进式披露）",
+        "35 个 SKILL.md 从 47049 行精简到 35241 行（-25%），外移内容完整保留在 references/ 中",
+        "新增 scripts/check_skill_description.py：按官方规范校验 description 长度/触发词/唯一性",
+        "修复重构工具缺陷：写作规范块被章节切分卷走导致标记截断（已加保护块边界）",
+        "修复重构工具缺陷：多个「附录」章节写入同一 references 文件互相覆盖（已加 slug 去重）"
+      ]
+    },
     {
       "version": "v2.1",
       "date": "2026-07-25",

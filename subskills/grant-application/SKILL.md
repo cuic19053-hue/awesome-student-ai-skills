@@ -49,6 +49,11 @@ metadata:
 
 ---
 
+<!-- REFERENCES-INDEX -->
+> 📚 **按需加载的参考资料**（渐进式披露，不需要时不要读）：
+> - [`references/json-schema.md`](references/json-schema.md) — §9 JSON Schema 完整字段
+> - [`references/intake-checklist.md`](references/intake-checklist.md) — §4 信息采集清单
+
 ## §0 适用场景与触发条件
 
 ### §0.1 适用关键词
@@ -246,61 +251,11 @@ metadata:
 
 ---
 
-## §4 信息采集清单
+## §4 信息采集清单（已外移至 references/intake-checklist.md）
 
-### §4.1 必采字段（缺一不可）
-
-| 字段 | 说明 | 示例 |
-|---|---|---|
-| `name` | 学生姓名 | 张三 |
-| `gender` | 性别 | 男 / 女 |
-| `ethnicity` | 民族 | 汉族 |
-| `college` | 学院全称 | 计算机科学与技术学院 |
-| `major` | 专业全称 | 计算机科学与技术 |
-| `grade` | 年级（含"大一""大二"等年级标识） | 2024 级 大一 |
-| `student_id` | 学号 | 2024010101 |
-| `apply_year` | 申请学年 | 2024-2025 学年 |
-| `political_status` | 政治面貌 | 中共党员 / 中共预备党员 / 共青团员 / 群众 |
-| `grant_level` | **助学金档次（核心字段）** | 一等 / 二等 / 三等 |
-| `grant_amount` | 助学金金额（自动按 grant_level 推算） | 4400 / 3300 / 2200 |
-| `difficulty_level` | 家庭经济困难认定等级 | 特别困难 / 困难 / 一般困难 |
-| `difficulty_cert_no` | 困难认定编号 / 建档立卡号 / 低保号 | GZ2024-00123 / JL-2024-00456 |
-| `poverty_category` | 家庭困难类别（6 类之一） | 建档立卡 / 低保 / 重大疾病 / 单亲 / 多子女上大学 / 失业 |
-
-### §4.2 家庭经济字段（详见 §5 + §9 Schema）
-
-| 字段 | 说明 |
-|---|---|
-| `family_situation` | 家庭经济情况**子结构**（详见 §5.1 + §9 Schema） |
-| `family_members` | 家庭成员表（list，5 列：姓名/关系/工作单位职务/年收入/政治面貌） |
-| `work_study` | 勤工助学经历（list，4 列：岗位/地点/时长/月收入） |
-
-### §4.3 在校表现字段
-
-| 字段 | 说明 |
-|---|---|
-| `study_situation` | 学习情况简述（GPA / 排名 / 是否有挂科——助学金不要求但建议写） |
-| `gpa` / `rank` / `rank_total` | 学业数据（选填，不达励志门槛也可填） |
-| `course_failed` | 是否有挂科（"无" / "X 门必修课不及格"） |
-| `ideology` | 思想方面简述（拥护党的领导、优秀团员/积极分子 / 党课、阶段汇报等） |
-| `position` | 学生干部职务 |
-| `position_work` | 干部履职简述 |
-| `volunteer_hours` | 志愿服务时长（小时） |
-| `volunteer_detail` | 志愿服务简述 |
-| `lifestyle` | 生活方式简述（每月伙食费、节俭习惯等） |
-
-### §4.4 输出控制字段
-
-| 字段 | 说明 | 取值 |
-|---|---|---|
-| `material_type` | 材料类型分流 | `"A"` / `"B"` / `"A+B"` |
-| `word_count_version` | 字数版本 | `"800"` / `"1200"` / `"1500"` |
-| `salutation` | 称呼语（B 类） | 默认"尊敬的学院领导、评审委员会：" |
-| `opening` | 开场白（B 类） | 默认含姓名/学院/专业/年级/申请事由 |
-| `ending` | 结尾段（B 类） | 默认含"特此申请"+ 感恩表态 |
-| `apply_date` | 申请日期 | YYYY-MM-DD 或 YYYY 年 M 月 D 日 |
-
----
+> 📎 **逐字段信息采集清单** 已移至 [`references/intake-checklist.md`](references/intake-checklist.md)，保持 SKILL.md 精简。
+> **何时阅读**：需要逐条向用户提问采集信息时。
+> 其余情况下不需要读取该文件。
 
 ## §5 申报书 5 段结构（核心：家庭经济情况段决定成败）
 
@@ -655,236 +610,108 @@ metadata:
 
 ---
 
-## §9 JSON Schema 完整字段
+## §9 JSON Schema 完整字段（已外移至 references/json-schema.md）
 
-### §9.1 Schema 总览
+> 📎 **完整 JSON Schema 定义** 已移至 [`references/json-schema.md`](references/json-schema.md)，保持 SKILL.md 精简。
+> **何时阅读**：构造 --data 输入文件、或 build.py 报字段校验错误时。
+> 其余情况下不需要读取该文件。
 
-```jsonc
-{
-  // ===== 基础信息 =====
-  "name": "张三",                          // 必填，学生姓名
-  "gender": "男",                          // 必填，男/女
-  "ethnicity": "汉族",                     // 选填，民族
-  "college": "计算机科学与技术学院",         // 必填，学院全称
-  "major": "计算机科学与技术",              // 必填，专业全称
-  "grade": "2024 级 大一",                 // 必填，年级（含"大一"等标识）
-  "class_name": "计科 2401 班",            // 选填，班级
-  "student_id": "2024010101",              // 必填，学号
-  "political_status": "共青团员",          // 必填，政治面貌
-  "phone": "138XXXXXXXX",                 // 选填，联系电话
+## §10 build.py 接口说明（已外移至 references/build-usage.md）
 
-  // ===== 申请信息 =====
-  "apply_year": "2024-2025 学年",          // 必填，申请学年
-  "apply_date": "2024 年 9 月 20 日",      // 必填，申请日期（建议 9.1~9.30）
-  "grant_level": "一等",                   // 必填，助学金档次（一等/二等/三等）
-  "grant_amount": 4400,                    // 自动推算（一等4400/二等3300/三等2200）
-  "difficulty_level": "特别困难",          // 必填，困难认定等级
-  "difficulty_cert_no": "GZ2024-00123",   // 必填，认定编号/建档立卡号/低保号
-  "poverty_category": "建档立卡",          // 必填，6类困难之一
+> 📎 **build.py 接口说明** 已移至 [`references/build-usage.md`](references/build-usage.md)，保持 SKILL.md 精简。
+> **何时阅读**：需要调用 build.py 或了解接口参数时。
+> 其余情况下不需要读取该文件。
 
-  // ===== 家庭经济子结构（核心段数据）=====
-  "family_situation": {
-    "family_size": 5,                      // 必填，家庭常住人口数
-    "college_students": 2,                 // 必填，在校大学生数
-    "elderly_count": 1,                    // 选填，需赡养老人数
-    "hometown": "XX 省 XX 县农村家庭",     // 必填，家庭住址
-    "zip_code": "XXXXXX",                  // 选填，邮政编码
-    "father_name": "张 XX",                // 必填，父亲姓名
-    "father_job": "XX 县 XX 厂下岗工人",   // 必填，父亲职业
-    "father_income_detail": "下岗失业，打零工月收入约 1800 元",  // 必填
-    "mother_name": "李 XX",                // 必填，母亲姓名
-    "mother_job": "在家务农 + 镇上家政",   // 必填，母亲职业
-    "mother_income_detail": "种植玉米 3 亩年产值 4500 元 + 家政月收入 1200 元",  // 必填
-    "income_source": "父亲打零工 + 母亲务农与家政",  // 必填，收入来源汇总
-    "family_income_year": 41000,           // 必填，家庭年总收入（元）
-    "per_capita_year": 8200,               // 自动推算 = family_income_year / family_size
-    "per_capita_month": 680,               // 自动推算 = per_capita_year / 12
-    "local_min_living": 750,               // 必填，当地最低生活保障标准（元/月）
-    "school_line": 400,                    // 必填，学校对应档次认定线（元/月）
-    "large_expenses": "2024.03 祖父确诊肺癌自付医疗费 4.5 万元；2024.09 妹妹考入大学学费 6000 元/年",  // 必填
-    "debt_total": 68000,                   // 选填，家庭债务总额（元）
-    "debt_relative": 48000,                // 选填，亲戚借款（元）
-    "debt_loan": 20000,                    // 选填，助学贷款（元）
-    "debt_bank": 0,                        // 选填，银行贷款（元）
-    "debt_reason": "支付医疗费与两人学费"  // 选填，借贷原因
-  },
+<!-- WRITING-STYLE:START -->
+## 写作风格硬约束（去 AI 味 · 强制）
 
-  // ===== 家庭成员表（5 列）=====
-  "family_members": [
-    {"name": "张 XX", "relation": "父亲", "job": "XX 县下岗工人", "income": 21600, "political": "群众"},
-    {"name": "李 XX", "relation": "母亲", "job": "在家务农 + 家政", "income": 18000, "political": "群众"},
-    {"name": "张 X",  "relation": "妹妹", "job": "XX 大学在读", "income": 0, "political": "共青团员"},
-    {"name": "王 XX", "relation": "祖父", "job": "在家休养（肺癌术后）", "income": 0, "political": "群众"},
-    {"name": "张三",  "relation": "本人", "job": "XX 大学大一", "income": 0, "political": "共青团员"}
-  ],
+> 完整规范见 [`docs/design/WRITING_STYLE.md`](../../docs/design/WRITING_STYLE.md)。
+> 本节是压缩版，**撰写正文前必读，交付前必须过检测**。
 
-  // ===== 勤工助学表（4 列）=====
-  "work_study": [
-    {"position": "图书馆管理员", "place": "学校图书馆", "duration": "2024.09~至今 每周 8 小时", "monthly_income": 400},
-    {"position": "食堂帮厨", "place": "学校一食堂", "duration": "2024.10~2024.12 每周 6 小时", "monthly_income": 600},
-    {"position": "家教（高中数学）", "place": "学生家中", "duration": "2024.03~2024.07 每周 4 小时", "monthly_income": 600}
-  ],
+### 一条总原则
 
-  // ===== 在校表现 =====
-  "study_situation": "本学年必修课全部及格，主干课平均成绩 82 分，CET-4 510 分",
-  "gpa": "3.20/4.0",                       // 选填（助学金不要求，建议简述或不写）
-  "rank": "30/120",                        // 选填（助学金不要求，建议不写）
-  "rank_total": "120",                     // 选填
-  "course_failed": "无",                   // 选填，"无"/"X门必修课不及格"
-  "ideology": "拥护党的领导，2024.10 列为优秀团员/积极分子",
-  "party_history": "学院分党校第 38 期培训班结业",
-  "position": "班级学习委员",
-  "position_work": "组织 5 次学习经验交流会",
-  "volunteer_hours": 50,
-  "volunteer_detail": "敬老院慰问 3 次、三下乡 1 次",
-  "lifestyle": "月伙食费 800 元以内，教材通过二手或图书馆获取",
-  "dorm_role": "宿舍长",
-  "dorm_honor": "文明宿舍",
+**每个句子都必须能落到具体的人、事、时间、数字或对象上；落不到的句子，删掉。**
+自检方法：读完一句问「这句能换成别人吗？」——能换，就是套话。
 
-  // ===== 申请理由与感恩表态 =====
-  "tuition": 6000,                         // 必填，学费（元/年）
-  "textbook_fee": 800,                     // 选填，教材费（元/年）
-  "monthly_food": 800,                     // 选填，月伙食费（元）
-  "loan_amount": 8000,                     // 选填，助学贷款（元/年）
-  "monthly_income": 1600,                  // 选填，勤工助学月收入（元）
+### 六条硬约束（及格线 75/100）
 
-  // ===== 输出控制 =====
-  "material_type": "B",                    // 默认 B（A/A+B/B）
-  "word_count_version": "1200",            // 默认 1200（800/1200/1500）
-  "salutation": "尊敬的学院领导、评审委员会：",
-  "opening": "",                           // 留空则按 §7.1 模板生成
-  "ending": "",                            // 留空则按 §7.5 模板生成
-  "apply_date": "2024-09-20"
-}
-```
+| # | 约束 | 量化判据 |
+|---|---|---|
+| 1 | 不写空话套话 | 每千字命中套话 ≤3 次 |
+| 2 | 不用排比对仗 | 同构句连续 ≤2 句 |
+| 3 | 不堆抽象大词 | 每千字抽象词 ≤4 次 |
+| 4 | 必须具体 | 每千字数字/专名 ≥8 处 |
+| 5 | 句长要参差 | 句长变异系数 ≥0.35 |
+| 6 | 不用模板开头 | 禁止「时光荏苒」「本人自入学以来」 |
 
-### §9.2 字段填写完整度校验
+### 高频禁用词（出现即改）
 
-| 字段类别 | 必填字段数 | 建议填字段数 | 校验规则 |
-|---|---|---|---|
-| 基础信息 | 8（name/gender/college/major/grade/student_id/political_status/apply_year） | 11 | 任一缺失 build.py 报警告 |
-| 申请信息 | 5（grant_level/grant_amount/difficulty_level/difficulty_cert_no/poverty_category） | 6 | grant_level 必须与 difficulty_level 对应 |
-| 家庭经济 | 5（family_situation.family_size/income_source/family_income_year/local_min_living/large_expenses） | 12 | family_situation 子结构必须完整 |
-| 家庭成员表 | 3（每人含 name/relation/job/income/political 5 列） | 5 | 至少 3 人（父母+本人） |
-| 勤工助学 | 2（每项含 position/place/duration/monthly_income 4 列） | 3 | 至少 1 项，建议 2~3 项 |
-| 在校表现 | 3（study_situation/ideology/position） | 8 | 影响 §5.4 段三字数 |
-| 输出控制 | 3（material_type/word_count_version/apply_date） | 5 | material_type 默认 "B"，word_count_version 默认 "1200" |
+具有重要意义、具有重大意义、意义重大、影响深远、作用显著、效果显著、成效显著、
+成绩斐然、成果丰硕、高度重视、切实增强、切实提升、不断提升、持续提升、
+进一步加强、进一步完善、进一步深化、不断深化、深入推进、全面推进、扎实开展、
+稳步推进、着力打造、全力推动、取得显著成效、获得一致好评、受到广泛好评、
+得到充分肯定、获得高度评价、与此同时、在此基础上、综上所述、总而言之、
+值得一提的是、不难看出、由此可见、众所周知、不懈努力、刻苦钻研、勤奋刻苦、
+锐意进取、开拓创新、勇于探索、敢于突破、迈上新台阶、开创新局面、谱写新篇章、
+踏上新征程、展现新作为、彰显新担当、焕发新气象、贡献青春力量、绽放青春光彩、
+书写青春华章、以青春之我、坚定理想信念、厚植家国情怀、锤炼过硬本领、砥砺意志品质、
+综合素质突出、全面发展、品学兼优、德智体美劳、起到了模范带头作用、
+发挥了示范引领作用、树立了良好榜样、得到了师生的一致认可、深受老师和同学的好评、
+为集体作出了积极贡献、为团队贡献了自己的力量、奠定了坚实的基础、
+打下了坚实的基础、提供了有力支撑、注入了强劲动力、开辟了新的途径、探索了新的模式
 
-### §9.3 grant_level 与 difficulty_level 对应关系
+抽象大词（无具体指涉时禁用）：格局、境界、高度、深度、广度、维度、层面、体系、
+机制、路径、抓手、载体、平台、生态、闭环、赋能、助力、引领、驱动、融合、协同、
+联动、统筹、底层逻辑、顶层设计、系统性思维、全局视野、战略高度、核心素养、
+综合能力、内生动力、长效机制
 
-| grant_level | grant_amount（元/年） | difficulty_level | 备注 |
-|---|---|---|---|
-| 一等 | 4400 | 特别困难 | 严格对应，跨档申请材料退回 |
-| 二等 | 3300 | 困难 | 严格对应 |
-| 三等 | 2200 | 一般困难 | 严格对应 |
+### 替换动作（照做即可）
 
----
+| 原写法 | 改写成 |
+|---|---|
+| 学习成绩优异，名列前茅 | 专业 3/127，加权 91.4，`<课程名>` 98 分 |
+| 积极参加学科竞赛 | 2024 年 11 月 `<赛事全名>` 省赛二等奖，作品 `<名称>`，我负责 `<模块>` |
+| 在导师指导下参与科研 | 参与 `<导师>` 的 `<课题名>`，负责 `<具体工作>`，产出 `<论文/专利/数据>` |
+| 具有较强的团队协作能力 | 删掉。改为：`<时间>` 带 `<人数>` 人完成 `<任务>`，遇到 `<冲突>`，怎么解决 |
+| 思想上积极向党组织靠拢 | `<年/月>` 提交入党申请书，`<年/月>` 成为积极分子，参加 `<次数>` 次党课 |
+| 热心公益，积极参加志愿服务 | `<机构>` 志愿服务 `<小时>` 小时，服务 `<对象>` `<人数>` 人 |
 
-## §10 build.py 接口说明
+### 句式要求
 
-### §10.1 build.py 基本信息
+1. **长短句交替**：每 3~5 句里至少有一句 ≤12 字或 ≥60 字。
+2. **一段一个事实**：段首句不要用「在……方面」。
+3. **少用第一人称抒情**：「我深深感到」「我深刻认识到」一律删除。
+4. **数字优先**：能用数字就不用形容词。「多次」→「7 次」，「大量」→「4200 张」。
+5. 不用破折号堆叠解释，不连续套用「不仅……而且……」。
 
-- 路径：`/home/z/my-project/skills/awesome-student-ai-skills/subskills/grant_application/build.py`
-- 字体常量：宋体（FONT_SONG）/ 黑体（FONT_HEI）/ Times New Roman（FONT_TIMES）
-- 页面：A4 纸张，页边距上下 2.54cm 左右 2.5cm
-- 段落：首行缩进 2 字符，1.5 倍行距
-- 标题：黑体二号居中
-
-### §10.2 命令行接口
+### 交付前强制质检（任一项不过 → 不允许交付）
 
 ```bash
-# Demo 模式（生成示例 docx）
-python3 build.py --demo --out output.docx
+# 1) AI 味检测（及格线 75）
+python3 utils/ai_flavor_check.py --file draft.txt --min-score 75
 
-# 数据模式（用 data.json 生成 docx）
-python3 build.py --data data.json --out output.docx
+# 2) 查重预检（阈值 30%）
+python3 utils/plagiarism_checker.py --file draft.txt --skill <skill_name>
+
+# 3) 评审模拟（含文风维度）
+python3 utils/review_simulator.py --skill <skill_name> --file draft.txt
 ```
 
-| 参数 | 说明 |
-|---|---|
-| `--data` | JSON 数据文件路径（不填则用 demo 数据） |
-| `--out` | 输出 docx 路径（必填） |
-| `--demo` | 使用内置示例数据（与 --data 互斥） |
+### 冲突处理
 
-### §10.3 build.py 当前支持的字段（与 §9 Schema 对照）
+政策条文、领导讲话、文件原名**允许庄重书面语**，不算套话。
+检测时加 `--allow-policy-quotes`（该维度扣分减半）。
+但引用必须写成 `《文件全名》（发文号）`，且只引与论点直接相关的 1~2 句。
 
-build.py 采用 `_get(key, default)` 方式按需读取字段，**未严格校验 Schema**。当前 build.py 实际读取的字段如下：
+### 反模式
 
-| build.py 读取字段 | Schema 对应字段 | 说明 |
-|---|---|---|
-| `name` / `college` / `major` / `grade` / `apply_year` | 同名 | 基础信息 |
-| `grant_level` / `grant_amount` | 同名 | 助学金档次与金额（金额自动推算） |
-| `difficulty_level` / `difficulty_cert_no` / `poverty_category` | 同名 | 困难等级 / 编号 / 6 类类别 |
-| `family_situation` 子结构 | 同名 | 家庭经济 6 大要素 |
-| `family_members`（list，含 name/relation/job/income/political） | 同名 | 家庭成员表（5 列） |
-| `work_study`（list，含 position/place/duration/monthly_income） | 同名 | 勤工助学表（4 列） |
-| `study_situation` / `gpa` / `rank` / `course_failed` | 同名 | 在校表现（学习部分） |
-| `ideology` / `party_history` / `position` / `position_work` | 同名 | 在校表现（思想与干部） |
-| `volunteer_hours` / `volunteer_detail` / `lifestyle` | 同名 | 在校表现（志愿与生活） |
-| `tuition` / `textbook_fee` / `monthly_food` / `loan_amount` / `monthly_income` | 同名 | 申请理由与用途 |
-| `salutation` / `opening` / `ending` / `apply_date` | 同名 | 输出控制 |
-| `material_type` / `word_count_version` | 同名 | 材料类型与字数版本 |
+- ❌ 把子 skill 里的「金句模板」当范文直接套用
+- ❌ 用排比段凑字数
+- ❌ 通篇无一个数字、无一个专有名词
+- ❌ 检测得分 <75 仍交付
+- ❌ 只删套话不补事实（删完变空段落，同样不及格）
 
-### §10.4 build.py 函数清单
-
-| 函数名 | 作用 |
-|---|---|
-| `set_run_font` | 设置 run 字体（中英文字体同步） |
-| `set_cell_text` | 设置表格单元格文本 |
-| `add_paragraph_with_format` | 添加带格式段落（缩进/对齐/字体） |
-| `add_title` | 添加黑体二号居中标题 |
-| `add_body_paragraph` | 添加宋体小四正文段落（首行缩进 2 字符） |
-| `add_salutation_paragraph` | 添加顶格称呼段落 |
-| `add_section_heading` | 添加段内小节标题（如"二、家庭经济情况"） |
-| `add_cizhi_paragraph` | 添加"此致"段落 |
-| `add_jingli_paragraph` | 添加"敬礼！"段落 |
-| `add_right_aligned_paragraph` | 添加右对齐段落（落款用） |
-| `add_table_from_data` | 从数据生成表格（headers + rows） |
-| `setup_page` | 设置 A4 页面与页边距 |
-| `add_page_number` | 添加页码 |
-| `compute_grant_amount` | 根据 grant_level 推算 grant_amount |
-| `compute_per_capita` | 根据 family_income_year 与 family_size 推算人均收入 |
-| `main` | 命令行入口 |
-
-### §10.5 build.py 字数版本路由
-
-build.py 根据 `word_count_version` 字段决定段落字数与表格插入策略：
-
-| word_count_version | 段一 | 段二 | 段三 | 段四 | 段五 | 表格 |
-|---|---|---|---|---|---|---|
-| `"800"` | 100 字 | 350 字 | 200 字 | 100 字 | 50 字 | 仅家庭成员表（4 列简化） |
-| `"1200"`（默认） | 180 字 | 480 字 | 300 字 | 150 字 | 90 字 | 家庭成员表（5 列）+ 勤工助学表（4 列） |
-| `"1500"` | 220 字 | 600 字 | 380 字 | 180 字 | 120 字 | 家庭成员表（5 列）+ 勤工助学表（4 列）+ 主干课程表（3 列） |
-
-### §10.6 build.py material_type 路由
-
-build.py 根据 `material_type` 字段决定输出形式：
-
-| material_type | 输出 |
-|---|---|
-| `"A"` | 仅打印 A 类申请理由栏 150~200 字纯文本到控制台，提示用户复制到学校模板 |
-| `"B"` | 生成 B 类书信体 docx |
-| `"A+B"` | 生成 B 类 docx + 控制台额外打印 A 类 200 字文本 |
-| 未填 / 默认 | 生成 B 类书信体 docx（1200 字版本） |
-
-### §10.7 build.py 数据校验
-
-build.py 在 `_validate_data()` 方法中校验以下内容（不阻断生成，仅打印警告）：
-
-1. P0 必采字段（name/college/major/grade/student_id/apply_year）缺失 → 警告
-2. `grant_level` 不在 ["一等","二等","三等"] 内 → 警告
-3. `difficulty_level` 不在 ["特别困难","困难","一般困难"] 内 → 警告
-4. `grant_level` 与 `difficulty_level` 不对应（如一等 ≠ 特别困难） → 警告
-5. `grant_amount` 与 `grant_level` 不对应（如一等 ≠ 4400） → 警告
-6. `poverty_category` 不在 6 类内 → 警告
-7. `family_situation.family_income_year` 缺失或过高（> 6 万） → 警告
-8. `family_situation.local_min_living` 缺失 → 警告
-9. `family_situation.large_expenses` 缺失 → 警告
-10. 家庭成员表 < 3 人 → 警告
-11. 勤工助学经历缺失 → 警告
-
----
-
+<!-- WRITING-STYLE:END -->
 ## §11 质检清单（≥15 项）
 
 生成 docx 后，必须逐项核对该 18 项质检清单。任一项不通过 → 重新生成。

@@ -48,6 +48,13 @@ metadata:
 
 ---
 
+<!-- REFERENCES-INDEX -->
+> 📚 **按需加载的参考资料**（渐进式披露，不需要时不要读）：
+> - [`references/json-schema.md`](references/json-schema.md) — 十九、JSON Schema 定义（v2.1 必加章节 9）
+> - [`references/defense-ppt.md`](references/defense-ppt.md) — 十一、答辩 PPT 框架（v2.1 必加章节 8）
+> - [`references/math-formulas.md`](references/math-formulas.md) — 九、数学公式规范（v2.1 必加章节 6）
+> - [`references/intake-checklist.md`](references/intake-checklist.md) — 三、信息采集清单
+
 ## 一、适用场景与触发条件
 
 **适用**：用户提到"挑战杯""课外学术科技作品""学术科技作品竞赛""自然科学类学术论文""哲学社会科学类社会调查报告和学术论文""科技发明制作"等关键词，且作品产出为论文/调查报告/发明实物（非商业计划书）。
@@ -133,251 +140,11 @@ metadata:
 
 ---
 
-## 三、信息采集清单
+## 三、信息采集清单（已外移至 references/intake-checklist.md）
 
-### 3.1 通用必采（10 字段）
-
-| 字段 | 说明 | 示例 | 缺失追问策略 |
-|------|------|------|--------------|
-| work_full_name | 作品全称，≤30 字 | 基于多模态融合与三维重构的消防无人机火场救援系统 | "作品正式名称？不超过 30 字" |
-| category / work_type | 三大类选一 | tech_invention | "作品属于哪一类？自然/社科/发明" |
-| applicant_type | 申报者类型 | collective | "个人还是集体申报？" |
-| leader_name | 申报者代表姓名 | 张三 | "申报者代表全名？" |
-| leader_id | 学号 | 202212345 | "学号？" |
-| leader_major | 专业 | 电气工程及其自动化 | "专业全称？" |
-| leader_grade | 年级 | 2022 级 大三 | "入学年份与年级？" |
-| college | 学院全称 | 电气工程学院 | "学院全称？" |
-| school | 学校全称 | XX 大学 | "学校全称？" |
-| apply_date | 申报日期 | 2025 年 3 月 15 日 | "申报提交日期？" |
-
-> 注：`category` 与 `work_type` 字段在 build.py 中等价（两者取一即可，优先 `work_type`）。v2.1 推荐用 `work_type` 与字段命名一致。
-
-### 3.2 作品信息（6 字段）
-
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| discipline | 所属一级学科代码 | 0808 电气工程 |
-| duration | 研究起止时间 | 2024.09-2025.08（12 个月） |
-| advisor_name | 指导教师姓名 | 李教授 |
-| advisor_title | 指导教师职称 | 教授 |
-| advisor_research | 指导教师研究方向 | 新能源发电与并网技术 |
-| team_members | 集体申报成员 2~7 人 | 每人：姓名/学号/专业年级/分工 |
-
-### 3.3 研究方法与数据（按栏目采集）
-
-**作品简介素材**：让用户口述"做什么+为谁做+怎么做+产出什么"，整理为 500 字内。重点采集 4 要素：① 痛点（响应慢/误报高/成本高/不全面等）；② 做什么（系统/方法/模型/调查报告）；③ 量化目标（准确率/样本量/响应时间/有效率）；④ 产出（实物+论文+专利+报告）。
-
-**选题背景素材**：
-- 时代背景关键词（政策/行业/学术趋势，2~3 句，必须权威数据来源如国家能源局/教育部/统计局）
-- 现实痛点（具体场景/人群/数据，必须可量化，如"48 小时响应、5%~8% 损失、单户年损失 800 元"）
-- 国内外研究现状（已有 3~5 个相关研究 + 不足，需含研究者姓名+年份+方法+准确率）
-- 项目意义（理论/实践/社会，三选二，每角度一句话）
-
-**研究方法素材**【重点】：
-- 文献调研（覆盖篇数+时间范围+核心结论，如"50 篇 2020~2024 年文献，核心结论为传统方法 75%~80%"）
-- 数据/样本采集（来源+数量+采集方式+伦理审查情况，社科类必须含伦理审查编号）
-- 实验/调研/仿真设计（变量控制+对照组+重复次数+统计方法，如"3 次取平均+5 折交叉+配对 t 检验"）
-- 模型/分析工具（型号+版本+参数设置，如"Python 3.10+PyTorch 2.1+RTX 4090"）
-- 实地测试/验证（地点+时长+评估指标+误差分析，如"3 电站 3 个月+准确率/召回率/F1"）
-
-**研究结果与讨论素材**【重点】：
-- 主要发现（按重要性排序，每发现含数据+图表编号引用，如"准确率 92.3%（详见图 3、表 4）"）
-- 与已有研究对比（量化差异，如"准确率从 80% 提升至 92%，提升 12 个百分点，p<0.01"）
-- 局限性分析（数据/方法/样本代表性等 2~3 条，必须真实可改进）
-- 讨论延展（结果的理论/实践含义、可推广边界、未来工作方向）
-
-**结论素材**：400~600 字总结核心发现+学术贡献+下一步计划。3 句话结构：① 核心发现（量化）；② 学术贡献（理论/方法/应用）；③ 下一步计划（推广/优化/延续方向）。
-
-**创新点素材**：每个创新点必须让用户提供"对比对象+区别+量化优势"。若用户说不清对比对象，追问"传统方法是什么？为什么你的更好？数据呢？"。创新点固定 5 类：方法创新/数据创新/视角创新/理论创新/应用创新，建议覆盖至少 2 类。
-
-**参考文献素材**：5~15 条（v2.1 推荐 30+ 条），含期刊论文[J]/会议论文[C]/专著[M]/学位论文[D]/标准[S]/电子文献[EB/OL]。每条必须含作者+题名+出处+年份+卷期页。自然科学类至少 60% 英文文献，社科类以 CSSCI 为主，科技发明类含专利+标准。
-
-**附录素材**：图表（正文引用编号+原始图，如图 1~图 N）、问卷（社科类必备，含题项数+回收份数+有效率）、原始数据（字段说明+样本量，自然科学与科技发明类必备）、代码/算法（科技发明类关键模块，含注释）、实物照片（科技发明类 A 类必备，含多角度视图+尺寸标注）。
-
-### 3.4 v2.1 新增字段采集（10 字段）
-
-#### 3.4.1 policy_citations（国家政策引用，8+ 项）
-
-| 子字段 | 说明 | 示例 |
-|--------|------|------|
-| issuer | 发文机关 | 中办国办 / 应急管理部、工信部 / 国务院 |
-| doc_no | 文号（可选） | 国发〔2021〕109 号 |
-| title | 标题 | "十四五"国家应急体系规划 |
-| publish_date | 发文时间 | 2021.12 |
-| key_excerpt | 关键表述摘录 | "推广运用智能机器人、无人机等高技术配送装备" |
-| relevance | 与作品相关性 | 直接对应项目无人机消防应用方向 |
-
-**采集规范**：
-1. 必须 8+ 项政策文件
-2. 按时间倒序排列（最新在前）
-3. 必须含 4 要素：发文机关 + 文号 + 标题 + 时间
-4. 每条必须摘录与项目相关的关键表述
-5. 应包含最高领导人讲话（如适用）
-6. 时序跨度建议 5 年以上
-7. 针对作品主题选择政策领域（消防/医疗/教育/能源/环保/制造等）
-
-#### 3.4.2 scientific_challenges（科学挑战 3 段）
-
-| 子字段 | 说明 |
-|--------|------|
-| title | 一句话标题，含关键技术词 |
-| description | 3~5 句话说清挑战本质 |
-| sub_challenges | 子挑战 2~3 个，每个含 detail（5~8 句说明）+ reference（文献支撑） |
-
-**采集规范**：
-1. 严格 3 个科学挑战
-2. 层层递进：挑战 1（数据层）→ 挑战 2（算法层）→ 挑战 3（系统层）
-3. 每个挑战必须有文献支撑（上标 [N]）
-4. 子挑战用 bullet 拆解，每个 5~8 句详细说明
-5. 标题必须含关键技术词
-
-#### 3.4.3 literature_review（国内外研究现状综述，30+ 文献）
-
-| 子字段 | 说明 |
-|--------|------|
-| section | 段落归属：research_significance / domestic_international / summary_gap |
-| topic | 技术方向（如"多模态融合""3D 目标检测"） |
-| citations | 该段引用的文献编号列表 [N1, N2, ...] |
-| content | 段落内容（评述而非罗列） |
-
-**采集规范**：
-1. 文献数量 ≥ 30 篇
-2. 中英文比例：英文 ≥ 60%，中文 ≤ 40%
-3. 期刊层次：必须含 SCI 一区/二区期刊（如 IEEE TPAMI / TIP / TGRS / Nature / Science 子刊）
-4. 时间分布：近 3 年文献 ≥ 50%
-5. 格式：GB/T 7714-2015
-6. 综述结构：研究意义（3~5 段）→ 国内外现状（按方向分段，每段引 3~5 篇）→ 总结分析（指出 gap）
-
-#### 3.4.4 algorithm_comparison（算法对比表）
-
-| 子字段 | 说明 |
-|--------|------|
-| title | 表标题（如"主流自适应路径规划算法对比表"） |
-| dimensions | 对比维度列表 ["技术特点", "优势", "劣势", "适用场景", "效率"] |
-| algorithms | 算法列表 [{"name": "DQN", "ref": "[15]", "values": [...]}] |
-| conclusion | 选型结论（如"基于上表，本项目选用 SAC 算法"） |
-
-**采集规范**：
-1. 至少 1 张算法对比表
-2. 对比维度 ≥ 3 个
-3. 每个算法必须有文献引用
-4. 对比后必须有选型结论
-
-#### 3.4.5 tech_roadmap（技术路线图，3 张）
-
-| 子字段 | 说明 |
-|--------|------|
-| figure_no | 图号（如"图 1"） |
-| title | 图标题（如"项目研究内容关系图"） |
-| nodes | 节点列表 [{"id": "1.1", "label": "国家规划与技术需求"}] |
-| edges | 边列表 [{"from": "1.1", "to": "1.2"}] |
-| description | 图说明（看图就能理解整体逻辑） |
-
-**采集规范**：
-1. 必须 3 张技术路线图：① 研究内容关系图；② 研究方法图；③ 实施技术路线图
-2. 图必须有图号 + 标题
-3. 图必须自含说明
-4. 图中节点必须对应章节编号
-
-#### 3.4.6 formulas（数学公式，自然/发明类必备）
-
-| 子字段 | 说明 |
-|--------|------|
-| equation_no | 公式编号（如"式(1)"） |
-| expression | 公式表达式（如"ρ(p) = |N(p, r)| / V(r)"） |
-| variables | 变量定义 [{"symbol": "ρ(p)", "meaning": "点 p 处密度"}, ...] |
-| context | 公式背景（属于哪个算法/方法） |
-
-**采集规范**：
-1. 自然科学类 ≥ 3 个公式
-2. 科技发明类 ≥ 2 个公式
-3. 哲学社会科学类可不写公式
-4. 每个公式必须编号
-5. 公式后必须解释每个变量含义
-6. 公式必须配算法流程图（用文字描述）
-
-#### 3.4.7 economic_benefits（社会经济效益量化，10 项）
-
-| 子字段 | 说明 |
-|--------|------|
-| indicator | 评估指标（如"被困人员识别召回率"） |
-| traditional_baseline | 传统模式基准值（如"≤70%"） |
-| system_expected | 系统模式预期值（如"≥92%"） |
-| improvement | 效益提升幅度（如"提升 ≥22 个百分点"） |
-
-**采集规范**：
-1. 必须 10+ 项指标
-2. 必须量化对比传统模式 vs 系统模式
-3. 每项必须含 4 列：指标名 / 传统基准 / 系统预期 / 提升幅度
-4. 提升幅度必须用百分比/倍数双重表达
-
-#### 3.4.8 defense_ppt（答辩 PPT 框架，10 页大纲）
-
-| 子字段 | 说明 |
-|--------|------|
-| slide_no | 页码（1~10） |
-| title | 页标题 |
-| duration | 时长建议（如"30 秒"） |
-| key_points | 要点列表（3~5 点） |
-| visual | 视觉建议（如"3 张实拍对比图"） |
-| speaker_notes | 演讲备注 |
-
-**采集规范**：
-1. 必须 10 页 PPT 大纲
-2. 5 分钟陈述 + 5 分钟答辩
-3. 页 1：封面（作品名+作者+导师+学校）
-4. 页 2：研究背景与意义
-5. 页 3：科学挑战与研究目标
-6. 页 4-5：研究方法与技术路线
-7. 页 6-7：核心算法与公式
-8. 页 8：实验结果与对比
-9. 页 9：创新点与社会经济效益
-10. 页 10：结论与未来工作
-
-### 3.5 字段缺失处理策略
-
-| 缺失字段 | 处理方式 |
-|----------|----------|
-| work_full_name | 强制追问，禁止生成"XX 项目"占位 |
-| category / work_type | 强制追问，三选一无默认值 |
-| research_method | 用占位文本提示用户补充，触发校验警告 |
-| innovations | 用占位文本提示"3~5 个创新点必须含对比+量化" |
-| references | 至少补 3 条 GB/T 7714 格式条目，触发校验警告 |
-| appendix | 用"（请补充附录：图表/问卷/原始数据）"占位 |
-| policy_citations（v2.1） | 用占位文本提示"必须 8+ 国家政策文件，按时间倒序"，触发校验警告 |
-| scientific_challenges（v2.1） | 用占位文本提示"必须 3 段科学挑战，层层递进"，触发校验警告 |
-| literature_review（v2.1） | 用占位文本提示"必须 30+ 文献综述，含 SCI 期刊"，触发校验警告 |
-| algorithm_comparison（v2.1） | 用占位文本提示"至少 1 张算法对比表，含选型结论" |
-| tech_roadmap（v2.1） | 用占位文本提示"必须 3 张技术路线图" |
-| formulas（v2.1） | 用占位文本提示"自然/发明类必须含数学公式" |
-| economic_benefits（v2.1） | 用占位文本提示"必须 10+ 项经济效益量化" |
-| defense_ppt（v2.1） | 用占位文本提示"必须 10 页 PPT 大纲" |
-
-### 3.6 追问话术示例
-
-- 类别不明："你的作品是论文、调查报告还是发明实物？分别对应自然科学类、哲学社会科学类、科技发明制作。"
-- 创新点无对比："创新点 1 缺对比对象。传统方法是什么？为什么你的更好？数据呢？"
-- 研究方法无统计："实验数据有做显著性检验吗？用什么方法？p 值是多少？"
-- 参考文献不合规："参考文献不符合 GB/T 7714 格式。请补充作者全名、卷期号、起止页。"
-- 社科无伦理审查："社科类研究涉及人，必须经伦理委员会审查。请提供审查编号或说明免审查理由。"
-- 政策少于 8 项（v2.1）："国家政策引用仅 N 项，至少 8 项。请按时间倒序补充，4 要素齐全（发文机关/文号/标题/时间）。"
-- 科学挑战少于 3 段（v2.1）："科学挑战仅 N 段，必须 3 段（数据层/算法层/系统层），层层递进，每段含文献支撑。"
-- 文献少于 30 篇（v2.1）："文献仅 N 篇，至少 30 篇。英文 ≥ 60%，含 SCI 一区/二区期刊。"
-- 技术路线少于 3 张（v2.1）："技术路线仅 N 张，必须 3 张：研究内容关系图+研究方法图+实施技术路线图。"
-- 经济效益少于 10 项（v2.1）："经济效益仅 N 项，至少 10 项，每项含 4 列：传统基准/系统预期/提升幅度。"
-
-### 3.7 字段优先级
-
-| 优先级 | 字段 | 缺失影响 |
-|--------|------|----------|
-| P0 必填 | work_full_name/work_type/applicant_type/leader_name/college/school | 申报书无法生成 |
-| P0 必填 | abstract/background/research_method/results_discussion/conclusion/innovations | 核心栏目空白 |
-| P0 必填（v2.1） | policy_citations/scientific_challenges/literature_review/economic_benefits | v2.1 核心栏目空白 |
-| P0 必填（v2.1） | tech_roadmap/formulas（自然/发明类）/defense_ppt | v2.1 核心栏目空白 |
-| P1 重要 | references/appendix/discipline/duration/algorithm_comparison | 评审扣分但不阻断 |
-| P2 可选 | advisor_research/team_members/lab_condition | 影响完整性 |
-
----
+> 📎 **逐字段信息采集清单** 已移至 [`references/intake-checklist.md`](references/intake-checklist.md)，保持 SKILL.md 精简。
+> **何时阅读**：需要逐条向用户提问采集信息时。
+> 其余情况下不需要读取该文件。
 
 ## 四、国家政策引用规范（v2.1 必加章节 1）
 
@@ -840,162 +607,11 @@ metadata:
 
 ---
 
-## 九、数学公式规范（v2.1 必加章节 6）
+## 九、数学公式规范（v2.1 必加章节 6）（已外移至 references/math-formulas.md）
 
-### 9.1 规范要点（6 条）
-
-1. **必备类别**：自然科学类 ≥ 3 个公式；科技发明类 ≥ 2 个公式；哲学社会科学类可不写公式
-2. **编号**：每个公式必须编号（如式(1)、式(2)）
-3. **变量解释**：公式后必须解释每个变量的含义
-4. **算法流程图**：公式必须配算法流程图（用文字描述流程）
-5. **算法名称**：算法名称必须有缩写（如 PI-STGNN = Physics-Informed Spatio-Temporal Graph Neural Network）
-6. **上下文**：公式必须说明属于哪个算法/方法
-
-### 9.2 案例 2 ASCN 算法公式示例
-
-**算法名称**：ASCN（Adaptive Spatial-Clustering Network，自适应空间聚类网络）
-
-**式(1) 密度计算公式**：
-```
-ρ(p) = |N(p, r)| / V(r)
-```
-其中：
-- ρ(p)：点 p 处的局部密度
-- N(p, r)：以点 p 为中心、半径为 r 的邻域内的点集
-- V(r)：该邻域球体积，V(r) = (4/3)πr³
-
-**式(2) 动态扩张率**：
-```
-δ = δ_min + (δ_max - δ_min) · (1 - ρ̂)
-```
-其中：
-- δ：动态扩张率
-- δ_min、δ_max：扩张率的上下界
-- ρ̂：归一化密度值，ρ̂ = (ρ - ρ_min) / (ρ_max - ρ_min)
-
-**算法流程**：
-1. 输入点云 P = {p_1, p_2, ..., p_n}
-2. 对每个点 p_i 计算密度 ρ(p_i)（式 1）
-3. 归一化密度得 ρ̂_i
-4. 计算动态扩张率 δ_i（式 2）
-5. 根据 δ_i 进行聚类
-6. 输出聚类结果 C = {c_1, c_2, ..., c_k}
-
-### 9.3 公式撰写模板
-
-```
-[算法名称]（[英文全称]，[缩写]）
-
-[算法简介：1~2 句话说明算法用途]
-
-式(N)：[公式表达式]
-
-其中：
-- [变量 1]：[含义]
-- [变量 2]：[含义]
-- ...
-
-算法流程：
-1. [步骤 1]
-2. [步骤 2]
-3. ...
-N. [步骤 N]
-
-核心创新点：[1~2 句话说清创新]
-```
-
-### 9.4 5 类常见数学公式
-
-#### 9.4.1 损失函数
-
-```
-L = L_cls + λ · L_reg + μ · L_aux
-
-其中：
-- L_cls：分类损失（交叉熵）
-- L_reg：回归损失（Smooth L1）
-- L_aux：辅助损失（如对比损失）
-- λ, μ：损失权重，λ=1, μ=0.1
-```
-
-#### 9.4.2 注意力机制
-
-```
-Attention(Q, K, V) = softmax(Q·K^T / √d_k) · V
-
-其中：
-- Q：查询矩阵（query）
-- K：键矩阵（key）
-- V：值矩阵（value）
-- d_k：键向量维度
-```
-
-#### 9.4.3 卡尔曼滤波
-
-```
-x̂_k = x̂_{k|k-1} + K_k · (z_k - H · x̂_{k|k-1})
-
-其中：
-- x̂_k：时刻 k 的状态估计
-- x̂_{k|k-1}：预测状态
-- K_k：卡尔曼增益
-- z_k：观测值
-- H：观测矩阵
-```
-
-#### 9.4.4 信息熵
-
-```
-H(X) = -Σ p(x_i) · log_2 p(x_i)
-
-其中：
-- H(X)：随机变量 X 的信息熵
-- p(x_i)：X 取值 x_i 的概率
-```
-
-#### 9.4.5 强化学习 Bellman 方程
-
-```
-Q(s, a) = E[r + γ · max_a' Q(s', a')]
-
-其中：
-- Q(s, a)：状态 s 下采取动作 a 的价值
-- r：即时奖励
-- γ：折扣因子，γ ∈ [0, 1]
-- s'：下一状态
-- a'：下一动作
-```
-
-### 9.5 公式排版规范
-
-1. 公式居中，独立成行
-2. 公式编号右对齐，如"式(1)"或"(1)"
-3. 变量解释用"其中："引出，每个变量一行
-4. 变量符号用斜体（数学符号惯例）
-5. 矩阵/向量用粗斜体
-6. 公式中的运算符前后留空格
-
-### 9.6 公式反例与正例
-
-**反例（无编号+无变量解释）**：
-> 本算法使用公式 ρ(p) = |N(p, r)| / V(r) 计算密度。
-
-**正例（编号+变量解释+算法流程）**：
-> **式(1) 密度计算公式**：
-> ```
-> ρ(p) = |N(p, r)| / V(r)
-> ```
-> 其中：
-> - ρ(p)：点 p 处的局部密度
-> - N(p, r)：以点 p 为中心、半径为 r 的邻域内的点集
-> - V(r)：邻域球体积，V(r) = (4/3)πr³
->
-> **算法流程**：
-> 1. 输入点云 P
-> 2. 对每个点 p 计算密度 ρ(p)（式 1）
-> 3. 输出密度图
-
----
+> 📎 **数学公式书写与排版规范** 已移至 [`references/math-formulas.md`](references/math-formulas.md)，保持 SKILL.md 精简。
+> **何时阅读**：正文含公式、需要按规范排版时。
+> 其余情况下不需要读取该文件。
 
 ## 十、社会经济效益量化规范（v2.1 必加章节 7）
 
@@ -1076,114 +692,11 @@ Q(s, a) = E[r + γ · max_a' Q(s', a')]
 
 ---
 
-## 十一、答辩 PPT 框架（v2.1 必加章节 8）
+## 十一、答辩 PPT 框架（v2.1 必加章节 8）（已外移至 references/defense-ppt.md）
 
-### 11.1 规范要点（4 条）
-
-1. **时长**：5 分钟陈述 + 5 分钟答辩
-2. **页数**：10 页 PPT 大纲
-3. **结构**：封面 → 背景 → 挑战 → 方法 → 算法 → 结果 → 创新 → 结论
-4. **视觉**：每页必须有视觉建议（图/表/视频）
-
-### 11.2 10 页 PPT 大纲
-
-#### 第 1 页：封面（30 秒）
-
-- **标题**：作品全称
-- **副标题**：第 X 届"挑战杯"课外学术科技作品竞赛
-- **要素**：作者 + 团队成员 + 指导教师 + 学校 + 申报日期
-- **视觉建议**：学校 LOGO + 作品代表性图片
-- **演讲备注**：自我介绍 15 秒，作品名称 15 秒
-
-#### 第 2 页：研究背景与意义（30 秒）
-
-- **要点 1**：国家政策背景（引用 2~3 项政策）
-- **要点 2**：现实痛点（量化数据，如"年损失 50 亿元"）
-- **要点 3**：研究意义（理论+实践+社会）
-- **视觉建议**：政策时间轴 + 痛点数据图
-- **演讲备注**：开门见山，30 秒讲清"为什么做"
-
-#### 第 3 页：科学挑战与研究目标（30 秒）
-
-- **要点 1**：3 个科学挑战（数据→算法→系统）
-- **要点 2**：研究目标（量化）
-- **要点 3**：研究内容（3 大块）
-- **视觉建议**：3 段挑战递进图
-- **演讲备注**：突出"层层递进"逻辑
-
-#### 第 4 页：研究方法与技术路线 1（30 秒）
-
-- **要点 1**：研究方法（4 类：文献调研/数据采集/实验设计/实地测试）
-- **要点 2**：技术路线图 1（研究内容关系图）
-- **视觉建议**：技术路线图 1
-- **演讲备注**：方法严谨性是评审重点
-
-#### 第 5 页：研究方法与技术路线 2（30 秒）
-
-- **要点 1**：技术路线图 2（研究方法图）
-- **要点 2**：技术路线图 3（实施技术路线图）
-- **视觉建议**：技术路线图 2+3 并排
-- **演讲备注**：突出"完整闭环"
-
-#### 第 6 页：核心算法 1（30 秒）
-
-- **要点 1**：算法 1 名称与缩写（如 ASCN）
-- **要点 2**：核心公式（式 1、式 2）
-- **要点 3**：算法流程
-- **视觉建议**：公式 + 流程图
-- **演讲备注**：算法创新是核心创新点
-
-#### 第 7 页：核心算法 2（30 秒）
-
-- **要点 1**：算法 2 名称与缩写
-- **要点 2**：核心公式
-- **要点 3**：算法对比表
-- **视觉建议**：算法对比表
-- **演讲备注**：突出对比优势
-
-#### 第 8 页：实验结果与对比（30 秒）
-
-- **要点 1**：主要发现（量化：准确率 92.3%、召回率 89.5%）
-- **要点 2**：与已有研究对比（提升 12.2 个百分点，p<0.01）
-- **要点 3**：实地测试结果
-- **视觉建议**：结果对比柱状图 + 实地照片
-- **演讲备注**：用数据说话
-
-#### 第 9 页：创新点与社会经济效益（30 秒）
-
-- **要点 1**：3~5 个创新点（每个含对比+量化）
-- **要点 2**：社会经济效益（10 项指标）
-- **视觉建议**：创新点表格 + 经济效益雷达图
-- **演讲备注**：突出"对比+量化"
-
-#### 第 10 页：结论与未来工作（30 秒）
-
-- **要点 1**：核心发现（量化）
-- **要点 2**：学术贡献
-- **要点 3**：未来工作
-- **视觉建议**：路线图 + 致谢
-- **演讲备注**：留 5 秒致谢
-
-### 11.3 5 分钟答辩 Q&A 预测
-
-| 预测问题 | 答辩要点 |
-|----------|----------|
-| 你的创新点与已有研究的本质区别？ | 对比表 + 量化数据 |
-| 算法的鲁棒性如何验证？ | 多场景测试 + 统计显著性 |
-| 数据来源是否合规？ | 合作协议 + 保密协议 + 伦理审查 |
-| 实物是否已成型？| A 类有实物，展示视频 |
-| 推广前景如何？ | 经济效益 10 项 + 5 年规划 |
-| 与互联网+项目区别？ | 挑战杯重学术，无商业模式 |
-
-### 11.4 PPT 视觉规范
-
-1. **配色**：学校主色调 + 学术蓝/灰
-2. **字体**：标题黑体，正文宋体，公式 Times New Roman
-3. **图表**：每页至少 1 张图/表
-4. **动画**：公式逐步展开，图节点逐个出现
-5. **页脚**：页码 + 作品名缩写
-
----
+> 📎 **答辩 PPT 框架** 已移至 [`references/defense-ppt.md`](references/defense-ppt.md)，保持 SKILL.md 精简。
+> **何时阅读**：用户要求配套答辩 PPT 时。
+> 其余情况下不需要读取该文件。
 
 ## 十二、栏目结构详解
 
@@ -1631,335 +1144,102 @@ P1 重要：
 
 ---
 
-## 十九、JSON Schema 定义（v2.1 必加章节 9）
+## 十九、JSON Schema 定义（v2.1 必加章节 9）（已外移至 references/json-schema.md）
 
-### 19.1 完整 JSON Schema
+> 📎 **完整 JSON Schema 定义** 已移至 [`references/json-schema.md`](references/json-schema.md)，保持 SKILL.md 精简。
+> **何时阅读**：构造 --data 输入文件、或 build.py 报字段校验错误时。
+> 其余情况下不需要读取该文件。
 
-```json
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "挑战杯申报书数据",
-  "type": "object",
-  "required": [
-    "work_full_name", "work_type", "applicant_type", "leader_name",
-    "leader_id", "college", "school", "apply_date", "abstract",
-    "background", "research_method", "results_discussion", "conclusion",
-    "innovations", "policy_citations", "scientific_challenges",
-    "literature_review", "economic_benefits", "defense_ppt"
-  ],
-  "properties": {
-    "work_full_name": {
-      "type": "string",
-      "maxLength": 30,
-      "description": "作品全称，≤30 字"
-    },
-    "work_type": {
-      "type": "string",
-      "enum": ["natural_science", "social_science", "tech_invention"],
-      "description": "三大类别"
-    },
-    "category": {
-      "type": "string",
-      "enum": ["natural_science", "social_science", "tech_invention"],
-      "description": "与 work_type 等价（兼容旧字段）"
-    },
-    "applicant_type": {
-      "type": "string",
-      "enum": ["individual", "collective"]
-    },
-    "leader_name": {"type": "string"},
-    "leader_id": {"type": "string"},
-    "leader_major": {"type": "string"},
-    "leader_grade": {"type": "string"},
-    "leader_gender": {"type": "string"},
-    "leader_age": {"type": "string"},
-    "leader_phone": {"type": "string"},
-    "college": {"type": "string"},
-    "school": {"type": "string"},
-    "apply_date": {"type": "string"},
-    "discipline": {"type": "string"},
-    "duration": {"type": "string"},
-    "advisor_name": {"type": "string"},
-    "advisor_title": {"type": "string"},
-    "advisor_research": {"type": "string"},
-    "advisor_phone": {"type": "string"},
-    "team_members": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "name": {"type": "string"},
-          "id": {"type": "string"},
-          "major": {"type": "string"},
-          "grade": {"type": "string"},
-          "role": {"type": "string"}
-        }
-      },
-      "maxItems": 7
-    },
-    "abstract": {
-      "type": "string",
-      "maxLength": 500,
-      "description": "作品简介，≤500 字"
-    },
-    "background": {
-      "type": "array",
-      "items": {"type": "string"},
-      "description": "选题背景与意义，4 子节"
-    },
-    "research_method": {
-      "type": "array",
-      "items": {"type": "string"},
-      "description": "研究方法与过程，4 子节"
-    },
-    "results_discussion": {
-      "type": "array",
-      "items": {"type": "string"},
-      "description": "研究结果与讨论，4 子节"
-    },
-    "conclusion": {
-      "type": "string",
-      "description": "结论，400~600 字"
-    },
-    "innovations": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "type": {"type": "string"},
-          "description": {"type": "string"},
-          "advantage": {"type": "string"}
-        }
-      },
-      "minItems": 3,
-      "maxItems": 5
-    },
-    "references": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "authors": {"type": "string"},
-          "title": {"type": "string"},
-          "type": {"type": "string"},
-          "source": {"type": "string"},
-          "year": {"type": "string"},
-          "volume": {"type": "string"},
-          "issue": {"type": "string"},
-          "pages": {"type": "string"},
-          "publisher": {"type": "string"},
-          "city": {"type": "string"}
-        }
-      },
-      "minItems": 5
-    },
-    "appendix": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "title": {"type": "string"},
-          "content": {"type": "string"}
-        }
-      }
-    },
+<!-- WRITING-STYLE:START -->
+## 写作风格硬约束（去 AI 味 · 强制）
 
-    "policy_citations": {
-      "type": "array",
-      "minItems": 8,
-      "description": "国家政策引用，≥8 项",
-      "items": {
-        "type": "object",
-        "properties": {
-          "issuer": {"type": "string"},
-          "doc_no": {"type": "string"},
-          "title": {"type": "string"},
-          "publish_date": {"type": "string"},
-          "key_excerpt": {"type": "string"},
-          "relevance": {"type": "string"}
-        },
-        "required": ["issuer", "title", "publish_date", "key_excerpt"]
-      }
-    },
-    "scientific_challenges": {
-      "type": "array",
-      "minItems": 3,
-      "maxItems": 3,
-      "description": "科学挑战，严格 3 段",
-      "items": {
-        "type": "object",
-        "properties": {
-          "title": {"type": "string"},
-          "description": {"type": "string"},
-          "sub_challenges": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "title": {"type": "string"},
-                "detail": {"type": "string"},
-                "reference": {"type": "string"}
-              }
-            }
-          }
-        }
-      }
-    },
-    "literature_review": {
-      "type": "array",
-      "description": "国内外研究现状综述，30+ 文献",
-      "items": {
-        "type": "object",
-        "properties": {
-          "section": {"type": "string"},
-          "topic": {"type": "string"},
-          "citations": {"type": "array", "items": {"type": "string"}},
-          "content": {"type": "string"}
-        }
-      }
-    },
-    "algorithm_comparison": {
-      "type": "object",
-      "properties": {
-        "title": {"type": "string"},
-        "dimensions": {"type": "array", "items": {"type": "string"}},
-        "algorithms": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "name": {"type": "string"},
-              "ref": {"type": "string"},
-              "values": {"type": "array", "items": {"type": "string"}}
-            }
-          }
-        },
-        "conclusion": {"type": "string"}
-      }
-    },
-    "tech_roadmap": {
-      "type": "array",
-      "minItems": 3,
-      "description": "技术路线图，≥3 张",
-      "items": {
-        "type": "object",
-        "properties": {
-          "figure_no": {"type": "string"},
-          "title": {"type": "string"},
-          "nodes": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "id": {"type": "string"},
-                "label": {"type": "string"}
-              }
-            }
-          },
-          "edges": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "from": {"type": "string"},
-                "to": {"type": "string"}
-              }
-            }
-          },
-          "description": {"type": "string"}
-        }
-      }
-    },
-    "formulas": {
-      "type": "array",
-      "description": "数学公式，自然/发明类必备",
-      "items": {
-        "type": "object",
-        "properties": {
-          "equation_no": {"type": "string"},
-          "expression": {"type": "string"},
-          "variables": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "symbol": {"type": "string"},
-                "meaning": {"type": "string"}
-              }
-            }
-          },
-          "context": {"type": "string"}
-        }
-      }
-    },
-    "economic_benefits": {
-      "type": "array",
-      "minItems": 10,
-      "description": "社会经济效益量化，≥10 项",
-      "items": {
-        "type": "object",
-        "properties": {
-          "indicator": {"type": "string"},
-          "traditional_baseline": {"type": "string"},
-          "system_expected": {"type": "string"},
-          "improvement": {"type": "string"}
-        }
-      }
-    },
-    "defense_ppt": {
-      "type": "array",
-      "minItems": 10,
-      "maxItems": 10,
-      "description": "答辩 PPT 框架，10 页",
-      "items": {
-        "type": "object",
-        "properties": {
-          "slide_no": {"type": "integer"},
-          "title": {"type": "string"},
-          "duration": {"type": "string"},
-          "key_points": {"type": "array", "items": {"type": "string"}},
-          "visual": {"type": "string"},
-          "speaker_notes": {"type": "string"}
-        }
-      }
-    }
-  }
-}
+> 完整规范见 [`docs/design/WRITING_STYLE.md`](../../docs/design/WRITING_STYLE.md)。
+> 本节是压缩版，**撰写正文前必读，交付前必须过检测**。
+
+### 一条总原则
+
+**每个句子都必须能落到具体的人、事、时间、数字或对象上；落不到的句子，删掉。**
+自检方法：读完一句问「这句能换成别人吗？」——能换，就是套话。
+
+### 六条硬约束（及格线 75/100）
+
+| # | 约束 | 量化判据 |
+|---|---|---|
+| 1 | 不写空话套话 | 每千字命中套话 ≤3 次 |
+| 2 | 不用排比对仗 | 同构句连续 ≤2 句 |
+| 3 | 不堆抽象大词 | 每千字抽象词 ≤4 次 |
+| 4 | 必须具体 | 每千字数字/专名 ≥8 处 |
+| 5 | 句长要参差 | 句长变异系数 ≥0.35 |
+| 6 | 不用模板开头 | 禁止「时光荏苒」「本人自入学以来」 |
+
+### 高频禁用词（出现即改）
+
+具有重要意义、具有重大意义、意义重大、影响深远、作用显著、效果显著、成效显著、
+成绩斐然、成果丰硕、高度重视、切实增强、切实提升、不断提升、持续提升、
+进一步加强、进一步完善、进一步深化、不断深化、深入推进、全面推进、扎实开展、
+稳步推进、着力打造、全力推动、取得显著成效、获得一致好评、受到广泛好评、
+得到充分肯定、获得高度评价、与此同时、在此基础上、综上所述、总而言之、
+值得一提的是、不难看出、由此可见、众所周知、不懈努力、刻苦钻研、勤奋刻苦、
+锐意进取、开拓创新、勇于探索、敢于突破、迈上新台阶、开创新局面、谱写新篇章、
+踏上新征程、展现新作为、彰显新担当、焕发新气象、贡献青春力量、绽放青春光彩、
+书写青春华章、以青春之我、坚定理想信念、厚植家国情怀、锤炼过硬本领、砥砺意志品质、
+综合素质突出、全面发展、品学兼优、德智体美劳、起到了模范带头作用、
+发挥了示范引领作用、树立了良好榜样、得到了师生的一致认可、深受老师和同学的好评、
+为集体作出了积极贡献、为团队贡献了自己的力量、奠定了坚实的基础、
+打下了坚实的基础、提供了有力支撑、注入了强劲动力、开辟了新的途径、探索了新的模式
+
+抽象大词（无具体指涉时禁用）：格局、境界、高度、深度、广度、维度、层面、体系、
+机制、路径、抓手、载体、平台、生态、闭环、赋能、助力、引领、驱动、融合、协同、
+联动、统筹、底层逻辑、顶层设计、系统性思维、全局视野、战略高度、核心素养、
+综合能力、内生动力、长效机制
+
+### 替换动作（照做即可）
+
+| 原写法 | 改写成 |
+|---|---|
+| 学习成绩优异，名列前茅 | 专业 3/127，加权 91.4，`<课程名>` 98 分 |
+| 积极参加学科竞赛 | 2024 年 11 月 `<赛事全名>` 省赛二等奖，作品 `<名称>`，我负责 `<模块>` |
+| 在导师指导下参与科研 | 参与 `<导师>` 的 `<课题名>`，负责 `<具体工作>`，产出 `<论文/专利/数据>` |
+| 具有较强的团队协作能力 | 删掉。改为：`<时间>` 带 `<人数>` 人完成 `<任务>`，遇到 `<冲突>`，怎么解决 |
+| 思想上积极向党组织靠拢 | `<年/月>` 提交入党申请书，`<年/月>` 成为积极分子，参加 `<次数>` 次党课 |
+| 热心公益，积极参加志愿服务 | `<机构>` 志愿服务 `<小时>` 小时，服务 `<对象>` `<人数>` 人 |
+
+### 句式要求
+
+1. **长短句交替**：每 3~5 句里至少有一句 ≤12 字或 ≥60 字。
+2. **一段一个事实**：段首句不要用「在……方面」。
+3. **少用第一人称抒情**：「我深深感到」「我深刻认识到」一律删除。
+4. **数字优先**：能用数字就不用形容词。「多次」→「7 次」，「大量」→「4200 张」。
+5. 不用破折号堆叠解释，不连续套用「不仅……而且……」。
+
+### 交付前强制质检（任一项不过 → 不允许交付）
+
+```bash
+# 1) AI 味检测（及格线 75）
+python3 utils/ai_flavor_check.py --file draft.txt --min-score 75
+
+# 2) 查重预检（阈值 30%）
+python3 utils/plagiarism_checker.py --file draft.txt --skill <skill_name>
+
+# 3) 评审模拟（含文风维度）
+python3 utils/review_simulator.py --skill <skill_name> --file draft.txt
 ```
 
-### 19.2 字段速查表
+### 冲突处理
 
-| 字段 | 类型 | 必填 | 默认值 | 说明 |
-|------|------|------|--------|------|
-| work_full_name | str | P0 | - | 作品全称 ≤30 字 |
-| work_type | str | P0 | - | 三大类代码 |
-| applicant_type | str | P0 | collective | individual/collective |
-| leader_name | str | P0 | - | 申报者代表姓名 |
-| leader_id | str | P0 | - | 学号 |
-| leader_major | str | P0 | - | 专业 |
-| leader_grade | str | P0 | - | 年级 |
-| college | str | P0 | - | 学院 |
-| school | str | P0 | - | 学校 |
-| apply_date | str | P0 | - | 申报日期 |
-| abstract | str | P0 | - | 作品简介 ≤500 字 |
-| background | list | P0 | - | 选题背景 4 子节 |
-| research_method | list | P0 | - | 研究方法 4 子节 |
-| results_discussion | list | P0 | - | 研究结果 4 子节 |
-| conclusion | str | P0 | - | 结论 400~600 字 |
-| innovations | list | P0 | - | 创新点 3~5 个 |
-| policy_citations | list | P0（v2.1） | - | 政策引用 ≥8 |
-| scientific_challenges | list | P0（v2.1） | - | 科学挑战 3 段 |
-| literature_review | list | P0（v2.1） | - | 文献综述 30+ |
-| algorithm_comparison | obj | P1（v2.1） | - | 算法对比表 |
-| tech_roadmap | list | P0（v2.1） | - | 技术路线 3 张 |
-| formulas | list | P0（v2.1） | - | 公式（自然/发明类） |
-| economic_benefits | list | P0（v2.1） | - | 经济效益 10 项 |
-| defense_ppt | list | P0（v2.1） | - | 答辩 PPT 10 页 |
-| references | list | P1 | - | 参考文献 |
-| appendix | list | P1 | - | 附录清单 |
+政策条文、领导讲话、文件原名**允许庄重书面语**，不算套话。
+检测时加 `--allow-policy-quotes`（该维度扣分减半）。
+但引用必须写成 `《文件全名》（发文号）`，且只引与论点直接相关的 1~2 句。
 
----
+### 反模式
 
+- ❌ 把子 skill 里的「金句模板」当范文直接套用
+- ❌ 用排比段凑字数
+- ❌ 通篇无一个数字、无一个专有名词
+- ❌ 检测得分 <75 仍交付
+- ❌ 只删套话不补事实（删完变空段落，同样不及格）
+
+<!-- WRITING-STYLE:END -->
 ## 二十、质检清单（v2.1 必加章节 10）
 
 ### 20.1 格式检查（10 项）
@@ -2186,58 +1466,11 @@ build.py 中 DEFAULT_DATA 采用消防无人机主题，覆盖案例 1+2 的核�
 
 ---
 
-## 二十五、版本记录
+## 二十五、版本记录（已外移至 references/changelog.md）
 
-### v2.2（配图规范）
-
-**新增内容**：
-1. 配图规范（第 27 章）：数据类配图强制代码渲染，禁止 AI 文生图画数据图（中文乱码/数字编造/图文不符三大硬伤）
-2. 标准绘图代码模板（中文字体 fallback 链、统一配色 token、尺寸规范）
-3. 图型选择速查表 + 编号与图注规则（全文连续图号、图注格式、正文必须引用）
-4. python-docx 锚点插图模板（标题段/特征句/表格后三种锚点）
-5. 悬空引用自检脚本（27.6，生成后必跑，退出码非 0 不得交付）
-
-**修复问题**：v2.1 技术路线图为节点表格伪图，且正文存在"详见图 3、表 4"式悬空引用；v2.2 起以代码渲染真图修复，质检阶段新增配图检查项（见阶段 6）。
-
-### v2.1（T47）
-
-**新增内容**：
-1. 国家政策引用规范（第 4 章，8+ 项政策）
-2. 科学挑战 3 段结构（第 5 章，层层递进）
-3. 国内外研究现状综述（第 6 章，30+ 文献）
-4. 算法/方法对比表（第 7 章，≥3 维度）
-5. 技术路线图规范（第 8 章，3 张图）
-6. 数学公式规范（第 9 章，自然/发明类必备）
-7. 社会经济效益量化（第 10 章，10 项）
-8. 答辩 PPT 框架（第 11 章，10 页）
-9. 3 档字数版本（第 13.10 节，自然 8k/哲社 15k/发明 10k）
-10. JSON Schema 定义（第 19 章）
-
-**build.py 新增字段**：
-- policy_citations（8+）
-- scientific_challenges（3）
-- literature_review（30+）
-- algorithm_comparison
-- tech_roadmap（3）
-- formulas
-- economic_benefits（10）
-- defense_ppt（10）
-- work_type（与 category 等价）
-
-**DEFAULT_DATA 升级**：消防无人机主题，对齐案例 1+2
-
-**目标行数**：SKILL.md ≥ 1800 行；build.py ≥ 1200 行
-
-### v2.0（基础版本）
-
-- 14 个标准栏目
-- 4 大评审维度（学术性/创新性/方法科学性/规范性）
-- 3 大类别差异
-- GB/T 7714 参考文献
-- 质检清单
-- 学校差异处理
-
----
+> 📎 **版本变更记录** 已移至 [`references/changelog.md`](references/changelog.md)，保持 SKILL.md 精简。
+> **何时阅读**：排查历史行为差异、或维护该 skill 时。
+> 其余情况下不需要读取该文件。
 
 ## 二十六、附录：常见问题 FAQ
 
@@ -2276,148 +1509,11 @@ A：消防无人机火场救援系统（对齐案例 1+2），覆盖所有 v2.1 
 
 ---
 
-## 二十七、配图规范（v2.2 新增）
+## 二十七、配图规范（v2.2 新增）（已外移至 references/figures.md）
 
-> **v2.2 背景**：v2.1 的"技术路线图"以节点表格 + 关联关系表格呈现，本质是伪图；正文却存在"详见图 3、表 4"式引用，形成悬空引用。科技发明制作类与自然科学类评审对图的预期高（技术路线图、数据对比图、实物照片），本节规定全部数据类配图必须以**代码渲染的真图**交付。
-
-### 27.1 硬性原则：数据图一律代码渲染，禁止 AI 文生图
-
-| 图类型 | 生成方式 | 原因 |
-|--------|----------|------|
-| 技术路线图 / 流程图 | matplotlib / graphviz 代码渲染 | 节点文字必须与正文章节严格对应，文生图中文必乱码 |
-| 甘特图 / 进度图 | matplotlib 代码渲染 | 时间轴必须与 duration、研究方法章节一致 |
-| 数据对比图 / 占比图 | matplotlib 代码渲染 | 数值必须来自 data.json，文生图会编造数字 |
-| 示意渲染图 / 封面插画 | AI 文生图（可选，需用户确认） | 仅限非数据类装饰图，正式申报材料慎用 |
-
-文生图画数据图的三大硬伤（评审一眼识别）：① 中文乱码或错字；② 数字与正文不一致（有造假嫌疑）；③ 节点与章节编号不对应。
-
-**执行方式**：宿主 Agent（WorkBuddy / Claude Code / Codex / Cursor 等）在运行时按本节模板现场编写 Python 绘图代码并本地执行，产出 PNG 后嵌入 docx。这是"照规范发挥"，不是"自由发挥"：字体、配色、图注、编号必须遵守 27.2~27.4，图型选择遵守 27.3，特殊图型可现场扩展代码但不得突破本规范。
-
-### 27.2 标准代码模板（字体 / 配色 / 尺寸）
-
-```python
-# -*- coding: utf-8 -*-
-"""挑战杯配图标准模板：所有配图必须基于本模板绘制。"""
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-from matplotlib import font_manager
-
-# 1) 中文字体 fallback 链（Win/macOS/Linux 通吃；缺字=质检不通过）
-_available = {f.name for f in font_manager.fontManager.ttflist}
-for _f in ("SimHei", "Microsoft YaHei", "Noto Sans CJK SC",
-           "PingFang SC", "Heiti SC", "Arial Unicode MS"):
-    if _f in _available:
-        plt.rcParams["font.family"] = [_f]
-        break
-plt.rcParams["axes.unicode_minus"] = False
-
-# 2) 统一配色 token（全套图共用，禁止每张图自定配色）
-INK, GREY = "#111827", "#4B5563"      # 正文文字 / 辅助文字
-BLUE, BLUEF = "#1E40AF", "#DBEAFE"    # 主色（框线 / 填充）
-RED, REDF = "#B91C1C", "#FECACA"      # 强调（预期成果 / 本系统）
-AMBER, AMBERF = "#B45309", "#FDE68A"  # 次强调（开发 / 过程类）
-GREEN, GREENF = "#15803D", "#BBF7D0"  # 验证 / 通过类
-
-# 3) 尺寸：正文版心宽约 15.5cm，dpi=200，白底
-#    全宽图 figsize≈(7.5, h)，嵌入 15.5cm；大图（竖版流程图）嵌入 ≤12.5cm
-def save(fig, path):
-    fig.savefig(path, dpi=200, bbox_inches="tight",
-                facecolor="white", pad_inches=0.12)
-```
-
-### 27.3 图型选择速查
-
-| 数据场景 | 图型 | 数据来源 |
-|----------|------|----------|
-| 技术路线 / 研究内容关系 | 分层流程图（拓扑分层布局 + 阶段色带） | tech_roadmap[*].nodes/edges |
-| 分阶段实施路线 | 阶段卡片图 + 时间轴 | tech_roadmap（阶段型节点） |
-| 研究进度 | 甘特图 | duration + 采集的各任务起止时间 |
-| 传统模式 vs 本作品指标对比 | 分组柱状图（每指标注明单位） | economic_benefits[*] |
-| 构成占比（模态贡献 / 样本构成等） | 环图 | 信息采集 |
-| 算法 / 方法对比 | 表格（遵循第 7 章，勿重复画图） | algorithm_comparison |
-
-禁止：3D 饼图、渐变发光堆砌、装饰性图标铺满画面、Excel 默认配色。
-
-### 27.4 编号与图注规则
-
-1. **全文连续编号**：图 1、图 2……技术路线图并入全文图号，不再独立成系；表格单独编"表 N"。
-2. **图注置于图下方居中**：格式为"图 N + 空格 + 标题"，可带括号注数据来源，如"图 5 项目研究进度甘特图（2026.06—2027.06，共 12 个月）"；宋体小五加粗。
-3. **正文必须至少一处引用**："如图 N 所示""详见图 N"。无引用的图不得出现。
-4. **图数一致**：图中数值必须来自 data.json；正文数值修改后必须重绘图。
-
-### 27.5 锚点插入方法（python-docx 模板）
-
-```python
-from docx.shared import Cm, Pt
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.oxml import OxmlElement
-from docx.oxml.ns import qn
-from docx.text.paragraph import Paragraph
-
-def _para_after(el, parent):
-    p = OxmlElement("w:p")
-    el.addnext(p)
-    return Paragraph(p, parent)
-
-def insert_figure(anchor_p, img_path, width_cm, caption=None):
-    """在段落 anchor_p 之后插入居中图片 + 图注。
-    锚点按'标题段文本前缀'或'特征句前缀'在 doc.paragraphs 中查找。"""
-    pic = _para_after(anchor_p._p, anchor_p._parent)
-    pic.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    pic.add_run().add_picture(img_path, width=Cm(width_cm))
-    if caption:
-        cap = _para_after(pic._p, pic._parent)
-        cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        run = cap.add_run(caption)
-        run.font.name = "宋体"
-        run.font.size = Pt(9)
-        run.font.bold = True
-        run._element.get_or_add_rPr().get_or_add_rFonts().set(qn("w:eastAsia"), "宋体")
-```
-
-锚点选取优先级：小节标题段（图插在标题下）＞ 特征句段落（如"（一）主要发现"段后）＞ 表格元素后（对 `tbl` 元素直接 `addnext`）。批量插图时先收集全部锚点再依次插入，插入后重扫全文核对图号连续。
-
-### 27.6 悬空引用自检脚本（生成后必跑）
-
-```python
-# 用法：python check_fig_refs.py 申报书.docx（退出码非 0 = 不得交付）
-import re
-import sys
-from docx import Document
-
-doc = Document(sys.argv[1])
-captions, refs = set(), set()
-for p in doc.paragraphs:
-    line = p.text.strip()
-    m = re.match(r"^图\s*(\d+)", line)
-    if m and len(line) < 60:              # 图注行（图 N 开头且为短行）
-        captions.add(int(m.group(1)))
-        continue
-    for r in re.finditer(r"图\s*(\d+)", line):
-        refs.add(int(r.group(1)))
-
-missing = refs - captions        # 正文引用了但图不存在（悬空引用）
-unref = captions - refs          # 有图但正文从未引用
-print("悬空引用:", sorted(missing) or "无")
-print("未被引用的图:", sorted(unref) or "无")
-sys.exit(1 if (missing or unref) else 0)
-```
-
-### 27.7 反例与正例
-
-**反例**：
-- 用文生图画"技术路线图"：节点中文乱码、数字编造、与章节不对应（一票否决）
-- 节点表格 + 关联关系表格直接充当"技术路线图"（v2.1 遗留问题，v2.2 起禁止；build.py 生成的节点表格至多作为附录数据保留，不得占据正文图的位置）
-- 图无图注，或正文无"如图 N"引用（悬空图）
-- 每张图各用一套配色、字体，风格散乱
-
-**正例**：
-- 照 27.2 模板渲染，全套图同字体、同配色、同线宽、同 dpi
-- 图注含数据来源，如"（3 个消防站 3 个月实地测试统计）"
-- 生成后跑 27.6 自检脚本，悬空引用与未引用图清零后才交付
-
----
+> 📎 **配图与图表规范** 已移至 [`references/figures.md`](references/figures.md)，保持 SKILL.md 精简。
+> **何时阅读**：需要生成或插入技术路线图、对比表、统计图时。
+> 其余情况下不需要读取该文件。
 
 ## 二十八、结束
 

@@ -40,6 +40,11 @@ metadata:
 
 ---
 
+<!-- REFERENCES-INDEX -->
+> 📚 **按需加载的参考资料**（渐进式披露，不需要时不要读）：
+> - [`references/json-schema.md`](references/json-schema.md) — §14 JSON Schema 完整字段定义
+> - [`references/intake-checklist.md`](references/intake-checklist.md) — §8 信息采集清单
+
 ## §0 适用场景与触发后第一步
 
 用户进入对话后第一步必须确认两件事：①是申报"优秀毕业设计/论文"（本 skill 范围），还是申报"优秀毕业生"（走 outstanding_graduate skill）；②申报规格（校级 / 院级）。
@@ -490,105 +495,11 @@ XXXX 年 XX 月 XX 日
 
 ---
 
-## §8 信息采集清单
+## §8 信息采集清单（已外移至 references/intake-checklist.md）
 
-按"通用必采 → 毕设信息 → 课题信息 → 研究方法 → 创新点 → 成果应用"顺序采集。每轮不超过 5 个字段，关键缺失字段必须追问，**禁止编造毕设题目/答辩成绩/创新点/论文/专利/采纳证明**。
-
-### 8.1 通用必采（10 字段）
-
-| 字段 | 说明 | 示例 | 缺失追问策略 |
-|------|------|------|--------------|
-| name | 申请人姓名 | 张明 | "申请人全名？" |
-| student_id | 学号 | 2021123456 | "学号？" |
-| gender | 性别 | 男 | "性别？" |
-| college | 学院全称 | 计算机科学与技术学院 | "学院全称？" |
-| major | 专业全称 | 计算机科学与技术 | "专业全称？" |
-| grade | 年级 | 2021 级 大四 | "入学年份？" |
-| class_name | 班级 | 计科 2101 班 | "班级？" |
-| phone | 联系电话 | 138XXXXXXXX | "手机号？" |
-| apply_level | 申报规格 | school / college | "校级还是院级？" |
-| apply_year | 毕业年份 | 2025 届 | "毕业年份？" |
-| apply_date | 申报日期 | 2025 年 6 月 10 日 | "申报日期？" |
-
-### 8.2 毕设信息（10 字段，硬指标）
-
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| thesis_title | 毕业设计/论文题目全称 | 基于对比学习的小样本医学影像分割方法研究 |
-| thesis_type | 毕业设计类型 | experimental 实验研究 / engineering 工程设计 / theoretical 理论研究 / software 软件开发 / art_design 艺术设计 |
-| advisor | 指导教师全名 + 职称 | 张伟 教授 |
-| advisor_title | 导师职称独立字段 | 教授 |
-| defense_score | 答辩成绩 | 92（优秀） |
-| defense_rank | 答辩成绩专业排名 | 1/87 |
-| plagiarism_rate | 查重率 | 8.5% |
-| defense_date | 答辩日期 | 2025 年 5 月 28 日 |
-| research_duration | 研究周期 | 2024.09-2025.05（9 个月） |
-| graduate_type | 申请人类型 | undergraduate / master / doctor / junior_college |
-
-### 8.3 课题信息（4 字段）
-
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| project_source | 课题来源 | 导师国家自然科学基金子课题（项目编号 62XXXXXXXX） / 自选题 / 校企合作 / 竞赛延伸 |
-| research_problem | 核心 scientific/engineering 问题 | 现有监督学习方法在小样本场景下精度不足 |
-| research_significance | 学术/应用意义 | 学术：改进对比学习迁移性能；应用：服务基层医院 AI 辅助诊断 |
-| research_goals | 研究目标列表 | ["构建小样本医学影像数据集", "设计对比学习分割网络", "在公开数据集上验证"] |
-
-### 8.4 研究方法信息（6 字段）
-
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| research_method | 研究方法主线（按 thesis_type 分流） | 文献调研 → 实验设计 → 数据采集 → 模型训练 → 性能评估 |
-| technical_route | 技术路线文字描述 | 基于对比学习预训练 + Transformer 分割网络 + 迁移学习策略 |
-| key_technologies | 关键技术列表 | [{name, application_step, problem_solved}] |
-| data_material | 数据/材料/装置描述 | ISIC 2018 数据集（2 595 张） + 自建数据集（300 张，已脱敏） |
-| research_stages | 研究阶段列表 | [{stage, time, content, output}]（4-6 项） |
-| experiments | 实验设计与结果 | [{name, dataset, metric, baseline, ours, improvement}] |
-
-### 8.5 创新点信息（核心，1 字段列表）
-
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| innovation_points | 创新点列表 | [{type: "theoretical", name, description, comparison, support_material}] |
-
-每个创新点对象含 5 字段：
-- type：theoretical 理论 / method 方法 / application 应用
-- name：创新点名称
-- description：创新点描述（80-120 字）
-- comparison：与现有方法/理论/应用对比 + 量化优势
-- support_material：支撑材料（论文/专利/软著/采纳证明）
-
-### 8.6 成果与应用价值信息（4 字段）
-
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| achievements | 成果清单 6 类 | [{category: "论文", name, level, author_order, time}, ...] |
-| application_scenarios | 应用场景列表 | [{scene, value, evidence}]（3-5 项） |
-| adoption_proofs | 采纳证明列表 | [{unit, content, date, proof_no}] |
-| future_research | 后续研究方向 | [{problem, breakthrough, prospect}]（2-3 项） |
-
-### 8.7 摘要信息（1 字段）
-
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| abstract | 摘要文本（300~500 字，4 句结构） | 自动生成或用户自定义 |
-
-### 8.8 字段优先级与追问话术
-
-**P0 必采**（缺则无法撰写）：name、major、grade、thesis_title、thesis_type、advisor、defense_score、innovation_points
-**P1 重要**（缺则影响质量）：project_source、research_problem、research_method、key_technologies、research_stages、achievements、application_scenarios
-**P2 可选**（缺则用占位）：student_id、phone、plagiarism_rate、adoption_proofs、future_research
-
-追问话术示例：
-- 用户说"我毕设做得不错" → "毕设题目全称？指导教师姓名 + 职称？答辩成绩？查重率？"
-- 用户说"我有几个创新点" → "每个创新点是什么？属于理论创新、方法创新还是应用创新？有什么支撑材料？与现有方法对比有什么优势？"
-- 用户说"我发了论文" → "题目？期刊？级别（SCI/EI/核心）？你是第几作者？"
-- 用户说"我有专利" → "专利名称？专利类型（发明/实用新型/外观）？状态（已授权/实质审查中）？你是第几发明人？"
-- 用户说"我的研究有应用价值" → "应用在什么场景？合作单位？采纳证明？效果数据？"
-
-**复述确认**：所有信息采完后，按"毕设信息 / 课题信息 / 研究方法 / 创新点 / 成果应用"顺序复述给用户确认，再进入撰写阶段。
-
----
+> 📎 **逐字段信息采集清单** 已移至 [`references/intake-checklist.md`](references/intake-checklist.md)，保持 SKILL.md 精简。
+> **何时阅读**：需要逐条向用户提问采集信息时。
+> 其余情况下不需要读取该文件。
 
 ## §9 申报书撰写规范
 
@@ -918,243 +829,108 @@ XXXX 年 XX 月 XX 日
 
 ---
 
-## §14 JSON Schema 完整字段定义
+## §14 JSON Schema 完整字段定义（已外移至 references/json-schema.md）
 
-### 14.1 通用字段（10）
+> 📎 **完整 JSON Schema 定义** 已移至 [`references/json-schema.md`](references/json-schema.md)，保持 SKILL.md 精简。
+> **何时阅读**：构造 --data 输入文件、或 build.py 报字段校验错误时。
+> 其余情况下不需要读取该文件。
 
-```json
-{
-  "name": "张明",
-  "student_id": "2021123456",
-  "gender": "男",
-  "college": "计算机科学与技术学院",
-  "major": "计算机科学与技术",
-  "grade": "2021 级 大四",
-  "class_name": "计科 2101 班",
-  "phone": "138XXXXXXXX",
-  "apply_level": "school",  // school 校级 / college 院级
-  "apply_year": "2025 届",
-  "apply_date": "2025 年 6 月 10 日"
-}
-```
+## §15 build.py 接口说明（已外移至 references/build-usage.md）
 
-### 14.2 毕设字段（10）
+> 📎 **build.py 接口说明** 已移至 [`references/build-usage.md`](references/build-usage.md)，保持 SKILL.md 精简。
+> **何时阅读**：需要调用 build.py 或了解接口参数时。
+> 其余情况下不需要读取该文件。
 
-```json
-{
-  "thesis_title": "基于对比学习的小样本医学影像分割方法研究",
-  "thesis_type": "experimental",  // experimental / engineering / theoretical / software / art_design
-  "advisor": "张伟 教授",
-  "advisor_title": "教授",
-  "defense_score": "92",
-  "defense_rank": "1/87",
-  "plagiarism_rate": "8.5%",
-  "defense_date": "2025 年 5 月 28 日",
-  "research_duration": "2024.09-2025.05（9 个月）",
-  "graduate_type": "undergraduate"  // undergraduate / master / doctor / junior_college
-}
-```
+<!-- WRITING-STYLE:START -->
+## 写作风格硬约束（去 AI 味 · 强制）
 
-### 14.3 课题字段（4）
+> 完整规范见 [`docs/design/WRITING_STYLE.md`](../../docs/design/WRITING_STYLE.md)。
+> 本节是压缩版，**撰写正文前必读，交付前必须过检测**。
 
-```json
-{
-  "project_source": "导师国家自然科学基金子课题（项目编号 62XXXXXXXX）",
-  "research_problem": "现有监督学习方法在小样本场景下精度不足",
-  "research_significance": "学术：改进对比学习迁移性能；应用：服务基层医院 AI 辅助诊断",
-  "research_goals": [
-    "构建小样本医学影像数据集",
-    "设计对比学习分割网络",
-    "在公开数据集上验证方法有效性"
-  ]
-}
-```
+### 一条总原则
 
-### 14.4 研究方法字段（6）
+**每个句子都必须能落到具体的人、事、时间、数字或对象上；落不到的句子，删掉。**
+自检方法：读完一句问「这句能换成别人吗？」——能换，就是套话。
 
-```json
-{
-  "research_method": "文献调研 → 实验设计 → 数据采集 → 模型训练 → 性能评估",
-  "technical_route": "基于对比学习预训练 + Transformer 分割网络 + 迁移学习策略",
-  "key_technologies": [
-    {"name": "对比学习预训练", "application_step": "特征学习阶段", "problem_solved": "小样本场景特征学习不足"},
-    {"name": "Transformer 分割网络", "application_step": "分割阶段", "problem_solved": "医学影像全局依赖建模"},
-    {"name": "迁移学习策略", "application_step": "跨设备适配阶段", "problem_solved": "跨设备数据分布差异"}
-  ],
-  "data_material": "ISIC 2018 数据集（2 595 张皮肤镜图像）+ 自建数据集（300 张基层医院皮肤镜图像，已脱敏）",
-  "research_stages": [
-    {"stage": "1 文献调研", "time": "2024.09-2024.10", "content": "调研 50+ 篇文献", "output": "文献综述报告"},
-    {"stage": "2 实验设计", "time": "2024.11-2024.12", "content": "设计实验方案", "output": "实验方案文档"},
-    {"stage": "3 数据采集", "time": "2025.01-2025.02", "content": "采集 300 张图像", "output": "数据集"},
-    {"stage": "4 模型训练", "time": "2025.03-2025.04", "content": "训练对比学习模型", "output": "训练日志"},
-    {"stage": "5 性能评估", "time": "2025.04-2025.05", "content": "对比实验 + 消融实验", "output": "实验报告"}
-  ],
-  "experiments": [
-    {"name": "小样本分割对比实验", "dataset": "ISIC 2018", "metric": "Dice", "baseline": "0.785", "ours": "0.870", "improvement": "+8.5%"}
-  ]
-}
-```
+### 六条硬约束（及格线 75/100）
 
-### 14.5 创新点字段（1 列表，每项 5 字段）
+| # | 约束 | 量化判据 |
+|---|---|---|
+| 1 | 不写空话套话 | 每千字命中套话 ≤3 次 |
+| 2 | 不用排比对仗 | 同构句连续 ≤2 句 |
+| 3 | 不堆抽象大词 | 每千字抽象词 ≤4 次 |
+| 4 | 必须具体 | 每千字数字/专名 ≥8 处 |
+| 5 | 句长要参差 | 句长变异系数 ≥0.35 |
+| 6 | 不用模板开头 | 禁止「时光荏苒」「本人自入学以来」 |
 
-```json
-{
-  "innovation_points": [
-    {
-      "type": "theoretical",  // theoretical 理论 / method 方法 / application 应用
-      "name": "对比学习小样本分割理论框架",
-      "description": "首次将对比学习引入皮肤镜图像分割任务，构建小样本场景下的分割理论框架",
-      "comparison": "与 U-Net、DeepLab v3+ 相比，Dice 系数提升 8.5%",
-      "support_material": "SCI 二区论文 1 篇（已发表）"
-    },
-    {
-      "type": "method",
-      "name": "多尺度特征融合模块 MSFF",
-      "description": "设计跨尺度注意力机制，实现病灶边界精修",
-      "comparison": "与基线 U-Net 相比，边界 IoU 提升 5.2%",
-      "support_material": "发明专利 1 项（实质审查中）"
-    },
-    {
-      "type": "application",
-      "name": "基层医院皮肤镜辅助诊断部署",
-      "description": "将所提方法部署于基层医院皮肤镜设备，实现 0.3 秒/张实时分割",
-      "comparison": "已与 XX 县人民医院合作验证，诊断准确率提升 12%",
-      "support_material": "合作验证报告 1 份"
-    }
-  ]
-}
-```
+### 高频禁用词（出现即改）
 
-### 14.6 成果与应用价值字段（4）
+具有重要意义、具有重大意义、意义重大、影响深远、作用显著、效果显著、成效显著、
+成绩斐然、成果丰硕、高度重视、切实增强、切实提升、不断提升、持续提升、
+进一步加强、进一步完善、进一步深化、不断深化、深入推进、全面推进、扎实开展、
+稳步推进、着力打造、全力推动、取得显著成效、获得一致好评、受到广泛好评、
+得到充分肯定、获得高度评价、与此同时、在此基础上、综上所述、总而言之、
+值得一提的是、不难看出、由此可见、众所周知、不懈努力、刻苦钻研、勤奋刻苦、
+锐意进取、开拓创新、勇于探索、敢于突破、迈上新台阶、开创新局面、谱写新篇章、
+踏上新征程、展现新作为、彰显新担当、焕发新气象、贡献青春力量、绽放青春光彩、
+书写青春华章、以青春之我、坚定理想信念、厚植家国情怀、锤炼过硬本领、砥砺意志品质、
+综合素质突出、全面发展、品学兼优、德智体美劳、起到了模范带头作用、
+发挥了示范引领作用、树立了良好榜样、得到了师生的一致认可、深受老师和同学的好评、
+为集体作出了积极贡献、为团队贡献了自己的力量、奠定了坚实的基础、
+打下了坚实的基础、提供了有力支撑、注入了强劲动力、开辟了新的途径、探索了新的模式
 
-```json
-{
-  "achievements": [
-    {"category": "论文", "name": "基于对比学习的法律问答系统", "level": "SCI 二区", "author_order": "第一作者", "time": "2025.03"},
-    {"category": "专利", "name": "一种基于对比学习的法律问答方法", "level": "发明专利", "author_order": "第一发明人", "time": "实质审查中"},
-    {"category": "软著", "name": "皮肤镜图像分割软件 V1.0", "level": "软件著作权", "author_order": "第一完成人", "time": "2025.02"},
-    {"category": "代码", "name": "MSFF 开源代码", "level": "GitHub 开源", "author_order": "维护者", "time": "2025.04"}
-  ],
-  "application_scenarios": [
-    {"scene": "基层医院皮肤镜辅助诊断", "value": "诊断准确率提升 12%", "evidence": "XX 县人民医院合作报告"},
-    {"scene": "在线医疗 AI 接口", "value": "已接入 XX 互联网医院", "evidence": "接入证明"},
-    {"scene": "医学院教学辅助", "value": "已用于 XX 医学院皮肤科教学", "evidence": "教学应用证明"}
-  ],
-  "adoption_proofs": [
-    {"unit": "XX 县人民医院", "content": "合作验证皮肤镜辅助诊断系统", "date": "2025.04", "proof_no": "XX-2025-001"}
-  ],
-  "future_research": [
-    {"problem": "多模态融合诊断（CT + 皮肤镜）", "breakthrough": "提升诊断准确率至 95%+", "prospect": "应用于综合医院"},
-    {"problem": "联邦学习框架下的隐私保护分割", "breakthrough": "实现跨医院数据协作", "prospect": "推广至全国医院"}
-  ]
-}
-```
+抽象大词（无具体指涉时禁用）：格局、境界、高度、深度、广度、维度、层面、体系、
+机制、路径、抓手、载体、平台、生态、闭环、赋能、助力、引领、驱动、融合、协同、
+联动、统筹、底层逻辑、顶层设计、系统性思维、全局视野、战略高度、核心素养、
+综合能力、内生动力、长效机制
 
-### 14.7 摘要与撰写控制字段（5）
+### 替换动作（照做即可）
 
-```json
-{
-  "abstract": "本课题研究基于对比学习的小样本医学影像分割方法……（300~500 字，4 句结构）",
-  "abstract_position": "end",  // end 末尾 / page 独立页
-  "salutation": "尊敬的评审委员会：",
-  "opening": "",
-  "ending": ""
-}
-```
+| 原写法 | 改写成 |
+|---|---|
+| 学习成绩优异，名列前茅 | 专业 3/127，加权 91.4，`<课程名>` 98 分 |
+| 积极参加学科竞赛 | 2024 年 11 月 `<赛事全名>` 省赛二等奖，作品 `<名称>`，我负责 `<模块>` |
+| 在导师指导下参与科研 | 参与 `<导师>` 的 `<课题名>`，负责 `<具体工作>`，产出 `<论文/专利/数据>` |
+| 具有较强的团队协作能力 | 删掉。改为：`<时间>` 带 `<人数>` 人完成 `<任务>`，遇到 `<冲突>`，怎么解决 |
+| 思想上积极向党组织靠拢 | `<年/月>` 提交入党申请书，`<年/月>` 成为积极分子，参加 `<次数>` 次党课 |
+| 热心公益，积极参加志愿服务 | `<机构>` 志愿服务 `<小时>` 小时，服务 `<对象>` `<人数>` 人 |
 
-### 14.8 字段优先级速查
+### 句式要求
 
-| 优先级 | 字段 |
-|--------|------|
-| P0 必采 | name, major, grade, thesis_title, thesis_type, advisor, defense_score, innovation_points |
-| P1 重要 | project_source, research_problem, research_method, key_technologies, research_stages, achievements, application_scenarios |
-| P2 可选 | student_id, phone, plagiarism_rate, adoption_proofs, future_research, experiments |
+1. **长短句交替**：每 3~5 句里至少有一句 ≤12 字或 ≥60 字。
+2. **一段一个事实**：段首句不要用「在……方面」。
+3. **少用第一人称抒情**：「我深深感到」「我深刻认识到」一律删除。
+4. **数字优先**：能用数字就不用形容词。「多次」→「7 次」，「大量」→「4200 张」。
+5. 不用破折号堆叠解释，不连续套用「不仅……而且……」。
 
----
-
-## §15 build.py 接口说明
-
-### 15.1 调用方式
+### 交付前强制质检（任一项不过 → 不允许交付）
 
 ```bash
-# 方式 1：使用 JSON 数据文件
-python build.py --data data.json --out output.docx
+# 1) AI 味检测（及格线 75）
+python3 utils/ai_flavor_check.py --file draft.txt --min-score 75
 
-# 方式 2：使用内置示例数据（演示用）
-python build.py --demo --out /tmp/test_outstanding_thesis.docx
+# 2) 查重预检（阈值 30%）
+python3 utils/plagiarism_checker.py --file draft.txt --skill <skill_name>
 
-# 方式 3：覆盖字数版本与申报规格
-python build.py --demo --word-count-version brief --out demo_brief.docx
-python build.py --demo --apply-level college --out demo_college.docx
-
-# 方式 4：查看帮助
-python build.py --help
+# 3) 评审模拟（含文风维度）
+python3 utils/review_simulator.py --skill <skill_name> --file draft.txt
 ```
 
-### 15.2 命令行参数
+### 冲突处理
 
-| 参数 | 类型 | 默认 | 说明 |
-|------|------|------|------|
-| --data | str | None | 数据 JSON 文件路径（与 --demo 二选一） |
-| --out | str | 必填 | 输出 docx 文件路径 |
-| --demo | flag | False | 使用内置示例数据生成演示文档 |
-| --word-count-version | choice | None | 覆盖字数版本（brief 短档 / standard 中档 / enhanced 长档） |
-| --apply-level | choice | None | 覆盖申报规格（school 校级 / college 院级） |
+政策条文、领导讲话、文件原名**允许庄重书面语**，不算套话。
+检测时加 `--allow-policy-quotes`（该维度扣分减半）。
+但引用必须写成 `《文件全名》（发文号）`，且只引与论点直接相关的 1~2 句。
 
-### 15.3 生成流程
+### 反模式
 
-1. 解析 JSON（或加载 DEFAULT_DATA）
-2. 字段路由解析（material_form / apply_level / word_count_version / thesis_type / graduate_type）
-3. 数据校验（输出 warnings，含硬门槛 4 项校验）
-4. 构建 docx（标题 → 称呼 → 开头 → 课题选择 → 研究方法 → 创新点 → 成果应用 → 结尾 → 落款 → 摘要）
-5. 保存到指定路径
+- ❌ 把子 skill 里的「金句模板」当范文直接套用
+- ❌ 用排比段凑字数
+- ❌ 通篇无一个数字、无一个专有名词
+- ❌ 检测得分 <75 仍交付
+- ❌ 只删套话不补事实（删完变空段落，同样不及格）
 
-### 15.4 输出文件规范
-
-- A4 纸张，上下 2.54cm 左右 2.5cm 页边距
-- 黑体二号标题居中（按 thesis_type 动态生成）
-- 宋体小四正文，1.5 倍行距，首行缩进 2 字符
-- 中英文同步设置（eastAsia / ascii / hAnsi）
-- 研究阶段表 4 列（阶段/时间/工作内容/产出）
-- 创新点表 3 列（类别/创新点描述/支撑材料）
-- 应用价值表 3 列（场景/价值描述/采纳证明）
-- "此致"另起一行空两格，"敬礼！"另起一行顶格
-- 落款右对齐（申请人 + 指导教师 + 日期，3 行）
-- 页脚居中页码
-
-### 15.5 输出文件命名建议
-
-- 校级：`校级优秀毕业设计申报书_张明_2025.docx`
-- 院级：`院级优秀毕业设计申报书_张明_2025.docx`
-- 论文类：`校级优秀毕业论文申报书_张明_2025.docx`
-- 硕士/博士：`优秀学位论文申报书_张明_2025.docx`
-
-文件名包含规格、姓名、毕业年份，便于学院归档。
-
-### 15.6 缺失字段处理
-
-- P0 必采字段缺失：触发 warning，仍生成 docx，但对应段落用占位符 `___` 标注
-- P1 重要字段缺失：触发 warning，对应段落省略或简化
-- P2 可选字段缺失：不触发 warning，直接省略
-
-### 15.7 字段与 build.py 对应关系
-
-**通用字段（10）**：name, student_id, gender, college, major, grade, class_name, phone, apply_level, apply_year, apply_date
-
-**毕设字段（10）**：thesis_title, thesis_type, advisor, advisor_title, defense_score, defense_rank, plagiarism_rate, defense_date, research_duration, graduate_type
-
-**课题字段（4）**：project_source, research_problem, research_significance, research_goals
-
-**研究方法字段（6）**：research_method, technical_route, key_technologies, data_material, research_stages, experiments
-
-**创新点字段（1）**：innovation_points（列表，每项含 type/name/description/comparison/support_material）
-
-**成果应用字段（4）**：achievements, application_scenarios, adoption_proofs, future_research
-
-**摘要与控制字段（5）**：abstract, abstract_position, salutation, opening, ending
-
----
-
+<!-- WRITING-STYLE:END -->
 ## §16 质检清单（30 项）
 
 生成 docx 前后逐项核对：

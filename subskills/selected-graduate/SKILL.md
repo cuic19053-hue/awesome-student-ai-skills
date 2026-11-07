@@ -68,6 +68,11 @@ metadata:
 
 # 选调生申请书 SKILL
 
+<!-- REFERENCES-INDEX -->
+> 📚 **按需加载的参考资料**（渐进式披露，不需要时不要读）：
+> - [`references/json-schema.md`](references/json-schema.md) — §10 JSON Schema 完整字段
+> - [`references/intake-checklist.md`](references/intake-checklist.md) — §3 信息采集清单
+
 ## §0 适用场景与三类选调分流
 
 ### 0.1 本 skill 的适用范围
@@ -217,51 +222,11 @@ metadata:
 
 ---
 
-## §3 信息采集清单
+## §3 信息采集清单（已外移至 references/intake-checklist.md）
 
-### 3.1 必采信息（10 项，缺一不可）
-
-1. **姓名 + 性别 + 民族 + 出生年月**：基本信息栏必备
-2. **籍贯 + 政治面貌 + 入团时间**：选调生政治门槛审核关键
-3. **就读院校 + 学历 + 专业 + 入学时间**：院校门槛审核关键
-4. **GPA + 专业排名 + 英语水平**：学业硬指标
-5. **学生干部职务 + 任职起止时间 + 主要成绩**：组织能力佐证
-6. **获奖经历**（校级以上奖学金、三好学生、优秀学生干部等）：必备佐证
-7. **选调类型**（中央/定向/非定向）：决定申请书侧重
-8. **目标省份或部委**：决定家乡情怀段的写法
-9. **报考动机 4 维度**（每维度 1~2 句话）：报考动机段核心
-10. **基层工作意愿具体表述**（是否接受跨市/跨县、是否接受艰苦地区）：基层意愿段核心
-
-### 3.2 选采信息（按需采集）
-
-- 社会实践经历（特别是与基层/农村相关的）
-- 实习经历（特别是党政机关实习）
-- 论文/科研（中央选调和定向选调看中）
-- 兴趣特长（如文体、写作、演讲，可佐证综合素质）
-- 家庭主要成员及政治面貌（部分省份报名表要求）
-
-### 3.3 不可采集信息
-
-- 家庭收入与财产状况（与申请无关）
-- 高中及以前经历（除非是入团关键节点）
-- 具体的考分（如行测、申论分数，未公布前不写）
-- 其他考生的对比信息
-
-### 3.4 信息采集话术示例
-
-**采政治面貌**：
-"请问您的政治面貌是？（中共正式党员/中共预备党员/优秀团员/积极分子/共青团员/群众）"
-——选调生申请要求党员或预备党员，优秀团员/积极分子仅部分非定向岗位可报，请如实说明。
-
-**采学生干部经历**：
-"请列出您担任过的学生干部职务，按时间倒序：职务名称 + 任职起止时间 + 主要成绩（1~2 项即可）。"
-——院级以上学生干部经历是选调生的硬门槛，校级优先。
-
-**采基层意愿**：
-"请问您对基层工作的接受范围？是否接受跨市/跨县分配？是否接受艰苦边远地区？"
-——此信息直接决定基层工作意愿段的写法，必须如实反映。
-
----
+> 📎 **逐字段信息采集清单** 已移至 [`references/intake-checklist.md`](references/intake-checklist.md)，保持 SKILL.md 精简。
+> **何时阅读**：需要逐条向用户提问采集信息时。
+> 其余情况下不需要读取该文件。
 
 ## §4 五段结构详解
 
@@ -672,388 +637,108 @@ metadata:
 
 ---
 
-## §10 JSON Schema 完整字段
+## §10 JSON Schema 完整字段（已外移至 references/json-schema.md）
 
-### 10.1 顶层结构
+> 📎 **完整 JSON Schema 定义** 已移至 [`references/json-schema.md`](references/json-schema.md)，保持 SKILL.md 精简。
+> **何时阅读**：构造 --data 输入文件、或 build.py 报字段校验错误时。
+> 其余情况下不需要读取该文件。
 
-```json
-{
-  "version": "1.0.0",
-  "selection_type": "central | directional | non_directional",
-  "target_province": "string (报考目标省份或部委)",
-  "word_version": "2000 | 2500 | 3000",
-  "custom_word_count": "number (可选，自定义字数)",
-  "basic_info": {...},
-  "academics": {...},
-  "party_info": {...},
-  "student_work": [...],
-  "awards": [...],
-  "social_practice": [...],
-  "motivation_4d": {...},
-  "grassroots_willingness": {...},
-  "development_plan": {...},
-  "policy_references": [...],
-  "signature": {...}
-}
-```
+## §11 build.py 接口说明（已外移至 references/build-usage.md）
 
-### 10.2 字段详解
+> 📎 **build.py 接口说明** 已移至 [`references/build-usage.md`](references/build-usage.md)，保持 SKILL.md 精简。
+> **何时阅读**：需要调用 build.py 或了解接口参数时。
+> 其余情况下不需要读取该文件。
 
-#### 10.2.1 selection_type（选调类型，必填）
+<!-- WRITING-STYLE:START -->
+## 写作风格硬约束（去 AI 味 · 强制）
 
-```json
-"selection_type": "central"
-```
+> 完整规范见 [`docs/design/WRITING_STYLE.md`](../../docs/design/WRITING_STYLE.md)。
+> 本节是压缩版，**撰写正文前必读，交付前必须过检测**。
 
-枚举值：
-- `central`：中央选调（中组部牵头，中央部委）
-- `directional`：定向选调（省委组织部，双一流）
-- `non_directional`：非定向选调（市委组织部/省委组织部，省内高校）
+### 一条总原则
 
-#### 10.2.2 target_province（目标省份或部委，必填）
+**每个句子都必须能落到具体的人、事、时间、数字或对象上；落不到的句子，删掉。**
+自检方法：读完一句问「这句能换成别人吗？」——能换，就是套话。
 
-```json
-"target_province": "山东省"
-```
+### 六条硬约束（及格线 75/100）
 
-或部委：
+| # | 约束 | 量化判据 |
+|---|---|---|
+| 1 | 不写空话套话 | 每千字命中套话 ≤3 次 |
+| 2 | 不用排比对仗 | 同构句连续 ≤2 句 |
+| 3 | 不堆抽象大词 | 每千字抽象词 ≤4 次 |
+| 4 | 必须具体 | 每千字数字/专名 ≥8 处 |
+| 5 | 句长要参差 | 句长变异系数 ≥0.35 |
+| 6 | 不用模板开头 | 禁止「时光荏苒」「本人自入学以来」 |
 
-```json
-"target_province": "国家发展和改革委员会"
-```
+### 高频禁用词（出现即改）
 
-#### 10.2.3 word_version（字数版本，必填）
+具有重要意义、具有重大意义、意义重大、影响深远、作用显著、效果显著、成效显著、
+成绩斐然、成果丰硕、高度重视、切实增强、切实提升、不断提升、持续提升、
+进一步加强、进一步完善、进一步深化、不断深化、深入推进、全面推进、扎实开展、
+稳步推进、着力打造、全力推动、取得显著成效、获得一致好评、受到广泛好评、
+得到充分肯定、获得高度评价、与此同时、在此基础上、综上所述、总而言之、
+值得一提的是、不难看出、由此可见、众所周知、不懈努力、刻苦钻研、勤奋刻苦、
+锐意进取、开拓创新、勇于探索、敢于突破、迈上新台阶、开创新局面、谱写新篇章、
+踏上新征程、展现新作为、彰显新担当、焕发新气象、贡献青春力量、绽放青春光彩、
+书写青春华章、以青春之我、坚定理想信念、厚植家国情怀、锤炼过硬本领、砥砺意志品质、
+综合素质突出、全面发展、品学兼优、德智体美劳、起到了模范带头作用、
+发挥了示范引领作用、树立了良好榜样、得到了师生的一致认可、深受老师和同学的好评、
+为集体作出了积极贡献、为团队贡献了自己的力量、奠定了坚实的基础、
+打下了坚实的基础、提供了有力支撑、注入了强劲动力、开辟了新的途径、探索了新的模式
 
-```json
-"word_version": 2500
-```
+抽象大词（无具体指涉时禁用）：格局、境界、高度、深度、广度、维度、层面、体系、
+机制、路径、抓手、载体、平台、生态、闭环、赋能、助力、引领、驱动、融合、协同、
+联动、统筹、底层逻辑、顶层设计、系统性思维、全局视野、战略高度、核心素养、
+综合能力、内生动力、长效机制
 
-枚举值：2000 / 2500 / 3000。
+### 替换动作（照做即可）
 
-#### 10.2.4 basic_info（基本信息，必填）
+| 原写法 | 改写成 |
+|---|---|
+| 学习成绩优异，名列前茅 | 专业 3/127，加权 91.4，`<课程名>` 98 分 |
+| 积极参加学科竞赛 | 2024 年 11 月 `<赛事全名>` 省赛二等奖，作品 `<名称>`，我负责 `<模块>` |
+| 在导师指导下参与科研 | 参与 `<导师>` 的 `<课题名>`，负责 `<具体工作>`，产出 `<论文/专利/数据>` |
+| 具有较强的团队协作能力 | 删掉。改为：`<时间>` 带 `<人数>` 人完成 `<任务>`，遇到 `<冲突>`，怎么解决 |
+| 思想上积极向党组织靠拢 | `<年/月>` 提交入党申请书，`<年/月>` 成为积极分子，参加 `<次数>` 次党课 |
+| 热心公益，积极参加志愿服务 | `<机构>` 志愿服务 `<小时>` 小时，服务 `<对象>` `<人数>` 人 |
 
-```json
-"basic_info": {
-  "name": "张三",
-  "gender": "男",
-  "ethnicity": "汉族",
-  "birth_year": 2001,
-  "birth_month": 5,
-  "native_place": "山东省济南市",
-  "political_status": "中共党员",
-  "party_join_date": "2022-05-15",
-  "university": "山东大学",
-  "college": "政治学与公共管理学院",
-  "major": "政治学与行政学",
-  "degree": "本科",
-  "enrollment_year": 2020,
-  "graduation_year": 2024
-}
-```
+### 句式要求
 
-**字段约束**：
-- `political_status` 必须为"中共党员"或"中共预备党员"（非定向部分岗位可放宽，但本 skill 默认要求党员）
-- `party_join_date` 必须提供（YYYY-MM-DD 格式），党员必备
-- `degree` 必须为"本科""硕士""博士"之一
+1. **长短句交替**：每 3~5 句里至少有一句 ≤12 字或 ≥60 字。
+2. **一段一个事实**：段首句不要用「在……方面」。
+3. **少用第一人称抒情**：「我深深感到」「我深刻认识到」一律删除。
+4. **数字优先**：能用数字就不用形容词。「多次」→「7 次」，「大量」→「4200 张」。
+5. 不用破折号堆叠解释，不连续套用「不仅……而且……」。
 
-#### 10.2.5 academics（学业情况，必填）
-
-```json
-"academics": {
-  "gpa": 3.85,
-  "gpa_total": 4.0,
-  "rank": 3,
-  "rank_total": 120,
-  "english_level": "CET-6",
-  "english_score": 580,
-  "core_courses": ["政治学原理", "公共管理学", "中国政府与政治", "行政法学"],
-  "minor_degree": "法学"
-}
-```
-
-#### 10.2.6 party_info（党员信息，必填）
-
-```json
-"party_info": {
-  "party_branch": "政治学与行政学专业本科生党支部",
-  "party_position": "组织委员",
-  "party_age_years": 2,
-  "party_training": ["初级党校", "中级党校", "高级党校"],
-  "study_notes_count": 12,
-  "theory_exam_rank": "前5%"
-}
-```
-
-#### 10.2.7 student_work（学生干部经历，必填）
-
-```json
-"student_work": [
-  {
-    "position": "校学生会主席",
-    "organization": "校学生会",
-    "level": "校级",
-    "start_date": "2023-09",
-    "end_date": "2024-06",
-    "main_achievements": ["牵头组织XX大型活动，参与人次1500人", "推动学生会制度改革"]
-  },
-  {
-    "position": "班长",
-    "organization": "政治学与行政学专业2020级1班",
-    "level": "班级",
-    "start_date": "2020-09",
-    "end_date": "2024-06",
-    "main_achievements": ["所在班级获评校级先进班集体", "建立班级议事制度"]
-  }
-]
-```
-
-#### 10.2.8 awards（获奖经历，必填）
-
-```json
-"awards": [
-  {
-    "name": "国家奖学金",
-    "level": "国家级",
-    "year": 2023,
-    "ranking": "专业第1"
-  },
-  {
-    "name": "校级一等奖学金",
-    "level": "校级",
-    "year": 2022,
-    "ranking": "连续3年"
-  }
-]
-```
-
-#### 10.2.9 social_practice（社会实践经历，选填）
-
-```json
-"social_practice": [
-  {
-    "name": "三下乡-XX省XX县XX村支教",
-    "start_date": "2022-07",
-    "end_date": "2022-08",
-    "role": "队长",
-    "achievements": "支教40天，服务学生120人，撰写调研报告获校级优秀成果奖"
-  }
-]
-```
-
-#### 10.2.10 motivation_4d（报考动机 4 维度，必填）
-
-```json
-"motivation_4d": {
-  "political_standpoint": "作为一名中共党员...",
-  "grassroots_service": "大学期间先后两次参加三下乡...",
-  "career_pursuit": "我深知选调生是党和国家培养青年干部的重要渠道...",
-  "hometown_attachment": "我是XX省XX市人..."
-}
-```
-
-**字段约束**：4 维度缺一不可，每个维度必须有实质内容（不少于 100 字）。
-
-#### 10.2.11 grassroots_willingness（基层工作意愿，必填）
-
-```json
-"grassroots_willingness": {
-  "accept_rural": true,
-  "accept_remote": true,
-  "accept_cross_city": true,
-  "service_years_commitment": 5,
-  "psychological_readiness": "对艰苦环境有充分心理准备"
-}
-```
-
-#### 10.2.12 development_plan（个人发展规划，必填）
-
-```json
-"development_plan": {
-  "first_two_years": "前两年扎根基层，深入学习基层治理、群众工作、政策执行等基础业务...",
-  "middle_two_years": "中间两年成长提升，在熟悉业务基础上独立承担重点工作...",
-  "fifth_year": "第五年担当作为，力争成为本单位业务骨干..."
-}
-```
-
-#### 10.2.13 policy_references（政策引用，选填）
-
-```json
-"policy_references": [
-  {
-    "name": "关于做好选调生工作的意见",
-    "issuer": "中组部",
-    "year": 2014,
-    "quoted_in": "报考动机段"
-  }
-]
-```
-
-#### 10.2.14 signature（签字栏，必填）
-
-```json
-"signature": {
-  "applicant_name": "张三",
-  "applicant_date": "2024-09-15",
-  "college_reviewer": "李四（学院党委副书记）",
-  "college_review_date": "2024-09-16",
-  "college_seal": "（学院党委盖章）"
-}
-```
-
-### 10.3 完整 JSON 示例
-
-```json
-{
-  "version": "1.0.0",
-  "selection_type": "directional",
-  "target_province": "山东省",
-  "word_version": 2500,
-  "basic_info": {
-    "name": "张三",
-    "gender": "男",
-    "ethnicity": "汉族",
-    "birth_year": 2001,
-    "birth_month": 5,
-    "native_place": "山东省济南市",
-    "political_status": "中共党员",
-    "party_join_date": "2022-05-15",
-    "university": "山东大学",
-    "college": "政治学与公共管理学院",
-    "major": "政治学与行政学",
-    "degree": "本科",
-    "enrollment_year": 2020,
-    "graduation_year": 2024
-  },
-  "academics": {
-    "gpa": 3.85,
-    "gpa_total": 4.0,
-    "rank": 3,
-    "rank_total": 120,
-    "english_level": "CET-6",
-    "english_score": 580
-  },
-  "party_info": {
-    "party_branch": "政治学与行政学专业本科生党支部",
-    "party_position": "组织委员",
-    "party_age_years": 2
-  },
-  "student_work": [
-    {
-      "position": "校学生会主席",
-      "organization": "校学生会",
-      "level": "校级",
-      "start_date": "2023-09",
-      "end_date": "2024-06",
-      "main_achievements": ["牵头组织XX大型活动，参与人次1500人"]
-    }
-  ],
-  "awards": [
-    {"name": "国家奖学金", "level": "国家级", "year": 2023}
-  ],
-  "motivation_4d": {
-    "political_standpoint": "作为一名中共党员，我始终把政治建设摆在首位...",
-    "grassroots_service": "大学期间我先后两次参加三下乡...",
-    "career_pursuit": "我深知选调生是党和国家培养青年干部的重要渠道...",
-    "hometown_attachment": "我是山东省济南市人..."
-  },
-  "grassroots_willingness": {
-    "accept_rural": true,
-    "accept_remote": true,
-    "service_years_commitment": 5
-  },
-  "development_plan": {
-    "first_two_years": "前两年扎根基层...",
-    "middle_two_years": "中间两年成长提升...",
-    "fifth_year": "第五年担当作为..."
-  },
-  "signature": {
-    "applicant_name": "张三",
-    "applicant_date": "2024-09-15"
-  }
-}
-```
-
----
-
-## §11 build.py 接口说明
-
-### 11.1 命令行用法
+### 交付前强制质检（任一项不过 → 不允许交付）
 
 ```bash
-# 生成 demo 文档（使用内置 DEFAULT_DATA）
-python build.py --demo --out demo.docx
+# 1) AI 味检测（及格线 75）
+python3 utils/ai_flavor_check.py --file draft.txt --min-score 75
 
-# 使用外部 data.json 生成
-python build.py --data data.json --out output.docx
+# 2) 查重预检（阈值 30%）
+python3 utils/plagiarism_checker.py --file draft.txt --skill <skill_name>
 
-# 指定字数版本（覆盖 JSON 中的 word_version）
-python build.py --data data.json --out output.docx --word-version 2000
-
-# 指定选调类型（覆盖 JSON 中的 selection_type）
-python build.py --data data.json --out output.docx --selection-type central
+# 3) 评审模拟（含文风维度）
+python3 utils/review_simulator.py --skill <skill_name> --file draft.txt
 ```
 
-### 11.2 参数说明
+### 冲突处理
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `--demo` | flag | 否 | 使用内置 DEFAULT_DATA 生成 demo 文档 |
-| `--data` | path | 否 | 输入 JSON 文件路径 |
-| `--out` | path | 是 | 输出 docx 文件路径 |
-| `--word-version` | int | 否 | 覆盖字数版本（2000/2500/3000） |
-| `--selection-type` | str | 否 | 覆盖选调类型（central/directional/non_directional） |
+政策条文、领导讲话、文件原名**允许庄重书面语**，不算套话。
+检测时加 `--allow-policy-quotes`（该维度扣分减半）。
+但引用必须写成 `《文件全名》（发文号）`，且只引与论点直接相关的 1~2 句。
 
-### 11.3 输出格式规范
+### 反模式
 
-- A4 纸张（21cm × 29.7cm）
-- 页边距：上下 2.54cm，左右 2.5cm
-- 一级标题：黑体三号居中
-- 二级标题：黑体小三左对齐
-- 正文：宋体小四，1.5 倍行距，首行缩进 2 字符
-- 签字栏：宋体小四右对齐
-- 输出文件：docx 格式
+- ❌ 把子 skill 里的「金句模板」当范文直接套用
+- ❌ 用排比段凑字数
+- ❌ 通篇无一个数字、无一个专有名词
+- ❌ 检测得分 <75 仍交付
+- ❌ 只删套话不补事实（删完变空段落，同样不及格）
 
-### 11.4 输出文档结构
-
-```
-[一级标题] 选调生申请书
-[正文段一] 一、个人基本情况
-[正文段二] 二、报考选调生动机
-  [二级标题] 政治立场方面
-  [正文]
-  [二级标题] 服务基层方面
-  [正文]
-  [二级标题] 事业追求方面
-  [正文]
-  [二级标题] 家乡情怀方面
-  [正文]
-[正文段三] 三、个人能力素质
-  [二级标题] 政治素质方面
-  [正文]
-  [二级标题] 学习能力方面
-  [正文]
-  [二级标题] 组织协调方面
-  [正文]
-  [二级标题] 群众工作方面
-  [正文]
-  [二级标题] 抗压能力方面
-  [正文]
-[正文段四] 四、基层工作意愿
-[正文段五] 五、个人发展规划
-[签字栏] 申请人：XXX  日期：YYYY-MM-DD
-```
-
-### 11.5 错误处理
-
-build.py 在以下情况会报错并退出：
-- JSON 字段缺失（必填字段未提供）
-- 政治面貌不是党员或预备党员
-- 字数版本不是 2000/2500/3000 之一
-- 选调类型不是 central/directional/non_directional 之一
-- 禁用句检测命中（见 §8.2 雷区 2）
-
----
-
+<!-- WRITING-STYLE:END -->
 ## §12 质检清单
 
 ### 12.1 内容质检（10 项）

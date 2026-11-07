@@ -103,6 +103,11 @@ metadata:
 
 ---
 
+<!-- REFERENCES-INDEX -->
+> 📚 **按需加载的参考资料**（渐进式披露，不需要时不要读）：
+> - [`references/json-schema.md`](references/json-schema.md) — §9 JSON Schema 完整字段
+> - [`references/intake-checklist.md`](references/intake-checklist.md) — §7 信息采集清单
+
 ## §0 适用场景与触发条件
 
 ### §0.1 适用关键词
@@ -588,96 +593,11 @@ metadata:
 
 ---
 
-## §7 信息采集清单
+## §7 信息采集清单（已外移至 references/intake-checklist.md）
 
-撰写前须按本清单完整采集信息，缺失关键字段将无法生成符合规范的申请书。
-
-### §7.1 必采字段（缺一不可）
-
-| 字段 | 说明 | 示例 |
-|---|---|---|
-| name | 姓名 | 王某某 |
-| gender | 性别 | 男 |
-| birth_date | 出生日期 | 1995-06-15 |
-| nationality | 国籍 | 中国 |
-| ethnicity | 民族 | 汉族 |
-| political_status | 政治面貌 | 中共党员 |
-| marital_status | 婚姻状况 | 已婚 |
-| current_unit | 现工作学习单位 | XX 大学材料学院 2022 级博士生 |
-| csc_type | 项目类别 | joint_phd |
-| target_country | 目标留学国家 | 美国 |
-| target_university | 目标院校（英文+中文） | MIT / 麻省理工学院 |
-| target_department | 目标院系 | Department of Materials Science and Engineering |
-| target_advisor | 外方导师（含职称、邮箱） | Yet-Ming Chiang, Professor, chiang@mit.edu |
-| study_start | 留学开始时间 | 2024-09-01 |
-| study_end | 留学结束时间 | 2026-08-31 |
-| study_period_months | 留学月数 | 24 |
-| research_direction | 研究方向 | 锂硫电池正极材料 |
-| language_test_type | 外语考试类型 | IELTS |
-| language_score | 外语成绩 | 7.0 |
-| language_test_date | 外语考试日期 | 2023-03-15 |
-| recommend_unit | 国内推荐单位 | XX 大学 |
-| domestic_advisor | 国内导师 | 李某某 教授 |
-| return_target_unit | 回国去向单位 | XX 大学材料学院 |
-| return_position | 回国岗位 | 副教授 |
-
-### §7.2 强烈建议字段
-
-| 字段 | 说明 |
-|---|---|
-| bachelor_school / bachelor_year | 本科毕业院校与年份 |
-| bachelor_major | 本科专业 |
-| master_school / master_year | 硕士毕业院校与年份 |
-| master_major | 硕士专业 |
-| phd_start_year | 博士入学年份 |
-| publications | 代表性论文（5~10 篇） |
-| patents | 专利（如有） |
-| awards | 获奖（国家级/省部级） |
-| research_projects | 参与科研项目 |
-| family_income_monthly | 家庭月收入 |
-| emergency_fund | 应急储备金 |
-| spouse_job | 配偶工作情况 |
-| invitation_letter_date | 外方邀请函日期 |
-| invitation_letter_signer | 邀请函签字人 |
-
-### §7.3 选填字段（按需采集）
-
-| 字段 | 说明 |
-|---|---|
-| target_university_qs_rank | 目标院校 QS 排名 |
-| target_university_the_rank | 目标院校 THE 排名 |
-| target_advisor_h_index | 外方导师 H 指数 |
-| target_advisor_recent_papers | 外方导师近 3 年发表论文数 |
-| target_advisor_nature_science_papers | 外方导师 Nature/Science 论文数 |
-| domestic_advisor_collab_papers | 国内外导师合作论文数 |
-| domestic_advisor_collab_visits | 国内外导师互访次数 |
-| domestic_advisor_collab_emails | 国内外导师邮件往来数 |
-| research_plan_courses | 拟选修课程清单 |
-| expected_papers | 预期论文数（第一作者） |
-| expected_patents | 预期专利数 |
-| expected_conferences | 预期国际会议数 |
-
-### §7.4 信息采集流程
-
-**步骤 1：基本信息采集**（10 分钟）
-按 §7.1 必采字段采集，逐项确认。
-
-**步骤 2：留学信息采集**（15 分钟）
-按 §7.1 + §7.2 字段采集，重点核对 csc_type、target_university、target_advisor。
-
-**步骤 3：研究计划采集**（20 分钟）
-按 §4 学习计划 5 要素采集，重点核对研究方向、合作基础、预期成果。
-
-**步骤 4：归国计划采集**（10 分钟）
-按 §2.5 段五要点采集，重点核对 return_target_unit、return_position。
-
-**步骤 5：经济保障采集**（5 分钟）
-按 §2.6 段六要点采集，重点核对外方免学费说明、配偶收入、应急金。
-
-**步骤 6：复述确认**（5 分钟）
-将采集信息按 6 段结构复述给申请人，确认无误后开始撰写。
-
----
+> 📎 **逐字段信息采集清单** 已移至 [`references/intake-checklist.md`](references/intake-checklist.md)，保持 SKILL.md 精简。
+> **何时阅读**：需要逐条向用户提问采集信息时。
+> 其余情况下不需要读取该文件。
 
 ## §8 政策必引清单
 
@@ -717,331 +637,108 @@ metadata:
 
 ---
 
-## §9 JSON Schema 完整字段
+## §9 JSON Schema 完整字段（已外移至 references/json-schema.md）
 
-本节给出 build.py 接受的 JSON 数据完整字段定义，与 §7 信息采集清单一一对应。
+> 📎 **完整 JSON Schema 定义** 已移至 [`references/json-schema.md`](references/json-schema.md)，保持 SKILL.md 精简。
+> **何时阅读**：构造 --data 输入文件、或 build.py 报字段校验错误时。
+> 其余情况下不需要读取该文件。
 
-### §9.1 顶层字段
+## §10 build.py 接口说明（已外移至 references/build-usage.md）
 
-```json
-{
-  "name": "王某某",
-  "gender": "男",
-  "birth_date": "1995-06-15",
-  "nationality": "中国",
-  "ethnicity": "汉族",
-  "political_status": "中共党员",
-  "marital_status": "已婚",
-  "current_unit": "XX 大学材料科学与工程学院 2022 级博士研究生",
-  "phone": "138XXXXXXXX",
-  "email": "wang@example.edu.cn",
-  "student_id": "2022B11050",
+> 📎 **build.py 接口说明** 已移至 [`references/build-usage.md`](references/build-usage.md)，保持 SKILL.md 精简。
+> **何时阅读**：需要调用 build.py 或了解接口参数时。
+> 其余情况下不需要读取该文件。
 
-  "csc_type": "joint_phd",
-  "csc_type_label": "联合培养博士研究生",
+<!-- WRITING-STYLE:START -->
+## 写作风格硬约束（去 AI 味 · 强制）
 
-  "target_country": "美国",
-  "target_university_en": "Massachusetts Institute of Technology",
-  "target_university_cn": "麻省理工学院",
-  "target_university_qs_rank": 1,
-  "target_department_en": "Department of Materials Science and Engineering",
-  "target_department_cn": "材料科学与工程系",
+> 完整规范见 [`docs/design/WRITING_STYLE.md`](../../docs/design/WRITING_STYLE.md)。
+> 本节是压缩版，**撰写正文前必读，交付前必须过检测**。
 
-  "target_advisor_name": "Yet-Ming Chiang",
-  "target_advisor_title": "Kyocera 讲席教授",
-  "target_advisor_honor": "美国国家工程院院士",
-  "target_advisor_email": "chiang@mit.edu",
-  "target_advisor_h_index": 95,
-  "target_advisor_recent_papers": 28,
-  "target_advisor_nature_science_papers": 4,
-  "target_advisor_research": "电化学储能与材料科学",
+### 一条总原则
 
-  "study_start": "2024-09-01",
-  "study_end": "2026-08-31",
-  "study_period_months": 24,
+**每个句子都必须能落到具体的人、事、时间、数字或对象上；落不到的句子，删掉。**
+自检方法：读完一句问「这句能换成别人吗？」——能换，就是套话。
 
-  "research_direction": "硫碳复合正极的原位表征与界面调控",
-  "research_field_category": "新能源/储能",
+### 六条硬约束（及格线 75/100）
 
-  "language_test_type": "IELTS",
-  "language_score": "7.0",
-  "language_test_date": "2023-03-15",
-  "language_min_requirement": "6.5",
-
-  "recommend_unit": "XX 大学",
-  "domestic_advisor_name": "李某某",
-  "domestic_advisor_title": "教授",
-  "domestic_advisor_research": "锂硫电池正极材料",
-
-  "return_target_unit": "XX 大学材料学院",
-  "return_position": "副教授",
-  "return_research": "先进电池材料产业化研究",
-  "return_service_years": 2,
-
-  "word_count_version": "3000",
-  "material_type": "B",
-  "salutation": "尊敬的国家留学基金管理委员会评审专家：",
-  "apply_date": "2024-03-10"
-}
-```
-
-### §9.2 教育背景子结构 education_background
-
-```json
-"education_background": {
-  "bachelor": {
-    "school": "XX 大学",
-    "school_en": "XX University",
-    "major": "材料科学与工程",
-    "start": "2013-09",
-    "end": "2017-06",
-    "degree": "工学学士",
-    "gpa": "3.7/4.0",
-    "rank": "5/120"
-  },
-  "master": {
-    "school": "XX 大学",
-    "school_en": "XX University",
-    "major": "材料学",
-    "start": "2017-09",
-    "end": "2020-06",
-    "degree": "工学硕士",
-    "advisor": "李某某 教授",
-    "gpa": "3.85/4.0",
-    "rank": "2/45",
-    "thesis_title": "硫碳复合正极的制备与电化学性能研究"
-  },
-  "phd": {
-    "school": "XX 大学",
-    "school_en": "XX University",
-    "major": "材料科学与工程",
-    "start": "2020-09",
-    "expected_end": "2024-06",
-    "advisor": "李某某 教授",
-    "research_direction": "锂硫电池正极材料",
-    "gpa": "3.9/4.0",
-    "rank": "1/30"
-  }
-}
-```
-
-### §9.3 学术成果子结构 academic_achievements
-
-```json
-"academic_achievements": {
-  "publications": [
-    {
-      "authors": "Wang X, Li Y, et al.",
-      "title": "Sulfur-carbon composite cathode for lithium-sulfur batteries",
-      "journal": "Advanced Energy Materials",
-      "year": 2023,
-      "if": 24.4,
-      "role": "第一作者"
-    }
-  ],
-  "patents": [
-    {
-      "title": "一种硫碳复合正极制备方法",
-      "patent_no": "ZL202210012345.6",
-      "year": 2023,
-      "role": "第一发明人"
-    }
-  ],
-  "awards": [
-    {
-      "name": "国家奖学金",
-      "year": 2022,
-      "level": "国家级"
-    }
-  ],
-  "projects": [
-    {
-      "name": "国家自然科学基金面上项目",
-      "role": "主要参与人",
-      "pi": "李某某 教授",
-      "year": "2021-2024"
-    }
-  ]
-}
-```
-
-### §9.4 留学动机子结构 motivation（4 维度）
-
-```json
-"motivation": {
-  "academic_pursuit": "本人在国内已系统开展锂硫电池正极材料研究...",
-  "national_strategy": "本人研究方向与《"十四五"新型储能发展实施方案》...",
-  "discipline_gap": "国内外在本研究方向的设备差距体现在...",
-  "personal_development": "本人在国内博士第 3 年已完成硫碳复合正极基础研究..."
-}
-```
-
-### §9.5 学习计划子结构 research_plan（5 要素）
-
-```json
-"research_plan": {
-  "research_direction": "硫碳复合正极的原位表征与界面调控",
-  "research_background": "...",
-  "research_objectives": ["目标1", "目标2", "目标3", "目标4"],
-  "research_contents": ["内容1", "内容2", "内容3", "内容4"],
-  "research_methods": "原位同步辐射实验为主，辅以 DFT 计算",
-
-  "courses": [
-    {"code": "3.091", "name": "Introduction to Solid State Chemistry", "credits": 5.0, "reason": "基础巩固材料化学基础"},
-    {"code": "3.43", "name": "Electrochemical Energy Storage", "credits": 4.5, "reason": "与本人研究方向直接相关"}
-  ],
-
-  "advisor_collab": "外方导师与本人国内导师已有 6 年合作基础...",
-
-  "collab_research": {
-    "my_role": "硫碳复合正极样品制备、原位 XRD 实验设计、数据分析",
-    "advisor_role": "同步辐射光源申请与机时安排、原位电化学池设计、DFT 计算支持",
-    "sustainability": "留学结束后，本课题将继续以中-美合作形式延续"
-  },
-
-  "expected_outcomes": {
-    "papers": 3,
-    "first_author_papers": 2,
-    "target_journals": ["Advanced Energy Materials", "Joule", "ACS Energy Letters"],
-    "patents_pct": 1,
-    "patents_domestic": 2,
-    "conferences": 2,
-    "oral_presentations": 1
-  },
-
-  "timeline": [
-    {"period": "2024.09~2024.12", "task": "硫碳复合正极制备工艺优化"},
-    {"period": "2025.01~2025.06", "task": "原位 XRD 表征"},
-    {"period": "2025.07~2025.12", "task": "原型器件组装与测试"},
-    {"period": "2026.01~2026.06", "task": "数据分析与论文撰写"},
-    {"period": "2026.07~2026.08", "task": "归国总结与成果汇报"}
-  ]
-}
-```
-
-### §9.6 合作基础子结构 collaboration_basis
-
-```json
-"collaboration_basis": {
-  "joint_papers": [
-    {"title": "xxx", "journal": "Nature Communications", "year": 2022}
-  ],
-  "mutual_visits": 3,
-  "email_exchanges": 200,
-  "joint_projects": [
-    {"name": "中美锂硫电池合作项目", "period": "2020-2025", "funder": "NSFC-NSF"}
-  ]
-}
-```
-
-### §9.7 归国计划子结构 return_plan
-
-```json
-"return_plan": {
-  "return_date": "2026-09",
-  "target_unit": "XX 大学材料学院",
-  "position": "副教授",
-  "research_plan": "组建先进电池材料课题组，继续推进锂硫电池产业化研究",
-  "industry_partner": "宁德时代新能源科技股份有限公司",
-  "service_years": 2,
-  "long_term_plan": "3 年内申报国家自然科学基金青年项目，5 年内组建 5 人课题组",
-  "return_letter_signed": true
-}
-```
-
-### §9.8 经济保障子结构 financial_arrangement
-
-```json
-"financial_arrangement": {
-  "csc_allowance_monthly_usd": 1900,
-  "csc_allowance_total_usd": 45600,
-  "tuition_waived": true,
-  "tuition_waiver_source": "MIT 材料系免学费（见邀请函附件 5）",
-  "advisor_research_stipend_monthly_usd": 500,
-  "spouse_income_monthly_cny": 12000,
-  "emergency_fund_cny": 60000,
-  "insurance_arrangement": "CSC 统一购买国际医疗保险 + 个人购买商业补充保险"
-}
-```
-
-### §9.9 输出控制字段
-
-```json
-{
-  "word_count_version": "3000",
-  "material_type": "B",
-  "salutation": "尊敬的国家留学基金管理委员会评审专家：",
-  "opening": "",
-  "motivation_text": "",
-  "university_choice_text": "",
-  "study_plan_text": "",
-  "return_plan_text": "",
-  "financial_text": "",
-  "apply_date": "2024-03-10"
-}
-```
-
-### §9.10 字段默认值与覆盖规则
-
-| 字段 | 默认值 | 覆盖规则 |
+| # | 约束 | 量化判据 |
 |---|---|---|
-| csc_type | joint_phd | 用户提供时覆盖 |
-| csc_type_label | 联合培养博士研究生 | 按 csc_type 自动映射 |
-| word_count_version | 按 csc_type 自动（2500/3000/4000） | 用户提供时覆盖 |
-| material_type | B | 用户提供时覆盖 |
-| salutation | "尊敬的国家留学基金管理委员会评审专家：" | 用户提供时覆盖 |
-| study_period_months | 按 study_start/end 自动计算 | 用户提供时覆盖 |
-| return_service_years | 2 | 用户提供时覆盖 |
+| 1 | 不写空话套话 | 每千字命中套话 ≤3 次 |
+| 2 | 不用排比对仗 | 同构句连续 ≤2 句 |
+| 3 | 不堆抽象大词 | 每千字抽象词 ≤4 次 |
+| 4 | 必须具体 | 每千字数字/专名 ≥8 处 |
+| 5 | 句长要参差 | 句长变异系数 ≥0.35 |
+| 6 | 不用模板开头 | 禁止「时光荏苒」「本人自入学以来」 |
 
----
+### 高频禁用词（出现即改）
 
-## §10 build.py 接口说明
+具有重要意义、具有重大意义、意义重大、影响深远、作用显著、效果显著、成效显著、
+成绩斐然、成果丰硕、高度重视、切实增强、切实提升、不断提升、持续提升、
+进一步加强、进一步完善、进一步深化、不断深化、深入推进、全面推进、扎实开展、
+稳步推进、着力打造、全力推动、取得显著成效、获得一致好评、受到广泛好评、
+得到充分肯定、获得高度评价、与此同时、在此基础上、综上所述、总而言之、
+值得一提的是、不难看出、由此可见、众所周知、不懈努力、刻苦钻研、勤奋刻苦、
+锐意进取、开拓创新、勇于探索、敢于突破、迈上新台阶、开创新局面、谱写新篇章、
+踏上新征程、展现新作为、彰显新担当、焕发新气象、贡献青春力量、绽放青春光彩、
+书写青春华章、以青春之我、坚定理想信念、厚植家国情怀、锤炼过硬本领、砥砺意志品质、
+综合素质突出、全面发展、品学兼优、德智体美劳、起到了模范带头作用、
+发挥了示范引领作用、树立了良好榜样、得到了师生的一致认可、深受老师和同学的好评、
+为集体作出了积极贡献、为团队贡献了自己的力量、奠定了坚实的基础、
+打下了坚实的基础、提供了有力支撑、注入了强劲动力、开辟了新的途径、探索了新的模式
 
-### §10.1 命令行调用
+抽象大词（无具体指涉时禁用）：格局、境界、高度、深度、广度、维度、层面、体系、
+机制、路径、抓手、载体、平台、生态、闭环、赋能、助力、引领、驱动、融合、协同、
+联动、统筹、底层逻辑、顶层设计、系统性思维、全局视野、战略高度、核心素养、
+综合能力、内生动力、长效机制
+
+### 替换动作（照做即可）
+
+| 原写法 | 改写成 |
+|---|---|
+| 学习成绩优异，名列前茅 | 专业 3/127，加权 91.4，`<课程名>` 98 分 |
+| 积极参加学科竞赛 | 2024 年 11 月 `<赛事全名>` 省赛二等奖，作品 `<名称>`，我负责 `<模块>` |
+| 在导师指导下参与科研 | 参与 `<导师>` 的 `<课题名>`，负责 `<具体工作>`，产出 `<论文/专利/数据>` |
+| 具有较强的团队协作能力 | 删掉。改为：`<时间>` 带 `<人数>` 人完成 `<任务>`，遇到 `<冲突>`，怎么解决 |
+| 思想上积极向党组织靠拢 | `<年/月>` 提交入党申请书，`<年/月>` 成为积极分子，参加 `<次数>` 次党课 |
+| 热心公益，积极参加志愿服务 | `<机构>` 志愿服务 `<小时>` 小时，服务 `<对象>` `<人数>` 人 |
+
+### 句式要求
+
+1. **长短句交替**：每 3~5 句里至少有一句 ≤12 字或 ≥60 字。
+2. **一段一个事实**：段首句不要用「在……方面」。
+3. **少用第一人称抒情**：「我深深感到」「我深刻认识到」一律删除。
+4. **数字优先**：能用数字就不用形容词。「多次」→「7 次」，「大量」→「4200 张」。
+5. 不用破折号堆叠解释，不连续套用「不仅……而且……」。
+
+### 交付前强制质检（任一项不过 → 不允许交付）
 
 ```bash
-# 使用内置示例数据生成演示文档
-python build.py --demo --out /tmp/demo_csc.docx
+# 1) AI 味检测（及格线 75）
+python3 utils/ai_flavor_check.py --file draft.txt --min-score 75
 
-# 使用用户提供的 JSON 数据生成
-python build.py --data data.json --out output.docx
+# 2) 查重预检（阈值 30%）
+python3 utils/plagiarism_checker.py --file draft.txt --skill <skill_name>
 
-# 指定字数版本
-python build.py --demo --word-count 3000 --out /tmp/demo_3000.docx
-
-# 指定项目类型
-python build.py --demo --csc-type phd --out /tmp/demo_phd.docx
+# 3) 评审模拟（含文风维度）
+python3 utils/review_simulator.py --skill <skill_name> --file draft.txt
 ```
 
-### §10.2 参数说明
+### 冲突处理
 
-| 参数 | 必填 | 说明 |
-|---|---|---|
-| `--out` | ✅ | 输出 docx 文件路径 |
-| `--data` | 二选一 | JSON 数据文件路径 |
-| `--demo` | 二选一 | 使用内置示例数据 |
-| `--word-count` | ❌ | 字数版本（2500 / 3000 / 4000），默认按 csc_type 自动 |
-| `--csc-type` | ❌ | 项目类型（phd / joint_phd / master / visiting_scholar），默认 joint_phd |
+政策条文、领导讲话、文件原名**允许庄重书面语**，不算套话。
+检测时加 `--allow-policy-quotes`（该维度扣分减半）。
+但引用必须写成 `《文件全名》（发文号）`，且只引与论点直接相关的 1~2 句。
 
-### §10.3 输出说明
+### 反模式
 
-- 控制台：打印生成进度与警告
-- 输出文件：A4 docx，包含 6 段结构 + 表格（基本信息表、留学时间表、研究计划表、预期成果表、归国去向表）
-- 退出码：成功 0，失败 1
+- ❌ 把子 skill 里的「金句模板」当范文直接套用
+- ❌ 用排比段凑字数
+- ❌ 通篇无一个数字、无一个专有名词
+- ❌ 检测得分 <75 仍交付
+- ❌ 只删套话不补事实（删完变空段落，同样不及格）
 
-### §10.4 字体与格式标准
-
-- 纸张：A4（21cm × 29.7cm）
-- 页边距：上下 2.54cm，左右 2.5cm
-- 标题：黑体二号（22pt），居中，段前后 12pt
-- 二级标题（一、二、三…）：黑体小四（12pt）加粗，首行缩进 2 字符
-- 正文：宋体小四（12pt），1.5 倍行距，首行缩进 2 字符
-- 称呼：顶格宋体小四
-- 落款：右对齐宋体小四
-- 表格：宋体五号（10.5pt），表头加粗居中，数据居中
-
----
-
+<!-- WRITING-STYLE:END -->
 ## §11 质检清单
 
 生成 docx 后须按本清单质检，每项均通过方可提交。

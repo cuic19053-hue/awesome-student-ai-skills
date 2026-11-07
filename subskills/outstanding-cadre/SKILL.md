@@ -36,6 +36,12 @@ metadata:
 
 ---
 
+<!-- REFERENCES-INDEX -->
+> 📚 **按需加载的参考资料**（渐进式披露，不需要时不要读）：
+> - [`references/appendix.md`](references/appendix.md) — 附录 B：常见问题 FAQ
+> - [`references/json-schema.md`](references/json-schema.md) — §12 JSON Schema 完整字段（必加章节 7）
+> - [`references/intake-checklist.md`](references/intake-checklist.md) — §6 信息采集清单
+
 ## §0 适用场景与定位
 
 ### 0.1 适用范围
@@ -460,102 +466,11 @@ metadata:
 
 ---
 
-## §6 信息采集清单
+## §6 信息采集清单（已外移至 references/intake-checklist.md）
 
-按字段优先级 P0/P1/P2 标注。P0 必采，缺失则警告；P1 建议采，缺失则降低文档质量；P2 可选，提供则增强文档。
-
-### 6.1 通用必采（P0）
-
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| name | 申请人姓名 | 张明 |
-| gender | 性别 | 男 |
-| student_id | 学号 | 2022123456 |
-| college | 学院全称 | 计算机科学与技术学院 |
-| major | 专业全称 | 计算机科学与技术 |
-| grade | 年级 | 2022 级 大三 |
-| class_name | 班级 | 计科 2201 班 |
-| political_status | 政治面貌 | 中共预备党员 |
-| phone | 联系电话 | 138XXXXXXXX |
-| apply_year | 申报学年 | 2024-2025 学年 |
-| apply_date | 申请日期 | 2025 年 5 月 20 日 |
-| honor_title | 评优标题全称 | 优秀班干部 |
-
-### 6.2 学生干部职务（P0，优秀班干部专属必采）
-
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| cadre_position | 主要学生干部职务 | 班长 |
-| cadre_level | 职务级别 | 班级正职 |
-| tenure_start | 任期开始 | 2024.09 |
-| tenure_end | 任期结束 | 2025.05 |
-| position_level | 申报级别（校级/院级/班级） | 院级 |
-| position_history | 学生干部履职表（≥1 条） | 见 §12.3 |
-
-### 6.3 学业成绩（P0）
-
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| gpa | 本学年 GPA（含满分制） | 3.65/4.0 |
-| weighted_avg | 本学年加权平均分 | 82.5 |
-| rank | 专业排名（X/N 格式） | 30/87 |
-| rank_total | 排名基数 | 87 |
-| course_count | 本学年修读课程数 | 12 |
-| high_score_count | 85 分以上课程数 | 5 |
-| core_courses | 主干课程表（4~6 门） | 见 §12.3 |
-
-### 6.4 履职量化清单（P0，必采）
-
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| duty_performances | 履职量化清单（4 维度） | 见 §12.3 |
-| duty_performances.activity_count | 活动数 | "主题班会 12 次、班级活动 6 场，共 18 场" |
-| duty_performances.service_hours | 服务时长 | "累计 280 小时（日常履职 200h、活动组织 80h）" |
-| duty_performances.awards | 获奖情况 | "校级优秀学生干部（2024.11）" |
-| duty_performances.peer_review | 同学评议 | "满意度 92%（46/50 人评议）" |
-
-### 6.5 服务同学案例与工作成绩（P1，建议采）
-
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| service_cases | 服务同学案例列表（2-3 个，含 background/action/effect） | 见 §12.3 |
-| class_achievements | 班级整体成效 | "班级加权平均分由 84.2 提升至 87.6" |
-| honors | 个人荣誉列表（含 time/name/level/issuer） | 见 §12.3 |
-| cross_position | 跨职务统筹成效 | "在班长与团支书双重职务中..." |
-
-### 6.6 思想政治与综合表现（P1）
-
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| party_history | 入团/入团轨迹 | 2023.09 提交申请材料，2025.06 转为中共预备党员 |
-| party_activities | 党日活动/团日活动 | ["2024.10 主题党日活动"] |
-| volunteer_hours | 志愿服务时长 | 80 |
-| volunteer_detail | 志愿服务详情 | "担任图书馆管理员..." |
-
-### 6.7 不足与改进（P0，必采）
-
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| shortcomings | 不足列表（1-2 条） | ["班级少数同学学业帮扶成效不显著"] |
-| improvements | 改进措施列表 | ["下学年建立'一对一'长期帮扶机制"] |
-
-### 6.8 整段覆盖字段（P2，可选）
-
-| 字段 | 说明 |
-|------|------|
-| opening | 开头整段覆盖 |
-| basic_info | 个人基本情况整段覆盖 |
-| duty_performance | 履职情况整段覆盖 |
-| work_achievements | 工作成绩整段覆盖 |
-| shortcomings_section | 不足与改进整段覆盖 |
-| ending | 结尾整段覆盖 |
-| salutation | 称呼（默认"尊敬的学院领导、评审委员会："） |
-
-### 6.9 信息采集复述确认
-
-**复述确认**：信息采集结束后，必须向用户复述"本学年 GPA X.XX/4.0，专业排名 X/N，担任 YYY 职务（Z 级，2024.09-2025.05），组织活动 W 场、服务时长 V 小时、同学评议满意度 U%，获评 S 项荣誉"，确认无误后再进入撰写阶段。
-
----
+> 📎 **逐字段信息采集清单** 已移至 [`references/intake-checklist.md`](references/intake-checklist.md)，保持 SKILL.md 精简。
+> **何时阅读**：需要逐条向用户提问采集信息时。
+> 其余情况下不需要读取该文件。
 
 ## §7 学年表现撰写规范（不是大学四年）
 
@@ -886,403 +801,107 @@ build.py 通过 `word_count_target` 字段（P2 可选）切换档位，但实�
 
 ---
 
-## §12 JSON Schema 完整字段（必加章节 7）
+## §12 JSON Schema 完整字段（必加章节 7）（已外移至 references/json-schema.md）
 
-### 12.1 顶层字段总览
+> 📎 **完整 JSON Schema 定义** 已移至 [`references/json-schema.md`](references/json-schema.md)，保持 SKILL.md 精简。
+> **何时阅读**：构造 --data 输入文件、或 build.py 报字段校验错误时。
+> 其余情况下不需要读取该文件。
 
-```json
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "OutstandingCadreApplication",
-  "description": "优秀班干部 / 优秀学生干部申请书数据结构",
-  "type": "object",
-  "required": ["honor_title", "name", "college", "major", "grade", "cadre_position", "tenure_start", "tenure_end", "gpa", "rank", "duty_performances", "position_history"],
-  "properties": {
-    "honor_title": {
-      "type": "string",
-      "enum": ["优秀班干部", "优秀学生干部", "优秀班委", "校级优秀学生干部", "院级优秀学生干部"],
-      "description": "评优标题全称，影响标题与正文措辞"
-    },
-    "cadre_position": {
-      "type": "string",
-      "description": "主要学生干部职务（如：班长、团支书、学委、宣委、体委、心理委员、楼长）"
-    },
-    "tenure_start": {
-      "type": "string",
-      "description": "任期开始（YYYY.MM 格式）"
-    },
-    "tenure_end": {
-      "type": "string",
-      "description": "任期结束（YYYY.MM 格式）"
-    },
-    "duty_performances": {
-      "type": "object",
-      "description": "履职量化清单（4 维度）",
-      "required": ["activity_count", "service_hours", "awards", "peer_review"],
-      "properties": {
-        "activity_count": {"type": "string"},
-        "service_hours": {"type": "string"},
-        "awards": {"type": "string"},
-        "peer_review": {"type": "string"}
-      }
-    }
-  }
-}
-```
+<!-- WRITING-STYLE:START -->
+## 写作风格硬约束（去 AI 味 · 强制）
 
-### 12.2 完整字段清单（按 P0/P1/P2 分级）
+> 完整规范见 [`docs/design/WRITING_STYLE.md`](../../docs/design/WRITING_STYLE.md)。
+> 本节是压缩版，**撰写正文前必读，交付前必须过检测**。
 
-#### P0 必填字段（13 项）
+### 一条总原则
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| honor_title | string | ✅ | 优秀班干部 / 优秀学生干部 / 优秀班委 |
-| name | string | ✅ | 真实姓名 |
-| gender | string | ✅ | 男 / 女 |
-| student_id | string | ✅ | 完整学号 |
-| college | string | ✅ | 学院全称 |
-| major | string | ✅ | 专业全称 |
-| grade | string | ✅ | 入学年份 + 年级 |
-| class_name | string | ✅ | 班级 |
-| cadre_position | string | ✅ | 主要学生干部职务 |
-| tenure_start | string | ✅ | 任期开始（YYYY.MM） |
-| tenure_end | string | ✅ | 任期结束（YYYY.MM） |
-| gpa | string | ✅ | 本学年 GPA（含满分制） |
-| rank | string | ✅ | 专业排名（X/N 格式） |
+**每个句子都必须能落到具体的人、事、时间、数字或对象上；落不到的句子，删掉。**
+自检方法：读完一句问「这句能换成别人吗？」——能换，就是套话。
 
-#### P0 必填字段（履职相关 3 项）
+### 六条硬约束（及格线 75/100）
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| position_history | array | ✅ | 学生干部履职表（≥1 条） |
-| duty_performances | object | ✅ | 履职量化清单（4 维度） |
-| shortcomings | array | ✅ | 不足列表（1-2 条） |
-| improvements | array | ✅ | 改进措施列表 |
+| # | 约束 | 量化判据 |
+|---|---|---|
+| 1 | 不写空话套话 | 每千字命中套话 ≤3 次 |
+| 2 | 不用排比对仗 | 同构句连续 ≤2 句 |
+| 3 | 不堆抽象大词 | 每千字抽象词 ≤4 次 |
+| 4 | 必须具体 | 每千字数字/专名 ≥8 处 |
+| 5 | 句长要参差 | 句长变异系数 ≥0.35 |
+| 6 | 不用模板开头 | 禁止「时光荏苒」「本人自入学以来」 |
 
-#### P1 建议字段（学业与思想）
+### 高频禁用词（出现即改）
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| cadre_level | string | 职务级别（班级正职/班级副职/院级正职等） |
-| position_level | string | 申报级别（校级/院级/班级） |
-| political_status | string | 政治面貌 |
-| phone | string | 联系电话 |
-| apply_year | string | 申报学年 |
-| apply_date | string | 申请日期 |
-| weighted_avg | string | 本学年加权平均分 |
-| rank_total | string | 排名基数 |
-| course_count | number | 本学年修读课程数 |
-| high_score_count | number | 85 分以上课程数 |
-| core_courses | array | 主干课程表（4~6 门） |
-| party_history | string | 入团/入团轨迹 |
-| party_activities | array | 党日活动 / 团日活动列表 |
+具有重要意义、具有重大意义、意义重大、影响深远、作用显著、效果显著、成效显著、
+成绩斐然、成果丰硕、高度重视、切实增强、切实提升、不断提升、持续提升、
+进一步加强、进一步完善、进一步深化、不断深化、深入推进、全面推进、扎实开展、
+稳步推进、着力打造、全力推动、取得显著成效、获得一致好评、受到广泛好评、
+得到充分肯定、获得高度评价、与此同时、在此基础上、综上所述、总而言之、
+值得一提的是、不难看出、由此可见、众所周知、不懈努力、刻苦钻研、勤奋刻苦、
+锐意进取、开拓创新、勇于探索、敢于突破、迈上新台阶、开创新局面、谱写新篇章、
+踏上新征程、展现新作为、彰显新担当、焕发新气象、贡献青春力量、绽放青春光彩、
+书写青春华章、以青春之我、坚定理想信念、厚植家国情怀、锤炼过硬本领、砥砺意志品质、
+综合素质突出、全面发展、品学兼优、德智体美劳、起到了模范带头作用、
+发挥了示范引领作用、树立了良好榜样、得到了师生的一致认可、深受老师和同学的好评、
+为集体作出了积极贡献、为团队贡献了自己的力量、奠定了坚实的基础、
+打下了坚实的基础、提供了有力支撑、注入了强劲动力、开辟了新的途径、探索了新的模式
 
-#### P1 建议字段（服务同学与工作成绩）
+抽象大词（无具体指涉时禁用）：格局、境界、高度、深度、广度、维度、层面、体系、
+机制、路径、抓手、载体、平台、生态、闭环、赋能、助力、引领、驱动、融合、协同、
+联动、统筹、底层逻辑、顶层设计、系统性思维、全局视野、战略高度、核心素养、
+综合能力、内生动力、长效机制
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| service_cases | array | 服务同学案例列表（2-3 个） |
-| class_achievements | string | 班级整体成效 |
-| honors | array | 个人荣誉列表 |
-| cross_position | string | 跨职务统筹成效 |
-| secondary_position | string | 兼任职务（如有） |
-| volunteer_hours | number | 志愿服务时长 |
-| volunteer_detail | string | 志愿服务详情 |
+### 替换动作（照做即可）
 
-#### P2 可选字段（整段覆盖）
+| 原写法 | 改写成 |
+|---|---|
+| 学习成绩优异，名列前茅 | 专业 3/127，加权 91.4，`<课程名>` 98 分 |
+| 积极参加学科竞赛 | 2024 年 11 月 `<赛事全名>` 省赛二等奖，作品 `<名称>`，我负责 `<模块>` |
+| 在导师指导下参与科研 | 参与 `<导师>` 的 `<课题名>`，负责 `<具体工作>`，产出 `<论文/专利/数据>` |
+| 具有较强的团队协作能力 | 删掉。改为：`<时间>` 带 `<人数>` 人完成 `<任务>`，遇到 `<冲突>`，怎么解决 |
+| 思想上积极向党组织靠拢 | `<年/月>` 提交入党申请书，`<年/月>` 成为积极分子，参加 `<次数>` 次党课 |
+| 热心公益，积极参加志愿服务 | `<机构>` 志愿服务 `<小时>` 小时，服务 `<对象>` `<人数>` 人 |
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| word_count_target | string | 字数档位（short/standard/long） |
-| opening | string | 开头整段覆盖 |
-| basic_info | string | 个人基本情况整段覆盖 |
-| duty_performance | string | 履职情况整段覆盖 |
-| work_achievements | string | 工作成绩整段覆盖 |
-| shortcomings_section | string | 不足与改进整段覆盖 |
-| ending | string | 结尾整段覆盖 |
-| salutation | string | 称呼（默认"尊敬的学院领导、评审委员会："） |
+### 句式要求
 
-### 12.3 数组字段子结构
+1. **长短句交替**：每 3~5 句里至少有一句 ≤12 字或 ≥60 字。
+2. **一段一个事实**：段首句不要用「在……方面」。
+3. **少用第一人称抒情**：「我深深感到」「我深刻认识到」一律删除。
+4. **数字优先**：能用数字就不用形容词。「多次」→「7 次」，「大量」→「4200 张」。
+5. 不用破折号堆叠解释，不连续套用「不仅……而且……」。
 
-**core_courses 子结构**：
-```json
-{
-  "name": "数据结构",
-  "credit": "4",
-  "score": "85"
-}
-```
-
-**position_history 子结构**（学生干部履职表）：
-```json
-{
-  "role": "班长",
-  "term": "2024.09-2025.05（1 学年）",
-  "work": "组织班级主题班会 12 次、班委例会 15 次、班级活动 6 场，转发学院通知 50 余条",
-  "effect": "班级加权平均分由 84.2 提升至 87.6，所在班级获评 2024 年度校级先进班集体"
-}
-```
-
-**duty_performances 子结构**（履职量化清单）：
-```json
-{
-  "activity_count": "主题班会 12 次、班级活动 6 场、班委例会 15 次，共 33 场",
-  "service_hours": "累计 320 小时（日常履职 240h、活动组织 80h）",
-  "awards": "校级先进班集体（2025.05）、院级优秀学生干部（2024.11）",
-  "peer_review": "满意度 94%（47/50 人评议）"
-}
-```
-
-**service_cases 子结构**：
-```json
-{
-  "background": "2024.11 班级 X 同学因家中变故情绪低落、期中考试 2 门不及格",
-  "action": "组织班委集体帮扶 + 一对一谈心 3 次",
-  "effect": "X 同学期末加权平均分提升 5 分、2 门课程补考通过"
-}
-```
-
-**honors 子结构**：
-```json
-{
-  "time": "2024.11",
-  "name": "院级优秀学生干部",
-  "level": "院级",
-  "issuer": "XX 大学计算机学院"
-}
-```
-
-**shortcomings 子结构**（字符串数组）：
-```json
-"班级少数同学（3-5 人）学业帮扶成效不显著，期末仍有 2 人挂科"
-```
-
-**improvements 子结构**（字符串数组）：
-```json
-"下学年建立'一对一'长期帮扶机制，覆盖全部学业困难同学（加权平均分 <75），每月跟踪 1 次、每学期评估 1 次"
-```
-
-### 12.4 完整 data.json 示例（优秀班干部，1500 字版）
-
-```json
-{
-  "honor_title": "优秀班干部",
-  "name": "张明", "student_id": "2022123456", "gender": "男",
-  "college": "计算机科学与技术学院", "major": "计算机科学与技术",
-  "grade": "2022 级 大三", "class_name": "计科 2201 班",
-  "political_status": "中共预备党员", "phone": "138XXXXXXXX",
-  "apply_year": "2024-2025 学年", "apply_date": "2025 年 5 月 20 日",
-  "salutation": "尊敬的学院领导、评审委员会：",
-  "cadre_position": "班长", "cadre_level": "班级正职",
-  "position_level": "院级", "tenure_start": "2024.09", "tenure_end": "2025.05",
-  "secondary_position": "团支部副书记",
-  "gpa": "3.65/4.0", "weighted_avg": "82.5", "rank": "30/87", "rank_total": "87",
-  "course_count": "12", "high_score_count": "5",
-  "core_courses": [
-    {"name": "数据结构", "credit": "4", "score": "85"},
-    {"name": "操作系统", "credit": "4", "score": "82"},
-    {"name": "计算机网络", "credit": "3", "score": "80"},
-    {"name": "数据库原理", "credit": "3", "score": "84"},
-    {"name": "计算机组成原理", "credit": "4", "score": "79"}
-  ],
-  "party_history": "2023.09 提交申请材料，2024.03 列为优秀团员/积极分子，2025.06 转为中共预备党员。",
-  "party_activities": [
-    "2024.10 主题党日活动'红色教育基地走访'",
-    "2024.12 党史学习交流"
-  ],
-  "position_history": [
-    {"role": "班长", "term": "2024.09-2025.05（1 学年）",
-     "work": "组织班级主题班会 12 次、班委例会 15 次、班级活动 6 场，转发学院通知 50 余条",
-     "effect": "班级加权平均分由 84.2 提升至 87.6，所在班级获评 2024 年度校级先进班集体"}
-  ],
-  "duty_performances": {
-    "activity_count": "主题班会 12 次、班级活动 6 场、班委例会 15 次，共 33 场",
-    "service_hours": "累计 320 小时（日常履职 240h、活动组织 80h）",
-    "awards": "校级先进班集体（2025.05）、院级优秀学生干部（2024.11）",
-    "peer_review": "满意度 94%（47/50 人评议）"
-  },
-  "service_cases": [
-    {"background": "2024.11 班级 X 同学因家中变故情绪低落、期中考试 2 门不及格",
-     "action": "组织班委集体帮扶 + 一对一谈心 3 次",
-     "effect": "X 同学期末加权平均分提升 5 分、2 门课程补考通过"},
-    {"background": "2025.03 班级 Y 同学出现轻度焦虑倾向",
-     "action": "及时向辅导员与心理中心报告，组织宿舍长密切关注，陪同 Y 同学接受心理中心咨询 2 次",
-     "effect": "Y 同学情绪逐步稳定"},
-    {"background": "2024.12 宿舍 Z 与 W 因作息时间冲突产生矛盾",
-     "action": "组织双方调解 2 次，制定宿舍作息公约",
-     "effect": "矛盾化解"}
-  ],
-  "class_achievements": "班级加权平均分由 84.2 提升至 87.6（提升 3.4 分），班级挂科率由 8% 降至 2%（下降 6 个百分点），班级体测合格率 95%，班级获评 2024 年度校级先进班集体（2025.05）、校级文明班级（2025.04）。",
-  "honors": [
-    {"time": "2024.11", "name": "院级优秀学生干部", "level": "院级", "issuer": "XX 大学计算机学院"},
-    {"time": "2025.05", "name": "校级优秀团员", "level": "校级", "issuer": "XX 大学团委"}
-  ],
-  "cross_position": "本学年同时担任班长与团支部副书记，统筹班级建设与团支部建设：在 2024.11 主题班会'民族团结一家亲'中联动团支部组织团员与非团员结对学习；在 2025.04 班级学习互助活动中联动团支部组织团员的'团员帮扶先锋'行动，所在班级与团支部均获评校级先进。",
-  "shortcomings": [
-    "班级少数同学（3-5 人）学业帮扶成效不显著，期末仍有 2 人挂科",
-    "心理排查工作偏重于已知案例，对潜在危机的预防性排查不足"
-  ],
-  "improvements": [
-    "下学年建立'一对一'长期帮扶机制，覆盖全部学业困难同学（加权平均分 <75），每月跟踪 1 次、每学期评估 1 次",
-    "下学年开展全班心理排查 4 次（每学期 2 次），重点关注学业困难、经济困难、家庭变故 3 类同学，建立'心理重点关注名单'动态管理"
-  ]
-}
-```
-
-### 12.5 校级优秀学生干部 data.json 关键差异字段
-
-```json
-{
-  "honor_title": "校级优秀学生干部",
-  "cadre_position": "学院学生会主席",
-  "cadre_level": "院级正职",
-  "position_level": "校级",
-  "tenure_start": "2024.09",
-  "tenure_end": "2025.05"
-}
-```
-
----
-
-## §13 build.py 接口 + 质检清单（必加章节 8/9/10）
-
-### 13.1 build.py 接口概览
-
-build.py 位于 `/home/z/my-project/skills/awesome-student-ai-skills/subskills/outstanding_cadre/build.py`，提供 CLI 接口生成申请书 docx。
-
-**核心类**：`ApplicationDocBuilder`
-
-**主构建方法**：`build(data: Dict[str, Any], output_path: str) -> str`
-
-**编排顺序**：标题 → 称呼 → 开头 → 一、个人基本情况 → 二、履职情况（含履职表 + 量化清单 + 服务案例）→ 三、工作成绩 → 四、不足与改进 → 结尾 → 落款
-
-### 13.2 CLI 调用方式
-
-**基础调用（用户提供 data.json）**：
-```bash
-python build.py --data data.json --out output.docx
-```
-
-**演示模式（使用内置示例数据）**：
-```bash
-python build.py --demo --out demo.docx
-```
-
-**参数说明**：
-
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `--data` | string | 否（与 --demo 二选一） | 数据 JSON 文件路径 |
-| `--out` | string | ✅ | 输出 docx 文件路径 |
-| `--demo` | flag | 否 | 使用内置示例数据生成演示文档 |
-
-### 13.3 build.py 字段读取逻辑
-
-build.py 通过 `_get()` 与 `_get_list()` 方法读取字段，关键读取逻辑如下：
-
-| build.py 方法 | 读取字段 | 用途 |
-|-------------|---------|------|
-| `_add_title()` | honor_title | 决定标题（"优秀班干部申请书"或"优秀学生干部申请书"） |
-| `_add_salutation()` | salutation | 称呼（默认"尊敬的学院领导、评审委员会："） |
-| `_add_opening()` | name/college/major/grade/cadre_position/tenure_start/tenure_end/gpa/rank/honor_title | 开头身份句与核心数据 |
-| `_add_basic_info()` | cadre_position/cadre_level/tenure_start/tenure_end/secondary_position/gpa/weighted_avg/rank/course_count/high_score_count/political_status/party_history | 个人基本情况段 |
-| `_add_duty_performance()` | cadre_position/core_duties(可推断)/activity_count/service_hours + position_history + duty_performances + service_cases | 履职情况段（含两表 + 服务案例） |
-| `_add_work_achievements()` | class_achievements/honors/cross_position | 工作成绩段 |
-| `_add_shortcomings_section()` | shortcomings/improvements | 不足与改进段 |
-| `_add_ending()` | ending | 结尾段（默认模板含"以上是我本学年的基本情况"） |
-| `_add_position_table()` | position_history | 学生干部履职表 |
-| `_add_duty_quantitative_table()` | duty_performances | 履职量化清单表 |
-
-### 13.4 build.py 整段覆盖字段优先级
-
-build.py 支持"整段覆盖"机制：若用户提供 `opening/basic_info/duty_performance/work_achievements/shortcomings_section/ending` 字段，则跳过模板拼装直接使用。**优先级**：整段覆盖字段 > 模板拼装。
-
-**履职情况段处理**：若用户提供 `duty_performance` 整段覆盖字段，则直接使用该文本，不再插入学生干部履职表与履职量化清单表（用户须自行在文本中描述）。**建议不提供整段覆盖**，让 build.py 自动插入两表，保证表格规范。
-
-### 13.5 build.py 数据校验（_validate_data）
-
-build.py 内置 `_validate_data()` 方法，对缺失字段仅打印警告不阻断生成。校验项包括：
-
-| 校验项 | 警告条件 | 警告信息 |
-|-------|---------|---------|
-| P0 必采字段 | name/college/major/grade/cadre_position/tenure_start/tenure_end/gpa/rank 任一缺失 | "缺少 {label}（{key}）" |
-| 学生干部履职表 | position_history 缺失或不足 1 条 | "缺少 position_history 学生干部履职表（至少 1 条）" |
-| 履职量化清单 | duty_performances 4 维度任一缺失 | "缺少 duty_performances.{key} 履职量化数据" |
-| 不足与改进 | shortcomings 或 improvements 缺失 | "缺少 shortcomings 不足列表或 improvements 改进措施列表" |
-| 排名校验 | rank 无基数且无 rank_total | "排名 '{rank}' 缺基数，应为 'X/N' 格式" |
-| 学业门槛 | 排名前 X% 超过 50% | "排名前 X% 不满足优秀班干部前 50% 门槛" |
-| 主干课程 | core_courses 缺失或不足 4 门 | "缺少 core_courses 主干课程表"或"主干课程仅 N 门，建议 4~6 门" |
-| 任期时长 | tenure_start 与 tenure_end 间隔不足 8 个月 | "任期时长不足 1 学年（约 8 个月），请核对" |
-
-### 13.6 质检清单（生成后必查，30 项）
-
-生成 docx 后，按以下 30 项逐项检查。任一不达标返回撰写阶段修改：
-
-#### 格式检查（10 项）
-
-1. 标题按 honor_title 动态填充，黑体二号居中
-2. 称呼顶格"尊敬的学院领导、评审委员会："，全角冒号
-3. 正文宋体小四，1.5 倍行距，首行缩进 2 字符
-4. 小节标题"一、个人基本情况"等，黑体小四加粗
-5. 学生干部履职表 4 列（职务 / 任期 / 主要工作 / 成效），至少 1 条
-6. 履职量化清单表 2 列（维度 / 量化数据），4 行（活动数/服务时长/获奖情况/同学评议）
-7. "此致"另起一行空两格，"敬礼！"另起一行顶格
-8. 落款右对齐，含"申请人：XXX"+ 日期两行
-9. 页脚居中页码（宋体五号）
-10. 全文无英文标点（除"CET-4""GPA"等专有名词）
-
-#### 内容检查（12 项）
-
-11. 开头含身份 + 职务 + GPA + 排名 + 申报 + 进入句
-12. 个人基本情况含身份 + 职务与任期 + 学业 + 政治面貌
-13. 履职情况含职务履职概况 + 履职表 + 量化清单 + 服务案例
-14. 学生干部履职表 4 列齐全，每条含量化成效（数据/荣誉/影响至少 1 项）
-15. 履职量化清单 4 维度齐全（活动数/服务时长/获奖情况/同学评议）
-16. 服务同学段含 2-3 个具体案例（背景 + 行动 + 成效）
-17. 工作成绩含班级整体成效 + 个人荣誉 + 跨职务统筹（多职务者）
-18. 不足与改进含 1-2 条具体不足 + 对应改进措施 + 朴素表态
-19. 结尾含"以上是我本学年的基本情况"+ 朴素表态 + 恳请评审
-20. 全文无形容词代替事实（"积极组织""深受好评"）
-21. 全文无抒情开头（"时光荏苒""岁月如梭"）
-22. 全文无"恳请领导批准""完全符合评选条件"
-
-#### 字数与学年口径检查（8 项）
-
-23. 履职表数据与量化清单数据完全一致
-24. 正文总字数 1500~2000 字（短版 1000 字；长版 2000 字）
-25. 个人基本情况 300~400 字（短版 200~250；长版 400~450）
-26. 履职情况 600~800 字（短版 400~450；长版 800~850）
-27. 工作成绩 375~500 字（短版 200~250；长版 500~550）
-28. 不足与改进 225~300 字（短版 100~150；长版 280~320）
-29. 结尾 60~100 字（短版 50~70；长版 80~100）
-30. 全文无 4 年综合数据（"大学 4 年加权 GPA""4 年累计"等）
-
-### 13.7 字数自检脚本
+### 交付前强制质检（任一项不过 → 不允许交付）
 
 ```bash
-python -c "
-from docx import Document
-d = Document('output.docx')
-text = ''.join(p.text for p in d.paragraphs)
-print(f'正文字数：{len(text)}')
-assert 1500 <= len(text) <= 2000, f'字数 {len(text)} 不在 1500~2000 区间'
-print('字数达标')
-"
+# 1) AI 味检测（及格线 75）
+python3 utils/ai_flavor_check.py --file draft.txt --min-score 75
+
+# 2) 查重预检（阈值 30%）
+python3 utils/plagiarism_checker.py --file draft.txt --skill <skill_name>
+
+# 3) 评审模拟（含文风维度）
+python3 utils/review_simulator.py --skill <skill_name> --file draft.txt
 ```
 
-### 13.8 生成后人工补充
+### 冲突处理
 
-- 在落款"申请人：XXX"上方留 1 行手写签名空位（打印后手签）
-- 附件材料（成绩单原件、学生干部任命书、班级评议表、荣誉证书复印件）单独装订
-- 学校评审系统提交时一并上传 docx 与附件扫描件
+政策条文、领导讲话、文件原名**允许庄重书面语**，不算套话。
+检测时加 `--allow-policy-quotes`（该维度扣分减半）。
+但引用必须写成 `《文件全名》（发文号）`，且只引与论点直接相关的 1~2 句。
 
-### 13.9 输出文件命名建议
+### 反模式
 
-- 院级优秀班干部：`{name}_优秀班干部申请书_{apply_year}.docx`（如 `张明_优秀班干部申请书_2024-2025.docx`）
-- 校级优秀学生干部：`{name}_优秀学生干部申请书_{apply_year}.docx`
-- 校级优秀班委：`{name}_优秀班委申请书_{apply_year}.docx`
+- ❌ 把子 skill 里的「金句模板」当范文直接套用
+- ❌ 用排比段凑字数
+- ❌ 通篇无一个数字、无一个专有名词
+- ❌ 检测得分 <75 仍交付
+- ❌ 只删套话不补事实（删完变空段落，同样不及格）
 
----
+<!-- WRITING-STYLE:END -->
+## §13 build.py 接口 + 质检清单（必加章节 8/9/10）（已外移至 references/build-usage.md）
+
+> 📎 **build.py 接口说明** 已移至 [`references/build-usage.md`](references/build-usage.md)，保持 SKILL.md 精简。
+> **何时阅读**：需要调用 build.py 或了解接口参数时。
+> 其余情况下不需要读取该文件。
 
 ## §14 红线规则与免责声明
 
@@ -1358,46 +977,9 @@ print('字数达标')
 
 ---
 
-## 附录 B：常见问题 FAQ
+## 附录 B：常见问题 FAQ（已外移至 references/appendix.md）
 
-### B.1 同时担任多个学生干部职务，怎么写？
+> 📎 **附录与 FAQ** 已移至 [`references/appendix.md`](references/appendix.md)，保持 SKILL.md 精简。
+> **何时阅读**：遇到正文未覆盖的边界问题、或查常见疑问时。
+> 其余情况下不需要读取该文件。
 
-答：以主要职务（任期最长、级别最高）为主，副职务在"个人基本情况"段简要带过，在"工作成绩"段写跨职务统筹成效。学生干部履职表中每条职务独立成行。详见 §2.3 职务组合撰写建议。
-
-### B.2 职务任期末满 1 学年怎么办？
-
-答：先确认学校评优通知要求的最短任期。多数学校要求 1 学年（约 8 个月），部分学校放宽至 1 学期（约 4 个月）。若任期末满最短要求，建议本学年不申报，下学年再评。
-
-### B.3 班级加权平均分数据怎么获取？
-
-答：向班主任或辅导员申请班级成绩汇总表，计算本学年初（上学期开学时）与本学年末（下学期期末时）的加权平均分。若无准确数据，可写"班级加权平均分稳定在 85+ 区间"（含数据范围）。
-
-### B.4 同学评议满意度怎么测？
-
-答：通常由班委会组织匿名投票，评议基数 = 班级总人数（含申请人本人，部分学校排除申请人），满意度 = 满意人数 / 评议基数 × 100%。建议附班级评议表作为佐证。
-
-### B.5 服务时长怎么计算？
-
-答：日常履职按实际投入时间计算（如每周班委例会 1 小时 × 15 次 = 15 小时）；活动组织按活动筹备 + 执行 + 总结的总时间计算（如 1 场班会筹备 4 小时 × 12 次 = 48 小时）；服务同学案例按实际投入时间计算。建议每日 / 每周记录，期末汇总。
-
-### B.6 没有荣誉怎么写工作成绩段？
-
-答：若无个人荣誉，重点写班级整体成效（班级加权平均分提升、挂科率下降、体测合格率提升、集体荣誉等）。班主任评价也可作为工作成绩（如"班主任评价'工作积极主动、富有成效'"）。
-
-### B.7 优秀班干部与优秀学生可以同时申报吗？
-
-答：多数学校允许同时申报（需分别提交两份申请书）。优秀班干部侧重职务履职与服务同学，优秀学生侧重学业与身心。两份申请书内容侧重不同，部分内容（如学业数据、政治面貌）可重复使用。
-
-### B.8 不足与改进段怎么写不空泛？
-
-答：必须对应履职中的具体短板（如"班级少数同学学业帮扶成效不显著，期末仍有 2 人挂科"），改进措施必须可执行、可量化（如"下学年建立'一对一'长期帮扶机制，覆盖全部学业困难同学"）。禁用"还有不足""需要继续努力"等空话。
-
-### B.9 服务同学案例必须有具体姓名吗？
-
-答：不建议写真实姓名，用 X 同学、Y 同学等匿名化处理（保护隐私）。但案例的背景、行动、成效必须真实可核查，建议附班级工作日志或谈心记录作为佐证。
-
----
-
-**End of SKILL.md**
-
-> 本 SKILL.md 共覆盖：YAML frontmatter、5 维度区分表、7 类职务对照表、4 段结构、履职量化清单、3 档字数版本、雷区 10 条、JSON Schema、build.py 接口、质检清单、附录 A-B。共 10 项必加章节全部覆盖。

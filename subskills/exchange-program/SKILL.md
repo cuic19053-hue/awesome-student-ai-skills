@@ -69,6 +69,11 @@ metadata:
 
 # 交流项目申请书 SKILL
 
+<!-- REFERENCES-INDEX -->
+> 📚 **按需加载的参考资料**（渐进式披露，不需要时不要读）：
+> - [`references/json-schema.md`](references/json-schema.md) — §12 JSON Schema 完整字段（必加章节 7）
+> - [`references/intake-checklist.md`](references/intake-checklist.md) — §5 信息采集清单
+
 ## §0 适用场景与三渠道分流
 
 ### 0.1 本 skill 的适用范围
@@ -470,105 +475,11 @@ metadata:
 
 ---
 
-## §5 信息采集清单
+## §5 信息采集清单（已外移至 references/intake-checklist.md）
 
-按字段优先级 P0/P1/P2 标注。P0 必采，缺失则警告；P1 建议采，缺失则降低文档质量；P2 可选，提供则增强文档。
-
-### 5.1 通用必采（P0）
-
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| name | 真实姓名 | 张明 |
-| gender | 性别 | 男 / 女 |
-| student_id | 完整学号 | 2023123456 |
-| current_college | 现学院全称 | 计算机科学与技术学院 |
-| current_major | 现专业全称 | 计算机科学与技术 |
-| grade | 入学年份 + 年级 | 2023 级 大二 |
-| class_name | 班级 | 计科 2301 班 |
-| target_university | 目标院校全称 | 伦敦大学学院（UCL） |
-| target_country | 目标国家/地区 | 英国 |
-| target_qs_rank | 目标院校 QS 排名 | 2025 年 QS 全球第 9 |
-| exchange_type | 交流项目类型 | school / college / csc |
-| exchange_duration | 交流时长 | 1 学年（2025.09~2026.06） |
-| phone | 联系电话 | 138XXXXXXXX |
-| email | 邮箱 | zhangming@xxx.edu.cn |
-| apply_date | 申请日期 | 2025 年 3 月 15 日 |
-| salutation | 称呼（可默认） | 尊敬的评审委员会： |
-
-### 5.2 学业信息（P0）
-
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| current_gpa | 现专业 GPA（含满分制） | 3.85/4.0 |
-| current_weighted_avg | 现专业加权平均分 | 88.5 |
-| current_rank | 现专业排名（X/N 格式） | 5/120 |
-| current_rank_total | 排名基数 | 120 |
-| current_course_count | 现专业已修课程数 | 18 |
-| current_high_score_count | 85 分以上课程数 | 14 |
-| current_core_courses | 现专业主干课程表（4~6 门） | [{"name":"数据结构","credit":"4","score":"94"}] |
-| language_score | 语言成绩（含取得时间 + 有效期） | 雅思 6.5（2024.09 取得，有效期至 2026.09） |
-| language_breakdown | 语言分项成绩 | 听力 7.0 / 阅读 7.0 / 写作 6.0 / 口语 5.5 |
-
-### 5.3 交流动机信息（P0）
-
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| motivation_academic | 学术深化动机 | UCL CS 全球第 8 + Efros 教授 CVPR 论文 25 篇 |
-| motivation_vision | 视野拓展动机 | International Week + Chinese Society |
-| motivation_language | 语言提升动机 | 雅思 6.5 → 7.0 + 学术英语课程 + 语言交换伙伴 |
-| motivation_career | 职业规划动机 | 跨国算法工程师 + 海外博士申请 + 归国科研 |
-| target_courses | 目标院校核心课程（≥5 门，含 name/credit/teacher） | [{"name":"Machine Learning","credit":"4","teacher":"Alexei Efros"}] |
-| target_teachers | 目标院校导师（≥2 位，含 name/title/research） | [{"name":"Alexei Efros","title":"教授","research":"计算机视觉"}] |
-| target_labs | 目标院校实验室/学术资源 | Gatsby Computational Neuroscience Unit |
-
-### 5.4 学习计划信息（P0）
-
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| prep_plan | 行前准备计划（4 要素） | 雅思冲刺 80 课时 + 阅读 3 本书 + 5 门预选 + 12 学分认定 |
-| abroad_plan | 在外学习计划（4 要素） | 5 门课程 + 每周时间分配 + 学术讲座 + CVPR Workshop 论文 |
-| return_plan | 归国总结计划（3 要素） | 12 学分转换 + 2 场分享会 + 加入李教授课题组 |
-| weekly_schedule | 每周时间分配 | 授课 16h + 自习 20h + 课题组 8h + 讲座 4h + 跨文化 6h |
-| study_plan_table | 学习计划表（含 stage/time/content/target） | 见示例 |
-
-### 5.5 文化交流与安全保障信息（P0）
-
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| cultural_integration | 文化融入计划 | International Week + Chinese Society + 家庭寄宿 |
-| cultural_promotion | 中华文化传播计划 | 组织中国春节展示 + 参加学联活动 |
-| academic_exchange | 学术交流计划 | 参加 UCL CS 研讨会 + 与其他交换生交流 |
-| safety_legal | 法律遵守承诺 | 遵守英国法律 + 不参与非法活动 + 按时完成学业 |
-| safety_insurance | 保险购买承诺 | 含医疗 + 意外 + 紧急救援，保额 30 万元人民币 |
-| safety_report | 定期汇报承诺 | 每月汇报学习 + 紧急情况 24 小时内汇报 |
-| safety_emergency | 紧急预案 | 紧急联系人 + 使馆联系方式 + 当地报警电话 |
-
-### 5.6 入学背景信息（P1）
-
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| gaokao_year | 高考年份 | 2023 年 |
-| gaokao_score | 高考总分 + 省份 | 632 分（山东） |
-| admission_mode | 录取方式 | 普通批次 / 提前批 / 大类招生 |
-| research_experience | 已有科研经历 | 跟随 X 教授参与 ML 项目 6 个月 |
-| competition_experience | 已有竞赛经历 | 全国大学生数学建模竞赛省级二等奖 |
-
-### 5.7 整段覆盖字段（P2）
-
-| 字段 | 说明 |
-|------|------|
-| opening / basic_info / motivation / learning_plan / cultural_exchange / safety / ending | 提供则直接使用，跳过模板拼装 |
-
-**追问话术汇总**：
-- 缺 GPA 时："现专业 GPA 是多少？满分是 4.0 还是 5.0？专业排名是多少？请按 X/N 格式提供"
-- 缺语言成绩时："雅思/托福成绩是多少？何时取得？有效期到何时？"
-- 缺目标院校信息时："请从目标院校官网与 QS 官网查证：目标院校 QS 排名（含年份）、2 门特色课程名与主讲教师、2 位导师姓名与研究方向、1~2 个特色项目"
-- 缺学习计划时："交流期间打算修读哪些课程？请提供至少 5 门课程名与学分。每周时间如何分配？"
-- 缺安全保障时："是否已购买海外保险？保额多少？紧急联系人是谁？当地报警电话是多少？"
-
-**复述确认**：信息采集结束后，必须向用户复述"现专业 GPA X.XX/4.0，专业排名 X/N，雅思/托福成绩 X.X，申请赴 XX 大学（QS 第 X 名）参加 X 学期/学年 X 类交流项目，已查证 N 门目标课程与 M 位导师，已制定 3 阶段学习计划，已确认安全保障承诺"，确认无误后再进入撰写阶段。
-
----
+> 📎 **逐字段信息采集清单** 已移至 [`references/intake-checklist.md`](references/intake-checklist.md)，保持 SKILL.md 精简。
+> **何时阅读**：需要逐条向用户提问采集信息时。
+> 其余情况下不需要读取该文件。
 
 ## §6 交流动机撰写规范
 
@@ -897,355 +808,108 @@ build.py 通过 `word_count_target` 字段（P2 可选）切换档位，但实�
 
 ---
 
-## §12 JSON Schema 完整字段（必加章节 7）
+## §12 JSON Schema 完整字段（必加章节 7）（已外移至 references/json-schema.md）
 
-### 12.1 顶层字段总览
+> 📎 **完整 JSON Schema 定义** 已移至 [`references/json-schema.md`](references/json-schema.md)，保持 SKILL.md 精简。
+> **何时阅读**：构造 --data 输入文件、或 build.py 报字段校验错误时。
+> 其余情况下不需要读取该文件。
 
-```json
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "ExchangeProgramApplication",
-  "description": "交流项目申请书数据结构",
-  "type": "object",
-  "required": ["name", "current_college", "current_major", "grade", "target_university", "exchange_type", "exchange_duration", "current_gpa", "current_rank", "language_score", "target_courses", "target_teachers"],
-  "properties": {
-    "exchange_type": {
-      "type": "string",
-      "enum": ["school", "college", "csc"],
-      "description": "交流项目类型：school（校际交换）/ college（院际交换）/ csc（CSC 公派）"
-    },
-    "target_university": {
-      "type": "string",
-      "description": "目标院校全称"
-    },
-    "exchange_duration": {
-      "type": "string",
-      "description": "交流时长（学期/学年 + 起止时间）"
-    },
-    "learning_plan": {
-      "type": "object",
-      "description": "学习计划（3 阶段）",
-      "properties": {
-        "prep_plan": {"type": "string"},
-        "abroad_plan": {"type": "string"},
-        "return_plan": {"type": "string"}
-      }
-    },
-    "motivation": {
-      "type": "string",
-      "description": "交流动机整段（提供则直接使用，跳过模板拼装）"
-    },
-    "cultural_exchange": {
-      "type": "string",
-      "description": "文化交流意愿整段（提供则直接使用，跳过模板拼装）"
-    },
-    "safety_commitment": {
-      "type": "string",
-      "description": "安全保障整段（提供则直接使用，跳过模板拼装）"
-    }
-  }
-}
-```
+## §13 build.py 接口说明（必加章节 8）（已外移至 references/build-usage.md）
 
-### 12.2 完整字段清单（按 P0/P1/P2 分级）
+> 📎 **build.py 接口说明** 已移至 [`references/build-usage.md`](references/build-usage.md)，保持 SKILL.md 精简。
+> **何时阅读**：需要调用 build.py 或了解接口参数时。
+> 其余情况下不需要读取该文件。
 
-#### P0 必填字段（15 项）
+<!-- WRITING-STYLE:START -->
+## 写作风格硬约束（去 AI 味 · 强制）
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| name | string | ✅ | 真实姓名 |
-| gender | string | ✅ | 男 / 女 |
-| student_id | string | ✅ | 完整学号 |
-| current_college | string | ✅ | 现学院全称 |
-| current_major | string | ✅ | 现专业全称 |
-| grade | string | ✅ | 入学年份 + 年级 |
-| target_university | string | ✅ | 目标院校全称 |
-| target_country | string | ✅ | 目标国家/地区 |
-| target_qs_rank | string | ✅ | 目标院校 QS 排名（含年份） |
-| exchange_type | string | ✅ | school / college / csc |
-| exchange_duration | string | ✅ | 交流时长（学期/学年 + 起止时间） |
-| current_gpa | string | ✅ | 现专业 GPA（含满分制） |
-| current_rank | string | ✅ | 现专业排名（X/N 格式） |
-| language_score | string | ✅ | 语言成绩（含取得时间 + 有效期） |
-| target_courses | array | ✅ | 目标院校核心课程（≥5 门） |
-| target_teachers | array | ✅ | 目标院校导师（≥2 位） |
+> 完整规范见 [`docs/design/WRITING_STYLE.md`](../../docs/design/WRITING_STYLE.md)。
+> 本节是压缩版，**撰写正文前必读，交付前必须过检测**。
 
-#### P1 建议字段（动机与学习计划）
+### 一条总原则
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| motivation_academic | string | 学术深化动机 |
-| motivation_vision | string | 视野拓展动机 |
-| motivation_language | string | 语言提升动机 |
-| motivation_career | string | 职业规划动机 |
-| target_labs | string | 目标院校实验室/学术资源 |
-| prep_plan | string | 行前准备计划（4 要素） |
-| abroad_plan | string | 在外学习计划（4 要素） |
-| return_plan | string | 归国总结计划（3 要素） |
-| weekly_schedule | string | 每周时间分配 |
-| study_plan_table | array | 学习计划表（含 stage/time/content/target） |
+**每个句子都必须能落到具体的人、事、时间、数字或对象上；落不到的句子，删掉。**
+自检方法：读完一句问「这句能换成别人吗？」——能换，就是套话。
 
-#### P1 建议字段（文化交流与安全保障）
+### 六条硬约束（及格线 75/100）
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| cultural_integration | string | 文化融入计划 |
-| cultural_promotion | string | 中华文化传播计划 |
-| academic_exchange | string | 学术交流计划 |
-| safety_legal | string | 法律遵守承诺 |
-| safety_insurance | string | 保险购买承诺 |
-| safety_report | string | 定期汇报承诺 |
-| safety_emergency | string | 紧急预案 |
+| # | 约束 | 量化判据 |
+|---|---|---|
+| 1 | 不写空话套话 | 每千字命中套话 ≤3 次 |
+| 2 | 不用排比对仗 | 同构句连续 ≤2 句 |
+| 3 | 不堆抽象大词 | 每千字抽象词 ≤4 次 |
+| 4 | 必须具体 | 每千字数字/专名 ≥8 处 |
+| 5 | 句长要参差 | 句长变异系数 ≥0.35 |
+| 6 | 不用模板开头 | 禁止「时光荏苒」「本人自入学以来」 |
 
-#### P1 建议字段（学业背景）
+### 高频禁用词（出现即改）
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| current_weighted_avg | string | 现专业加权平均分 |
-| current_rank_total | string | 排名基数 |
-| current_course_count | number | 现专业已修课程数 |
-| current_high_score_count | number | 85 分以上课程数 |
-| current_core_courses | array | 现专业主干课程表（4~6 门） |
-| language_breakdown | string | 语言分项成绩 |
-| research_experience | string | 已有科研经历 |
-| competition_experience | string | 已有竞赛经历 |
+具有重要意义、具有重大意义、意义重大、影响深远、作用显著、效果显著、成效显著、
+成绩斐然、成果丰硕、高度重视、切实增强、切实提升、不断提升、持续提升、
+进一步加强、进一步完善、进一步深化、不断深化、深入推进、全面推进、扎实开展、
+稳步推进、着力打造、全力推动、取得显著成效、获得一致好评、受到广泛好评、
+得到充分肯定、获得高度评价、与此同时、在此基础上、综上所述、总而言之、
+值得一提的是、不难看出、由此可见、众所周知、不懈努力、刻苦钻研、勤奋刻苦、
+锐意进取、开拓创新、勇于探索、敢于突破、迈上新台阶、开创新局面、谱写新篇章、
+踏上新征程、展现新作为、彰显新担当、焕发新气象、贡献青春力量、绽放青春光彩、
+书写青春华章、以青春之我、坚定理想信念、厚植家国情怀、锤炼过硬本领、砥砺意志品质、
+综合素质突出、全面发展、品学兼优、德智体美劳、起到了模范带头作用、
+发挥了示范引领作用、树立了良好榜样、得到了师生的一致认可、深受老师和同学的好评、
+为集体作出了积极贡献、为团队贡献了自己的力量、奠定了坚实的基础、
+打下了坚实的基础、提供了有力支撑、注入了强劲动力、开辟了新的途径、探索了新的模式
 
-#### P1 建议字段（入学背景）
+抽象大词（无具体指涉时禁用）：格局、境界、高度、深度、广度、维度、层面、体系、
+机制、路径、抓手、载体、平台、生态、闭环、赋能、助力、引领、驱动、融合、协同、
+联动、统筹、底层逻辑、顶层设计、系统性思维、全局视野、战略高度、核心素养、
+综合能力、内生动力、长效机制
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| gaokao_year | string | 高考年份 |
-| gaokao_score | string | 高考总分 + 省份 |
-| admission_mode | string | 录取方式 |
+### 替换动作（照做即可）
 
-#### P2 可选字段（整段覆盖）
+| 原写法 | 改写成 |
+|---|---|
+| 学习成绩优异，名列前茅 | 专业 3/127，加权 91.4，`<课程名>` 98 分 |
+| 积极参加学科竞赛 | 2024 年 11 月 `<赛事全名>` 省赛二等奖，作品 `<名称>`，我负责 `<模块>` |
+| 在导师指导下参与科研 | 参与 `<导师>` 的 `<课题名>`，负责 `<具体工作>`，产出 `<论文/专利/数据>` |
+| 具有较强的团队协作能力 | 删掉。改为：`<时间>` 带 `<人数>` 人完成 `<任务>`，遇到 `<冲突>`，怎么解决 |
+| 思想上积极向党组织靠拢 | `<年/月>` 提交入党申请书，`<年/月>` 成为积极分子，参加 `<次数>` 次党课 |
+| 热心公益，积极参加志愿服务 | `<机构>` 志愿服务 `<小时>` 小时，服务 `<对象>` `<人数>` 人 |
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| word_count_target | string | 字数档位（short/standard/long） |
-| opening | string | 开头整段覆盖 |
-| basic_info | string | 个人基本情况整段覆盖 |
-| motivation | string | 交流动机整段覆盖 |
-| learning_plan | string | 学习计划整段覆盖 |
-| cultural_exchange | string | 文化交流意愿整段覆盖 |
-| safety | string | 安全保障整段覆盖 |
-| ending | string | 结尾整段覆盖 |
-| salutation | string | 称呼（默认"尊敬的评审委员会："） |
+### 句式要求
 
-### 12.3 数组字段子结构
+1. **长短句交替**：每 3~5 句里至少有一句 ≤12 字或 ≥60 字。
+2. **一段一个事实**：段首句不要用「在……方面」。
+3. **少用第一人称抒情**：「我深深感到」「我深刻认识到」一律删除。
+4. **数字优先**：能用数字就不用形容词。「多次」→「7 次」，「大量」→「4200 张」。
+5. 不用破折号堆叠解释，不连续套用「不仅……而且……」。
 
-**current_core_courses 子结构**：
-```json
-{
-  "name": "数据结构",
-  "credit": "4",
-  "score": "94"
-}
-```
+### 交付前强制质检（任一项不过 → 不允许交付）
 
-**target_courses 子结构**：
-```json
-{
-  "name": "Machine Learning",
-  "credit": "4",
-  "teacher": "Alexei Efros",
-  "semester": "2025 Fall"
-}
-```
-
-**target_teachers 子结构**：
-```json
-{
-  "name": "Alexei Efros",
-  "title": "教授",
-  "research": "计算机视觉",
-  "achievement": "ACM Fellow，近 3 年 CVPR/ICCV 论文 25 篇"
-}
-```
-
-**study_plan_table 子结构**：
-```json
-{
-  "stage": "行前准备",
-  "time": "2025.07~09",
-  "content": "雅思冲刺 + 文化预习 + 课程预选 + 学分认定",
-  "target": "雅思 7.0 + 5 门预选 + 12 学分认定"
-}
-```
-
-### 12.4 完整 data.json 示例（校际交换，2000 字版）
-
-```json
-{
-  "name": "张明", "student_id": "2023123456", "gender": "男",
-  "current_college": "计算机科学与技术学院", "current_major": "计算机科学与技术",
-  "grade": "2023 级 大二", "class_name": "计科 2301 班",
-  "target_university": "伦敦大学学院（UCL）", "target_country": "英国",
-  "target_qs_rank": "2025 年 QS 全球第 9，计算机科学学科全球第 8",
-  "exchange_type": "school", "exchange_duration": "1 学年（2025.09~2026.06）",
-  "phone": "138XXXXXXXX", "email": "zhangming@xxx.edu.cn",
-  "apply_date": "2025 年 3 月 15 日",
-  "salutation": "尊敬的评审委员会：",
-  "current_gpa": "3.85/4.0", "current_weighted_avg": "88.5",
-  "current_rank": "5/120", "current_rank_total": "120",
-  "current_course_count": "18", "current_high_score_count": "14",
-  "current_core_courses": [
-    {"name": "数据结构", "credit": "4", "score": "94"},
-    {"name": "算法分析与设计", "credit": "4", "score": "92"},
-    {"name": "操作系统", "credit": "4", "score": "90"},
-    {"name": "计算机网络", "credit": "3", "score": "88"},
-    {"name": "机器学习", "credit": "3", "score": "95"}
-  ],
-  "language_score": "雅思 6.5（2024.09 取得，有效期至 2026.09）",
-  "language_breakdown": "听力 7.0 / 阅读 7.0 / 写作 6.0 / 口语 5.5",
-  "motivation_academic": "UCL 计算机科学专业在 2025 年 QS 学科排名全球第 8，其开设的《Machine Learning》（4 学分）由 Alexei Efros 教授（ACM Fellow，研究方向为计算机视觉）主讲，团队近 3 年在 CVPR、ICCV 发表论文 25 篇。同时拥有 Gatsby Computational Neuroscience Unit 等顶级实验室，定期举办 ICML、NeurIPS 等顶级会议讲座。",
-  "motivation_vision": "UCL 每年 3 月举办 International Week 跨文化交流活动，吸引来自 150 多个国家的学生参与。我计划参与该活动，与来自不同文化背景的学生组成 5 人小组共同完成跨文化主题项目。此外，我计划加入 UCL Chinese Society，在传播中华文化的同时，深入了解英国本土文化。",
-  "motivation_language": "当前雅思总分 6.5（2024.09 取得，有效期至 2026.09）。通过交流，我目标将雅思总分提升至 7.0 以上，其中口语提升至 6.5。具体方式包括：参与 UCL Language Centre 学术英语课程（2 小时/周），加入 UCL English Speaking Union 每周练习口语（3 小时/周），与当地学生组成语言交换伙伴（每周 2 次）。",
-  "motivation_career": "我的长期职业目标是成为跨国科技公司（如 Google、Microsoft）的算法工程师。UCL 计算机视觉方向全球领先，导师 Alexei Efros 教授的团队近 3 年在 CVPR、ICCV 发表论文 25 篇。通过交流学习与参与团队研究，我将积累前沿学术经历，为未来申请海外博士项目（目标：斯坦福、CMU）奠定基础。归国后，我计划将交流经历转化为科研论文（目标 1 篇 CVPR/ICCV），并申请清华或北大直博项目。",
-  "target_courses": [
-    {"name": "Machine Learning", "credit": "4", "teacher": "Alexei Efros", "semester": "2025 Fall"},
-    {"name": "Computer Vision", "credit": "4", "teacher": "John S.", "semester": "2025 Fall"},
-    {"name": "Academic English", "credit": "2", "teacher": "Sarah M.", "semester": "2025 Fall"},
-    {"name": "Deep Learning", "credit": "4", "teacher": "Yann L.", "semester": "2026 Spring"},
-    {"name": "British Culture", "credit": "2", "teacher": "David W.", "semester": "2026 Spring"}
-  ],
-  "target_teachers": [
-    {"name": "Alexei Efros", "title": "教授", "research": "计算机视觉", "achievement": "ACM Fellow，近 3 年 CVPR/ICCV 论文 25 篇"},
-    {"name": "John S.", "title": "副教授", "research": "机器学习与推荐系统", "achievement": "近 3 年 NeurIPS/ICML 论文 12 篇"}
-  ],
-  "target_labs": "Gatsby Computational Neuroscience Unit",
-  "prep_plan": "行前准备阶段（2025.07~2025.09，3 个月）：①语言强化：参加新东方雅思冲刺班（80 课时，2025.07~08），目标雅思 7.0；②文化预习：阅读《英国文化简史》《UCL 校史》《British Academic Culture》3 本书；③课程预选：已与 UCL International Office 沟通，预选 5 门课程共 16 学分；④学分认定：已与本校教务处沟通，5 门课程可转换为 12 学分。",
-  "abroad_plan": "在外学习阶段（2025.09~2026.06，2 学期）：第 1 学期修读《Machine Learning》《Computer Vision》《Academic English》共 10 学分；第 2 学期修读《Deep Learning》《British Culture》+ 参与 Alexei Efros 教授课题组研究项目（4 学分研究实习），共 10 学分。每周时间分配：授课 16h、自习 20h、课题组 8h、讲座 4h、跨文化 6h。学术活动：参加 UCL CS 每周研讨会（约 30 场/学期）+ Gatsby Unit 每月开放日。阶段性产出：第 1 学期 1 篇课程论文，第 2 学期目标以第二作者发表 1 篇 CVPR Workshop 论文。",
-  "return_plan": "归国总结阶段（2026.07~2026.09，2 个月）：①学分转换：5 门 UCL 课程共 16 学分已确认为本校 12 学分（含 8 学分专业核心课 + 4 学分专业选修课），不影响毕业；②经验分享：拟在本校举办 2 场交流分享会，并在国际处网站发布 1 篇交流心得；③后续学业衔接：基于交流期间积累的计算机视觉研究经历，归国后申请加入本校人工智能研究院李教授课题组，目标 2026.12 前完成 CVPR 论文投稿，并申请清华或北大直博项目。",
-  "weekly_schedule": "授课 16h + 自习 20h + 课题组 8h + 讲座 4h + 跨文化 6h",
-  "study_plan_table": [
-    {"stage": "行前准备", "time": "2025.07~09", "content": "雅思冲刺 + 文化预习 + 课程预选 + 学分认定", "target": "雅思 7.0 + 5 门预选课程 + 12 学分认定"},
-    {"stage": "在外学习", "time": "2025.09~2026.06", "content": "5 门课程 + 课题组研究 + 学术讲座", "target": "16 学分 + CVPR Workshop 论文 1 篇"},
-    {"stage": "归国总结", "time": "2026.07~09", "content": "学分转换 + 经验分享 + 加入本校课题组", "target": "12 学分转换 + 2 场分享会 + 加入李教授课题组"}
-  ],
-  "cultural_integration": "参与 UCL International Week 与 150 多个国家学生组成 5 人小组完成跨文化项目；申请家庭寄宿（Homestay）3 个月，深入体验英国家庭生活。",
-  "cultural_promotion": "加入 UCL Chinese Society，参与组织 2026 年春节文化展示活动（含书法、茶艺、汉服展示）；在学联组织的中秋节、端午节活动中担任志愿者。",
-  "academic_exchange": "参加 UCL CS 每周研讨会（约 30 场/学期）；与其他交换生组成学习小组每周交流 1 次；学期末举办 1 场面向本校师生的线上分享会。",
-  "safety_legal": "严格遵守英国法律与 UCL 校规，不参与任何非法活动，按时完成学业任务，尊重英国当地风俗习惯与文化传统，维护中国留学生良好形象。",
-  "safety_insurance": "已购买中国平安'留学无忧'海外保险，含医疗费用（保额 50 万元人民币）、意外伤害（保额 30 万元人民币）、紧急救援（保额 100 万元人民币），保险期限覆盖 2025.09~2026.06 整个交流期。",
-  "safety_report": "每月 5 日前向本校国际处提交上月学习进度报告；紧急情况 24 小时内电话汇报；每学期末提交交流总结报告；与本校导师保持每两周 1 次的视频沟通。",
-  "safety_emergency": "国内紧急联系人：父亲 XX，电话 138XXXXXXXX；国外紧急联系人：UCL International Office，电话 +44-20-7679-2000；中国驻英使馆：+44-20-7299-4049；英国报警急救：999；应对流程：先报警 → 再联系使馆 → 再通知家人 → 最后通知本校。",
-  "gaokao_year": "2023 年", "gaokao_score": "632 分（山东）",
-  "admission_mode": "普通批次",
-  "research_experience": "2024.09~2025.03 跟随本校李教授参与医疗影像 AI 项目 6 个月，独立完成数据预处理模块，处理 1200 例 CT 数据。",
-  "competition_experience": "2024.11 全国大学生数学建模竞赛省级二等奖（队长，负责建模与编程）；2025.04 中国大学生计算机设计大赛省级一等奖。"
-}
-```
-
-### 12.5 CSC 公派型 data.json 关键差异字段
-
-```json
-{
-  "exchange_type": "csc",
-  "exchange_duration": "1 学年（CSC 公派联合培养，2025.09~2026.06）",
-  "safety_report": "每月 5 日前向本校国际处与 CSC 留学服务中心提交学习进度报告；紧急情况 24 小时内电话汇报；每学期末提交交流总结报告；归国前 1 个月向 CSC 提交回国服务承诺书；履行 CSC 协议回国服务 2 年义务。"
-}
-```
-
-### 12.6 院际交换型 data.json 关键差异字段
-
-```json
-{
-  "exchange_type": "college",
-  "exchange_duration": "1 学期（院际交换，2025.09~2026.01）",
-  "target_university": "京都大学（工学部信息学科）",
-  "target_country": "日本",
-  "target_qs_rank": "2025 年 QS 全球第 50"
-}
-```
-
----
-
-## §13 build.py 接口说明（必加章节 8）
-
-### 13.1 build.py 接口概览
-
-build.py 位于 `/home/z/my-project/skills/awesome-student-ai-skills/subskills/exchange_program/build.py`，提供 CLI 接口生成交流项目申请书 docx。
-
-**核心类**：`ExchangeProgramDocBuilder`
-
-**主构建方法**：`build(data: Dict[str, Any], output_path: str) -> str`
-
-**编排顺序**：标题 → 称呼 → 开头 → 个人基本情况 → 交流动机 → 学习计划 → 文化交流意愿 → 安全保障 → 结尾 → 落款
-
-### 13.2 CLI 调用方式
-
-**基础调用（用户提供 data.json）**：
 ```bash
-python build.py --data data.json --out output.docx
+# 1) AI 味检测（及格线 75）
+python3 utils/ai_flavor_check.py --file draft.txt --min-score 75
+
+# 2) 查重预检（阈值 30%）
+python3 utils/plagiarism_checker.py --file draft.txt --skill <skill_name>
+
+# 3) 评审模拟（含文风维度）
+python3 utils/review_simulator.py --skill <skill_name> --file draft.txt
 ```
 
-**演示模式（使用内置示例数据）**：
-```bash
-python build.py --demo --out demo.docx
-```
+### 冲突处理
 
-**参数说明**：
-- `--data`：数据 JSON 文件路径（与 `--demo` 二选一）
-- `--out`：输出 docx 文件路径（必填）
-- `--demo`：使用内置示例数据生成演示文档
+政策条文、领导讲话、文件原名**允许庄重书面语**，不算套话。
+检测时加 `--allow-policy-quotes`（该维度扣分减半）。
+但引用必须写成 `《文件全名》（发文号）`，且只引与论点直接相关的 1~2 句。
 
-### 13.3 文档格式规范
+### 反模式
 
-| 项 | 规范 |
-|----|------|
-| 纸张 | A4（21.0 × 29.7 cm） |
-| 页边距 | 上下 2.54cm，左右 2.5cm |
-| 标题 | 黑体二号（22pt），居中，段前后 12pt |
-| 称呼 | 顶格，宋体小四（12pt），全角冒号 |
-| 正文 | 宋体小四（12pt），1.5 倍行距，首行缩进 2 字符 |
-| 小节标题 | 黑体小四加粗（12pt），首行缩进 2 字符 |
-| 表格 | 宋体五号（10.5pt），居中，表头加粗 |
-| "此致" | 另起一行，首行缩进 2 字符 |
-| "敬礼！" | 另起一行，顶格，后接感叹号 |
-| 落款 | 右对齐，含申请人 + 日期 |
-| 页脚 | 居中页码，宋体五号 |
+- ❌ 把子 skill 里的「金句模板」当范文直接套用
+- ❌ 用排比段凑字数
+- ❌ 通篇无一个数字、无一个专有名词
+- ❌ 检测得分 <75 仍交付
+- ❌ 只删套话不补事实（删完变空段落，同样不及格）
 
-### 13.4 内部方法清单
-
-| 方法 | 功能 | 字段消费 |
-|------|------|---------|
-| `_add_title` | 标题（固定"交流项目申请书"） | - |
-| `_add_salutation` | 称呼 | salutation |
-| `_add_opening` | 开头（身份 + 申请事项 + 汇报句） | opening / name / current_college / current_major / grade / target_university / exchange_duration |
-| `_add_basic_info` | 个人基本情况 | basic_info / current_gpa / current_weighted_avg / current_rank / current_core_courses / language_score / language_breakdown |
-| `_add_motivation` | 交流动机（4 维度） | motivation / motivation_academic / motivation_vision / motivation_language / motivation_career |
-| `_add_learning_plan` | 学习计划（3 阶段 + 表格） | learning_plan / prep_plan / abroad_plan / return_plan / weekly_schedule / study_plan_table |
-| `_add_target_courses_table` | 目标课程表 | target_courses |
-| `_add_target_teachers_info` | 目标导师信息 | target_teachers |
-| `_add_cultural_exchange` | 文化交流意愿（3 维度） | cultural_exchange / cultural_integration / cultural_promotion / academic_exchange |
-| `_add_safety` | 安全保障（4 维度） | safety / safety_legal / safety_insurance / safety_report / safety_emergency |
-| `_add_ending` | 结尾（朴素表态 + 此致敬礼） | ending |
-| `_add_signature` | 落款 | name / apply_date |
-| `_validate_data` | 数据校验（返回 warnings） | 全字段 |
-
-### 13.5 字段消费规则
-
-- **整段覆盖字段优先**：若 `opening` / `basic_info` / `motivation` / `learning_plan` / `cultural_exchange` / `safety` / `ending` 任一提供非空字符串，则直接使用，跳过模板拼装
-- **4 维度动机切换**：`motivation` 整段优先；否则按 4 维度拼装，缺维度则跳过
-- **3 阶段学习计划切换**：`learning_plan` 整段优先；否则按 3 阶段拼装，缺阶段则跳过
-- **数组字段缺失处理**：`current_core_courses` / `target_courses` / `target_teachers` / `study_plan_table` 缺失则省略对应表格
-- **必填字段警告**：P0 字段缺失触发 warning，但不阻断生成
-
-### 13.6 同步更新清单
-
-本 skill build.py 已实现以下功能，无需后续同步：
-1. ✅ 3 类项目切换（school / college / csc）通过字段 `exchange_type` 标识
-2. ✅ 4 维度交流动机（学术深化 / 视野拓展 / 语言提升 / 职业规划）
-3. ✅ 3 阶段学习计划（行前准备 / 在外学习 / 归国总结）+ 学习计划表
-4. ✅ 3 档字数版本（1500 / 2000 / 2500）通过字段完整度自然达到
-5. ✅ 文化交流意愿 3 维度（融入 / 传播 / 学术交流）
-6. ✅ 安全保障 4 维度（法律 / 保险 / 汇报 / 预案）
-7. ✅ 现专业课程表（4~6 门）+ 目标院校课程表（≥5 门）
-8. ✅ 数据校验（P0 字段 + 排名基数 + 课程数 + 师资数 + 4 维度动机 + 3 阶段学习计划 + 4 维度安全保障）
-
----
-
+<!-- WRITING-STYLE:END -->
 ## §14 质检清单（必加章节 9）
 
 ### 14.1 质检清单 A：格式检查（10 项）
