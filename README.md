@@ -134,7 +134,7 @@
 
 | # | 赛道 | 编码 | 内容量 |
 |---|---|---|---|
-| 32 | CSC 国家公派留学 | `csc-scholarship` | 58 KB |
+| 32 | CSC 国家公派留学 | `csc-scholarship` | 59 KB |
 | 33 | 交流项目申请 | `exchange-program` | 72 KB |
 
 **📋 其他 · 2 个**
