@@ -234,7 +234,10 @@ BOILERPLATE_CLOSINGS: Tuple[str, ...] = (
 # ---------------------------------------------------------------------------
 # 正则
 # ---------------------------------------------------------------------------
-_SENT_SPLIT = re.compile(r"(?<=[。！？；\n])")
+# 切句：只用句末标点（。！？）与换行。
+# 不用分号（；）——中文里分号用于并列列举，属正常书面语，
+# 切开后每段结构相同会被误判为「排比对仗」。
+_SENT_SPLIT = re.compile(r"(?<=[。！？\n])")
 _CJK = re.compile(r"[\u4e00-\u9fff]")
 _NUMBERISH = re.compile(
     r"\d+(?:\.\d+)?%?"          # 123 / 12.5 / 30%
@@ -384,19 +387,89 @@ def _check_empty_phrases(text: str, cjk_total: int) -> Tuple[List[FlavorHit], fl
     return hits, penalty, {"empty_phrase_count": total, "empty_phrase_per_kchar": density}
 
 
+def _strip_code_blocks(text: str) -> str:
+    """移除「非散文」的围栏代码块，但保留代码块内的散文内容。
+
+    背景：部分 skill 把范文正文包在 ``` 里（便于复制），这类内容仍应参与
+    文风评分；而 ASCII 框图、代码、对话脚本则不应参与。
+
+    判定：代码块内若中文占比足够高、且**不含框图字符**，视为散文，保留内容
+    （去掉围栏）；否则整块移除。
+    """
+    BOX_RE = re.compile(r"[┌┐└┘├┤┬┴┼─│╔╗╚╝║═↓↑→←]")
+
+    def _repl(m: re.Match) -> str:
+        body = m.group(1)
+        cjk = len(_CJK.findall(body))
+        # 代码块内或紧邻的框图字符都算框图
+        has_box = bool(BOX_RE.search(body)) or bool(BOX_RE.search(m.group(0)))
+        if cjk >= 15 and cjk / max(len(body), 1) >= 0.15 and not has_box:
+            return "\n" + body + "\n"
+        return "\n"
+
+    return re.sub(r"```[a-zA-Z0-9_-]*\n(.*?)```", _repl, text, flags=re.S)
+
+
+def _is_structural_line(text: str) -> bool:
+    """判断一段文本是否为 Markdown 结构行（表格 / 列表 / 引用 / 代码围栏 / 制表符框图）。
+
+    这些行的「结构相同」是格式要求，不是 AI 腔，不能计入排比。
+    """
+    s = text.strip()
+    if not s:
+        return True
+    # 表格行：以 | 开头，或包含 | 分隔且形如 | a | b |
+    if s.startswith("|") or s.count("|") >= 2:
+        return True
+    # 表格分隔线：|---|---|
+    if re.fullmatch(r"[\s|:\-]+", s):
+        return True
+    # 列表项：- / * / + / 1. / 1) / （1）
+    if re.match(r"^([-*+]\s+|\d+[.)]\s+|\(\d+\)\s*|（\d+）\s*)", s):
+        return True
+    # 引用与代码围栏
+    if s.startswith(">") or s.startswith("```"):
+        return True
+    # 表格单元格碎片（以 | 结尾）
+    if s.endswith("|"):
+        return True
+    # 制表符/框图字符（ASCII 框图、树形结构）
+    if re.search(r"[┌┐└┘├┤┬┴┼─│╔╗╚╝║═↓↑→←]", s):
+        return True
+    # 纯符号行
+    if not _CJK.search(s) and not re.search(r"[A-Za-z]{2,}", s):
+        return True
+    # 参数/档位说明行：以加粗标签开头，如「**短版（约 360 字）**：…」
+    # 这类是规范说明而非正文，其结构相同属正常
+    if re.match(r"^\*\*[^*]{1,30}\*\*\s*[：:]", s):
+        return True
+    # 以编号/字母开头的定义行，如「H1: …」「阶段 1：…」
+    if re.match(r"^[A-Z]\d+\s*[：:]", s) or re.match(r"^阶段\s*\d+", s):
+        return True
+    return False
+
+
 def _check_parallelism(sentences: Sequence[str]) -> Tuple[List[FlavorHit], float, Dict[str, float]]:
     """维度 2：排比对仗密度。
 
     判定：连续 3 句以上，句首 2 字相同，或句长相近(±2字)且句首结构相似。
+
+    重要：Markdown 表格行、列表项、引用块的结构相同属于格式要求，
+    不计入排比（否则会大量误报格式说明类内容）。
     """
     hits: List[FlavorHit] = []
     runs: List[Tuple[int, int]] = []  # (start_idx, length)
     n = len(sentences)
     i = 0
     while i < n:
-        # 尝试从 i 开始扩展一个同构 run
+        # 结构行不参与排比判定，直接跳过
+        if _is_structural_line(sentences[i]):
+            i += 1
+            continue
         j = i + 1
         while j < n:
+            if _is_structural_line(sentences[j]):
+                break
             a, b = sentences[j - 1], sentences[j]
             la, lb = _cjk_len(a), _cjk_len(b)
             same_prefix = len(a) >= 2 and len(b) >= 2 and a[:2] == b[:2]
@@ -486,7 +559,9 @@ def _check_specificity(text: str, cjk_total: int) -> Tuple[List[FlavorHit], floa
                 advice="补充可核查细节：具体时间、人数、名次、金额、课程名、项目名、机构名、量化结果",
             )
         )
-        penalty = 25.0
+        # 零锚点（通篇没有任何可核查事实）比「锚点偏少」严重得多，
+        # 扣分需足以把它压到及格线以下，否则会漏判纯空洞文本。
+        penalty = 35.0 if evidence_total == 0 else 28.0
     elif density < 8:
         hits.append(
             FlavorHit(
@@ -512,11 +587,15 @@ def _check_specificity(text: str, cjk_total: int) -> Tuple[List[FlavorHit], floa
 
 
 def _check_uniformity(sentences: Sequence[str]) -> Tuple[List[FlavorHit], float, Dict[str, float]]:
-    """维度 5：句长均匀度（CV 过小 = 机器腔）。"""
+    """维度 5：句长均匀度（CV 过小 = 机器腔）。
+
+    只统计散文句，排除 Markdown 表格行 / 列表项，否则格式行会拉低变异系数。
+    """
     hits: List[FlavorHit] = []
-    mean, sd, cv = _sent_len_profile(sentences)
+    prose = [s for s in sentences if not _is_structural_line(s)]
+    mean, sd, cv = _sent_len_profile(prose)
     penalty = 0.0
-    if len(sentences) >= 8:
+    if len(prose) >= 8:
         if cv < 0.25:
             hits.append(
                 FlavorHit(
@@ -608,19 +687,23 @@ def check_ai_flavor(
         FlavorReport
     """
     text = text or ""
+    # 代码块（框图/示例数据）不参与文风评分：先剥离，避免把 ASCII 框图误判为排比
+    text = _strip_code_blocks(text)
     sentences = _split_sentences(text)
     cjk_total = _cjk_len(text)
 
     if cjk_total == 0:
+        # 剥离代码块后无散文可评（如纯框图 / 纯表格 / 空文本）。
+        # 这不算「AI 味」，应视为不适用，passed=True 以免误伤格式内容。
         return FlavorReport(
-            score=0.0,
-            grade="无内容",
+            score=100.0,
+            grade="无散文内容",
             text_length=0,
             sentence_count=0,
             hits=[],
             dimensions={},
             metrics={},
-            summary="文本为空，无法检测。",
+            summary="无散文正文可评（纯框图/表格/空文本），不计入 AI 味。",
         )
 
     hits: List[FlavorHit] = []
