@@ -551,11 +551,33 @@ def _check_specificity(text: str, cjk_total: int) -> Tuple[List[FlavorHit], floa
     evidence_total = len(numbers) + len(proper)
     density = (evidence_total / cjk_total * 1000) if cjk_total else 0.0
 
+    # 表格型段落：主体信息在结构化表格里（日期/地点/人数等已表格化），
+    # 散文只是注脚（「备注：…」「雨天启用备用场所」），不应按散文密度判罚。
+    # 这一豁免对长短段落都成立，因此在分支之前统一判断。
+    _sents = _split_sentences(text)
+    if any(s.strip().startswith("|") for s in _sents):
+        return hits, 0.0, {
+            "evidence_anchor_count": evidence_total,
+            "evidence_anchor_per_kchar": density,
+            "number_count": len(numbers),
+            "proper_noun_count": len(proper),
+        }
+
     # 短文本：按绝对数量判定，不做密度惩罚（整篇申报书才会有密度意义）。
     # 但「多句且零锚点」仍属空洞，需判罚；单句引用（如团章原文）则豁免。
     if cjk_total < 120:
         sentence_like = text.count("。") + text.count("！") + text.count("？")
-        if evidence_total == 0 and sentence_like >= 2:
+        # 表格/列表型段落：散文只是表格的注脚（如「备注：…」「雨天启用备用场所」），
+        # 主体信息在结构化表格里，不应按「散文具体性」判罚。
+        prose_ratio = 0.0
+        if cjk_total:
+            prose_sentences = [s for s in _split_sentences(text) if not _is_structural_line(s)]
+            prose_cjk = sum(_cjk_len(s) for s in prose_sentences)
+            prose_ratio = prose_cjk / cjk_total
+        # 段落含表格行 → 主体信息在结构化表格里，散文只是注脚，不判具体性
+        has_table = any(s.strip().startswith("|") for s in _split_sentences(text))
+        is_table_dominant = has_table or prose_ratio < 0.60
+        if evidence_total == 0 and sentence_like >= 2 and not is_table_dominant:
             hits.append(
                 FlavorHit(
                     dimension="SPECIFICITY",
