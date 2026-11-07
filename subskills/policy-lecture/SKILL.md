@@ -1,7 +1,6 @@
 ---
 name: policy-lecture
-description: 生成"三下乡社会实践-宣讲类"立项申报书 docx。覆盖政策宣讲、党史宣讲、普法宣讲、科技宣讲四类主题，含宣讲主题选定、宣讲大纲（开场5分钟+主体3点×15分钟+案例10分钟+互动10分钟+结尾5分钟）、宣讲对象分析、按场次实施方案表、宣讲材料清单、覆盖人次与场次量化产出。直接输出可提交的
-  Word 文档。
+description: 生成「三下乡·政策宣讲类」立项申报书 docx。用于用户组队做政策/党史/普法/科技宣讲、需提交立项申报书时。含宣讲大纲与按场次实施方案。与调研类区别：本项产出是宣讲场次与人次，social-survey 产出是调研报告。
 metadata:
   version: 1.0.0
   author: awesome-student-ai-skills skill suite

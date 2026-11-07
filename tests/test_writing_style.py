@@ -113,3 +113,58 @@ def test_inject_script_is_idempotent():
         timeout=120,
     )
     assert proc.returncode == 0, proc.stdout + proc.stderr
+
+
+# ===========================================================================
+# description 官方规范（Anthropic best practices：只有 name+description 被预加载）
+# ===========================================================================
+
+def _parse_desc(skill_id: str):
+    import re as _re
+
+    text = (SUBSKILLS / skill_id / "SKILL.md").read_text(encoding="utf-8")
+    m = _re.match(r"^---\n(.*?)\n---\n", text, _re.S)
+    assert m, f"{skill_id}: 缺少前置块"
+    fm = m.group(1)
+    d = _re.search(r"^description:\s*(.+?)(?=\n[a-z_]+:|\Z)", fm, _re.S | _re.M)
+    assert d, f"{skill_id}: 缺少 description"
+    return " ".join(d.group(1).split())
+
+
+@pytest.mark.parametrize("skill_id", SKILL_IDS)
+def test_description_within_budget(skill_id: str):
+    """description 是唯一被预加载的部分，必须控制在建议上限内。"""
+    desc = _parse_desc(skill_id)
+    assert len(desc) <= 300, f"{skill_id}: description {len(desc)} 字符，超 300"
+
+
+@pytest.mark.parametrize("skill_id", SKILL_IDS)
+def test_description_says_when_to_use(skill_id: str):
+    """官方要求 description 说明「何时使用」。"""
+    desc = _parse_desc(skill_id)
+    markers = ("当", "用于", "适用于", "需要", "要写", "生成", "撰写", "处理", "评测")
+    assert any(m in desc for m in markers), f"{skill_id}: description 未说明何时使用"
+
+
+@pytest.mark.parametrize("skill_id", SKILL_IDS)
+def test_description_not_a_column_list(skill_id: str):
+    """description 不应塞入栏目清单（那是正文职责）。"""
+    desc = _parse_desc(skill_id)
+    assert desc.count("、") < 6, f"{skill_id}: description 含大段栏目清单"
+
+
+def test_total_description_budget_under_limit():
+    """35 个 description 的总预加载预算需保持精简。"""
+    total = sum(len(_parse_desc(sid)) for sid in SKILL_IDS)
+    assert total <= 6500, f"description 总字符 {total}，超出预算 6500"
+
+
+def test_description_checker_passes_strict():
+    """description 校验脚本必须零警告通过（严格模式）。"""
+    import subprocess
+
+    proc = subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "check_skill_description.py"), "--strict"],
+        capture_output=True, text=True, timeout=120,
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
