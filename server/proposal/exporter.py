@@ -1,10 +1,16 @@
 from __future__ import annotations
 
 import re
+import io
+import zipfile
+from copy import deepcopy
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
+from xml.etree import ElementTree
 
 from docx import Document
+from docx.opc.exceptions import PackageNotFoundError
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.text.paragraph import Paragraph
@@ -13,6 +19,14 @@ from docx.shared import Cm, Pt
 from .storage import Store
 
 LABEL_FIELDS = {
+    # Personal values are copied only from explicitly confirmed project facts.
+    "姓名": ("confirmed", "applicant_name", "name"),
+    "申请人姓名": ("confirmed", "applicant_name", "name"),
+    "学院": ("confirmed", "college"),
+    "专业": ("confirmed", "major", "discipline"),
+    "家庭年收入": ("confirmed", "family_income"),
+    "绩点": ("confirmed", "gpa"),
+    "专业排名": ("confirmed", "rank", "ranking"),
     "项目名称": ("state", "project_name"),
     "课题名称": ("state", "project_name"),
     "申报级别": ("level",),
@@ -51,6 +65,190 @@ LABEL_FIELDS = {
     "成员分工": ("state", "team"),
     "项目团队": ("state", "team"),
 }
+
+LETTER_SKILLS = frozenset({
+    "national-scholarship", "motivation-scholarship", "university-scholarship",
+    "enterprise-scholarship", "single-scholarship", "grant-application",
+})
+
+
+def _income_amounts(store: Store, project: dict[str, Any]) -> set[Decimal]:
+    """Find only amounts explicitly associated with family income."""
+    from .chat_context import current_turn_student_facts
+    values = [str((project.get("state", {}).get("confirmed_facts") or {}).get("family_income") or "")]
+    for message in store.messages(project["id"], limit=200):
+        if message.get("role") == "user":
+            values.append(current_turn_student_facts(str(message.get("content") or ""),
+                                                     include_family_income=True).get("家庭年收入", ""))
+    amounts = set()
+    for value in values:
+        for match in re.finditer(r"(?<![\d.])(\d+(?:\.\d+)?)\s*(万元|万|元)(?![\w])", value):
+            try:
+                amounts.add(Decimal(match.group(1)) * (10000 if match.group(2).startswith("万") else 1))
+            except InvalidOperation:
+                continue
+        if re.fullmatch(r"\s*\d+(?:\.\d+)?\s*", value):
+            amounts.add(Decimal(value.strip()))
+    return amounts
+
+
+def _contains_omitted_income(text: str, amounts: set[Decimal]) -> bool:
+    if re.search(r"收入|年薪|月薪", text):
+        return True
+    for match in re.finditer(r"(?<![\d.])(\d+(?:\.\d+)?)\s*(万元|万|元)?(?![\d.])", text):
+        try:
+            amount = Decimal(match.group(1)) * (10000 if (match.group(2) or "").startswith("万") else 1)
+        except InvalidOperation:
+            continue
+        if amount in amounts:
+            return True
+    return False
+
+
+def _grant_income_omitted(store: Store, project: dict[str, Any], documents: list[dict[str, Any]]) -> bool:
+    if project.get("state", {}).get("skill_id") not in {"grant-application", "motivation-scholarship"}:
+        return False
+    from .chat_context import scholarship_student_facts
+    facts, _ = scholarship_student_facts(store.messages(project["id"], limit=200), "", documents,
+                                         include_family_income=True, project_id=project["id"])
+    return bool(facts.get("不写家庭收入"))
+
+
+def _check_docx_for_omitted_income(source: Path | bytes, amounts: set[Decimal], *, label: str) -> None:
+    """Check visible Word XML, failing closed on opaque embedded media."""
+    try:
+        with zipfile.ZipFile(io.BytesIO(source) if isinstance(source, bytes) else source) as archive:
+            entries = archive.infolist()
+            if ("word/document.xml" not in archive.namelist()
+                    or len(entries) > 5000 or sum(item.file_size for item in entries) > 150_000_000
+                    or any(item.flag_bits & 1 for item in entries)
+                    or any(item.filename.startswith(("word/media/", "word/embeddings/", "word/activeX/"))
+                           and not item.is_dir() for item in entries)):
+                raise ValueError(f"{label}含无法自动检查的内容，请先处理后再导出。")
+            for item in entries:
+                if not item.filename.startswith("word/") or not item.filename.endswith(".xml"):
+                    continue
+                if item.file_size > 10_000_000:
+                    raise ValueError(f"{label}含无法自动检查的内容，请先处理后再导出。")
+                root = ElementTree.fromstring(archive.read(item))
+                text = "".join((node.text or "") for node in root.iter()
+                               if node.tag.rsplit("}", 1)[-1] in {"t", "instrText", "delText"})
+                if _contains_omitted_income(text, amounts):
+                    raise ValueError(f"{label}仍含收入字段或金额，请先处理后再导出。")
+    except ValueError:
+        raise
+    except (OSError, zipfile.BadZipFile, ElementTree.ParseError, KeyError) as exc:
+        raise ValueError(f"无法检查{label}，请先处理后再导出。") from exc
+
+
+def ensure_grant_income_artifact_safe(store: Store, project: dict[str, Any], source: Path | bytes) -> None:
+    """Recheck an already-generated Word file against the current preference."""
+    if not _grant_income_omitted(store, project, store.list_documents(project["id"])):
+        return
+    _check_docx_for_omitted_income(source, _income_amounts(store, project), label="已生成文件")
+
+
+def ensure_grant_income_export_safe(store: Store, project: dict[str, Any], documents: list[dict[str, Any]]) -> None:
+    """Do not export saved content or a template that contradicts an opt-out."""
+    if not _grant_income_omitted(store, project, documents):
+        return
+    amounts = _income_amounts(store, project)
+    if any(_contains_omitted_income(str(value or ""), amounts) for value in (project.get("sections") or {}).values()):
+        raise ValueError("已保存正文仍含收入信息，请先选择更新后的草稿或编辑正文，再导出。")
+    template_id = project.get("template_document_id")
+    if not template_id:
+        return
+    doc = next((item for item in documents if item.get("id") == template_id), None)
+    if not doc:
+        raise ValueError("无法检查学校模板，请先处理模板后再导出。")
+    try:
+        # Cloud list results are metadata only; fetch the owned file if needed.
+        path = Path(str(doc.get("stored_path") or ""))
+        if not path.is_file():
+            doc = store.get_document(template_id)
+            path = Path(str((doc or {}).get("stored_path") or ""))
+        if path.suffix.lower() != ".docx" or not path.is_file():
+            raise ValueError("无法检查学校模板，请先处理模板后再导出。")
+        _check_docx_for_omitted_income(path, amounts, label="学校模板")
+    except ValueError:
+        raise
+    except (OSError, zipfile.BadZipFile, ElementTree.ParseError, KeyError) as exc:
+        raise ValueError("无法检查学校模板，请先处理模板后再导出。") from exc
+
+
+def _can_fill_confirmed_field(project: dict[str, Any], field: tuple[str, ...]) -> bool:
+    skill = project.get("state", {}).get("skill_id")
+    if skill not in LETTER_SKILLS:
+        return False
+    # Income belongs only to the need-based applications. In particular, do
+    # not add family circumstances to a national merit scholarship.
+    return field[1] != "family_income" or skill in {"grant-application", "motivation-scholarship"}
+
+
+def _student_template_project(store: Store, project: dict[str, Any], documents: list[dict[str, Any]]) -> dict[str, Any]:
+    """Apply student profile and privacy choices only to an export copy.
+
+    Never persist these values and never promote model-authored text to facts.
+    If sources disagree, leave the affected field blank rather than guessing.
+    """
+    skill_id = project.get("state", {}).get("skill_id")
+    if skill_id not in {"national-scholarship", "grant-application", "motivation-scholarship"}:
+        return project
+    from .chat_context import scholarship_student_facts
+    history = store.messages(project["id"], limit=200)
+    if skill_id in {"grant-application", "motivation-scholarship"}:
+        profile, _ = scholarship_student_facts(history, "", documents, include_family_income=True, project_id=project["id"])
+        if not profile.get("不写家庭收入"):
+            return project
+        project = deepcopy(project)
+        state = project["state"]
+        confirmed = dict(state.get("confirmed_facts") or {})
+        confirmed.pop("family_income", None)
+        state["confirmed_facts"] = confirmed
+        return project
+    project = deepcopy(project)
+    state = project["state"]
+    confirmed = dict(state.get("confirmed_facts") or {})
+    profile, conflicted = scholarship_student_facts(history, "", documents, project_id=project["id"])
+    fields = {
+        "姓名": ("applicant_name", "name"),
+        "学院": ("college",),
+        "专业": ("major", "discipline"),
+        "绩点": ("gpa",),
+        "排名": ("rank", "ranking"),
+    }
+    template_conflict = bool(conflicted)
+    all_keys = {key for aliases in fields.values() for key in aliases}
+    denied = any(
+        item.get("role") == "user" and re.search(
+            r"(?:不要|别|禁止|不可|不能)(?:使用|填写|写入|引用|展示|透露|读取).{0,8}"
+            r"(?:我的|本人|个人)?(?:资料|信息|姓名|成绩|附件|材料|文档)",
+            str(item.get("content") or "")) for item in history
+    )
+    if conflicted or denied:
+        for key in all_keys:
+            confirmed.pop(key, None)
+    else:
+        # A different confirmed name means the profile may belong to another
+        # person; do not combine any fields across identities.
+        known_names = {str(confirmed[key]).strip() for key in fields["姓名"] if confirmed.get(key)}
+        if profile.get("姓名") and known_names and known_names != {profile["姓名"]}:
+            template_conflict = True
+            for key in all_keys:
+                confirmed.pop(key, None)
+        else:
+            for label, aliases in fields.items():
+                derived = profile.get(label)
+                known = {str(confirmed[key]).strip() for key in aliases if confirmed.get(key)}
+                if len(known) > 1 or (derived and known and known != {derived}):
+                    template_conflict = True
+                    for key in aliases:
+                        confirmed.pop(key, None)
+                elif derived and not known:
+                    confirmed[aliases[0]] = derived
+    state["confirmed_facts"] = confirmed
+    project["_template_fact_conflict"] = template_conflict and not denied
+    return project
 
 
 def _clean_label(value: str) -> str:
@@ -123,10 +321,14 @@ def _apply_pdf_outline(project: dict[str, Any], template_text: str) -> bool:
 
 
 def _field_value(project: dict[str, Any], field: tuple[str, ...]) -> str:
+    if field[0] == "confirmed":
+        facts = project.get("state", {}).get("confirmed_facts") or {}
+        return next((str(facts[key]).strip() for key in field[1:]
+                     if facts.get(key) and str(facts[key]).strip()), "待补充")
     if field[0] == "state":
         fallback = (
             project.get("title", "")
-            if field[1] == "project_name" and project.get("title") != "我的大创项目"
+            if field[1] == "project_name" and project.get("title") not in {"我的大创项目", "新对话"}
             else ""
         )
         return str(project["state"].get(field[1], "") or fallback or "待补充")
@@ -143,6 +345,15 @@ def _replace_tokens(document: Document, project: dict[str, Any]) -> int:
         "advisor_name": str(project["state"].get("advisor_name", "待补充")),
         "discipline": str(project.get("discipline", "待补充")),
     }
+    texts = [p.text for p in document.paragraphs]
+    texts.extend(cell.text for table in document.tables for row in table.rows for cell in row.cells)
+    all_text = "\n".join(texts)
+    for label, field in LABEL_FIELDS.items():
+        if (field[0] == "confirmed" and _can_fill_confirmed_field(project, field)
+                and all_text.count(f"【{label}】") + all_text.count(f"{{{{{label}}}}}") == 1):
+            value = _field_value(project, field)
+            if value != "待补充":
+                replacements[label] = value
     count = 0
 
     def replace_in_paragraph(paragraph) -> None:
@@ -173,9 +384,41 @@ def _replace_tokens(document: Document, project: dict[str, Any]) -> int:
     return count
 
 
+def _template_unfilled_fields(document: Document) -> list[str]:
+    """Report visible placeholders and blank recognized labels, never claim completeness."""
+    found: list[str] = []
+    def remember(text: str) -> None:
+        text = re.sub(r"\s+", " ", text).strip()
+        if text and text not in found:
+            found.append(text[:80])
+
+    def scan(text: str) -> None:
+        for match in re.finditer(r"\{\{[^{}\n]{1,80}\}\}|【[^【】\n]{1,40}】|_{4,}|待补充|请填写", text):
+            remember(match.group())
+
+    for paragraph in document.paragraphs:
+        scan(paragraph.text)
+    for table in document.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                scan(cell.text)
+            # Forms often have several label/value pairs in one row, and an
+            # unknown field such as 学号 is still a blank worth reporting.
+            for index in range(0, len(row.cells) - 1, 2):
+                label, value = row.cells[index], row.cells[index + 1]
+                label_text = label.text.strip()
+                if (label._tc is not value._tc and 1 <= len(label_text) <= 40
+                        and re.search(r"[\u4e00-\u9fffA-Za-z]", label_text)
+                        and not value.text.strip()):
+                    remember(label_text + "（空白）")
+    return found[:50]
+
+
 def _fill_labeled_tables(document: Document, project: dict[str, Any]) -> set[str]:
     filled_sections: set[str] = set()
     replaceable = {"_", "—", "-", " ", "（", "）", "(", ")", "：", ":"}
+    labels = [_clean_label(row.cells[0].text) for table in document.tables for row in table.rows
+              if len(row.cells) >= 2]
     for table in document.tables:
         for row in table.rows:
             if len(row.cells) < 2:
@@ -191,15 +434,26 @@ def _fill_labeled_tables(document: Document, project: dict[str, Any]) -> set[str
                 matching = ("section", section_id)
             if not matching:
                 continue
+            if matching[0] == "confirmed":
+                if not _can_fill_confirmed_field(project, matching) or labels.count(label) != 1:
+                    continue
             target = row.cells[1]
             existing = target.text.strip()
+            bracket = re.fullmatch(r"【([^【】]{1,40})】|\{\{([^{}]{1,80})\}\}", existing)
+            token_label = _clean_label((bracket.group(1) or bracket.group(2)) if bracket else "")
+            acceptable_tokens = {label, *(_clean_label(key) for key in matching[1:])}
+            if matching[0] == "confirmed" and matching[1] == "family_income":
+                acceptable_tokens.add("年收入")
             has_placeholder = (
                 not existing
                 or set(existing) <= replaceable
                 or any(marker in existing for marker in ("请填写", "待补充", "填写", "________"))
+                or bool(bracket and token_label in acceptable_tokens)
             )
             if has_placeholder:
                 value = _field_value(project, matching)
+                if value == "待补充":
+                    continue
                 target.text = value
                 if matching[0] == "section" and value != "待补充":
                     filled_sections.add(matching[1])
@@ -235,6 +489,7 @@ def _fill_labeled_paragraphs(document: Document, project: dict[str, Any]) -> set
     """Fill an empty paragraph immediately following a recognizable template label."""
     filled_sections: set[str] = set()
     paragraphs = list(document.paragraphs)
+    labels = [_clean_label(paragraph.text) for paragraph in paragraphs]
     for index, paragraph in enumerate(paragraphs):
         raw_label = paragraph.text.strip()
         if not raw_label or len(raw_label) > 140:
@@ -249,6 +504,9 @@ def _fill_labeled_paragraphs(document: Document, project: dict[str, Any]) -> set
             field = ("section", section_id)
         if not field:
             continue
+        if field[0] == "confirmed":
+            if not _can_fill_confirmed_field(project, field) or labels.count(normalized) != 1:
+                continue
         value = _field_value(project, field)
         if value == "待补充":
             continue
@@ -259,6 +517,8 @@ def _fill_labeled_paragraphs(document: Document, project: dict[str, Any]) -> set
         ):
             target = next_paragraph
         else:
+            if field[0] == "confirmed":
+                continue
             xml_paragraph = OxmlElement("w:p")
             paragraph._p.addnext(xml_paragraph)
             target = Paragraph(xml_paragraph, paragraph._parent)
@@ -283,7 +543,13 @@ def _append_draft(
         "university-research", "college-research", "challenge-cup", "internet-plus",
         "internet-plus-red-tour",
     }
-    if not project.get("_used_template"):
+    personal_letter = skill_id in LETTER_SKILLS
+    if not project.get("_used_template") and personal_letter:
+        titles = [str(item.get("title", "")) for item in project.get("outline", [])]
+        if not (len(titles) == 1 and skill_name in titles[0]):
+            heading = document.add_heading(f"{skill_name}申请书", level=1)
+            heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    elif not project.get("_used_template"):
         title = document.add_heading(f"{skill_name}（草稿）", level=1)
         title.alignment = WD_ALIGN_PARAGRAPH.CENTER
         notice = document.add_paragraph(
@@ -472,7 +738,7 @@ def _add_generic_cover(document: Document, project: dict[str, Any]) -> None:
     title.paragraph_format.space_before = Pt(10)
     title.paragraph_format.space_after = Pt(44)
     project_title = project.get("state", {}).get("project_name") or project.get("title")
-    if not project_title or project_title == "我的大创项目" or (
+    if not project_title or project_title in {"我的大创项目", "新对话"} or (
         str(project_title).startswith("我的") and str(project_title).endswith("项目")
     ):
         project_title = "项目名称：待补充"
@@ -536,6 +802,23 @@ def _add_generic_cover(document: Document, project: dict[str, Any]) -> None:
     document.add_page_break()
 
 
+def _open_word_template(document: dict[str, Any] | None):
+    """Open an uploaded Word template, or leave it unused if unavailable.
+
+    A bad template must not discard the student's saved sections. Callers
+    clearly mark the generic fallback as requiring template review.
+    """
+    if not document or not document.get("stored_path"):
+        return None
+    path = Path(document["stored_path"])
+    if path.suffix.lower() != ".docx" or not path.is_file():
+        return None
+    try:
+        return Document(str(path))
+    except (OSError, ValueError, KeyError, SyntaxError, zipfile.BadZipFile, PackageNotFoundError):
+        return None
+
+
 def export_project(store: Store, project_id: str, output_path: str | Path) -> dict[str, Any]:
     project = (
         store.project_for_export(project_id)
@@ -565,13 +848,25 @@ def export_project(store: Store, project_id: str, output_path: str | Path) -> di
                 {"id": "plan_and_commitment", "title": "计划与承诺"},
             ]
     documents = store.list_documents(project_id)
+    ensure_grant_income_export_safe(store, project, documents)
+    project = _student_template_project(store, project, documents)
     project["_documents"] = documents
     template_id = project.get("template_document_id")
-    template_doc = store.get_document(template_id) if template_id else None
-    template_path = Path(template_doc["stored_path"]) if template_doc else None
-    used_template = bool(template_path and template_path.suffix.lower() == ".docx" and template_path.is_file())
+    # project_for_export already materialized the selected template. Reopening
+    # metadata here must not turn a known 404 fallback into another download.
+    template_doc = next((doc for doc in documents if doc.get("id") == template_id), None) if template_id else None
+    template_path = Path(template_doc["stored_path"]) if template_doc and template_doc.get("stored_path") else None
+    template_document = _open_word_template(template_doc)
+    used_template = template_document is not None
+    template_unavailable = bool(template_id and (not template_doc or not template_path or not template_path.is_file()
+        or (template_path.suffix.lower() == ".docx" and not used_template)))
     warnings: list[str] = []
-    if not template_doc and project["state"].get("template_preference") == "has_template":
+    for missing in project.get("_missing_export_documents", []):
+        if missing.get("kind") != "template":
+            warnings.append(f"{missing.get('name') or '图片'} 暂不可用，未能嵌入；请重新上传或手动补充。")
+    if template_unavailable:
+        warnings.append("学校模板暂不可用或无法打开；已使用通用格式保留正文，请重新上传模板并核对格式。")
+    elif not template_doc and project["state"].get("template_preference") == "has_template":
         warnings.append("你选择了有学校模板，但尚未上传；当前先按通用格式生成草稿，请上传模板后重新导出。")
     elif not template_doc:
         warnings.append("未上传学校模板，使用通用目录和排版。请提交前按学校要求核对。")
@@ -584,17 +879,30 @@ def export_project(store: Store, project_id: str, output_path: str | Path) -> di
             + ("已按可识别栏目顺序重建可编辑 Word 草稿。" if pdf_outline_applied else "未能识别足够栏目，使用通用目录重建可编辑 Word 草稿。")
             + "请核对排版和栏目。"
         )
-    document = Document(str(template_path)) if used_template else Document()
+    document = template_document if used_template else Document()
     project["_used_template"] = used_template
-    _apply_styles(document)
     if not used_template:
+        _apply_styles(document)
+    skill_id = str(project.get("state", {}).get("skill_id", "innovation-research"))
+    if not used_template and skill_id not in LETTER_SKILLS:
         _add_generic_cover(document, project)
+    # A section token replaced in the template is already placed; don't append
+    # a duplicate section at the end of the exported document.
+    template_text = "\n".join([*(p.text for p in document.paragraphs),
+        *(cell.text for table in document.tables for row in table.rows for cell in row.cells)]) if used_template else ""
+    token_sections = {sid for sid in re.findall(r"\{\{section:([a-zA-Z0-9_-]+)\}\}", template_text)
+                      if str(project["sections"].get(sid, "")).strip()}
     token_count = _replace_tokens(document, project) if used_template else 0
     table_sections = _fill_labeled_tables(document, project) if used_template else set()
     paragraph_sections = _fill_labeled_paragraphs(document, project) if used_template else set()
-    filled_sections = table_sections | paragraph_sections
+    filled_sections = table_sections | paragraph_sections | token_sections
     table_count = len(table_sections)
-    if used_template and not token_count and not filled_sections:
+    unfilled_fields = _template_unfilled_fields(document) if used_template else []
+    if unfilled_fields:
+        warnings.append("学校模板仍有未填写内容，请在 Word 中补齐后再提交。")
+    if used_template and project.get("_template_fact_conflict"):
+        warnings.append("提供的信息有不同说法，请确认后再填写学校模板。")
+    if used_template and not filled_sections:
         warnings.append(
             "未发现可自动填写的占位符或标准字段表格；保留了原模板，并在后面附加草稿章节，请人工核对是否需要填入原表格。"
         )
@@ -609,6 +917,9 @@ def export_project(store: Store, project_id: str, output_path: str | Path) -> di
         "template_sections_filled": table_count,
         "template_paragraphs_filled": len(paragraph_sections),
         "template_placeholders_replaced": token_count,
+        "template_status": ("needs_review" if template_unavailable or unfilled_fields or (used_template and (not filled_sections or project.get("_template_fact_conflict")))
+                            else "mapped" if used_template else "generic"),
+        "template_unfilled_fields": unfilled_fields,
         "pdf_template_outline_applied": pdf_outline_applied,
         "warnings": warnings,
         "draft": True,

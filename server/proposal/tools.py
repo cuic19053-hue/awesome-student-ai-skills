@@ -22,7 +22,6 @@ from .skills import model_safe_guidance, registry, valid_fact_key
 from .storage import Store, new_id
 
 ROOT = Path(__file__).resolve().parents[2]
-INNOVATION_SKILL = ROOT / "subskills" / "innovation-research" / "SKILL.md"
 IDEA_GUIDE = ROOT / "subskills" / "innovation-research" / "references" / "idea-scaffold.md"
 
 
@@ -244,8 +243,10 @@ class ProposalTools:
         if skill_id == "innovation-research" and section in {"想法整理", "项目框架", "立项依据"} and IDEA_GUIDE.exists():
             source_path = IDEA_GUIDE
         else:
-            selected = registry.get(skill_id) or registry.get("innovation-research")
-            source_path = selected["skill_path"] if selected else INNOVATION_SKILL
+            selected = registry.get(skill_id)
+            if not selected:
+                return {"error": "当前项目的赛道指南不可用，请重新选择正确赛道。"}
+            source_path = selected["skill_path"]
         text = model_safe_guidance(source_path.read_text(encoding="utf-8"))
         lines = text.splitlines()
         if section:
@@ -651,7 +652,24 @@ class ProposalTools:
             for item in project["outline"]
             if not str(sections.get(item.get("id", ""), "")).strip()
         ]
-        consistency_warnings = []
+        placeholder_sections = [
+            item.get("title", item.get("id", "章节"))
+            for item in project["outline"]
+            if re.search(r"待补充|待填写|\{\{[^{}]+\}\}", str(sections.get(item.get("id", ""), "")))
+        ]
+        consistency_warnings = [f"章节“{title}”仍有待补充内容。" for title in placeholder_sections]
+        from .completeness import draft_content_suggestions
+        if not project["outline"] or not any(
+            str(sections.get(item.get("id", ""), "")).strip() for item in project["outline"]
+        ):
+            consistency_warnings.append("还没有已保存的章节正文，请先整理或填写草稿。")
+        else:
+            suggested = draft_content_suggestions(project)
+            if suggested:
+                consistency_warnings.append(
+                    "草稿可考虑补充：" + "、".join(suggested)
+                    + "。这是通用内容提示，具体以学校通知和模板为准。"
+                )
         known_source_names = {
             document["original_name"].casefold()
             for document in documents
@@ -735,6 +753,7 @@ class ProposalTools:
             "unconfirmed_documents": pending_ocr,
             "low_confidence_ocr": low_confidence,
             "missing_sections": missing_sections,
+            "placeholder_sections": placeholder_sections,
             "consistency_warnings": consistency_warnings,
             "source_citation_warnings": citation_warnings,
             "budget_evidence": source_budgets,
@@ -751,9 +770,9 @@ class ProposalTools:
             "draft_notice": "材料不全仍可导出草稿；缺失项必须标注“待补充”，不得作为可直接提交的正式材料。",
             "automatic_review": "仅运行事实缺失、来源、占位和数字一致性等基础检查；专家式评审需用户主动选择。",
             "validation_scope": (
-                "大创创新训练专用事实检查"
+                "大创基础内容检查，不代表学校正式标准或事实核验；具体要求以学校通知和模板为准"
                 if is_innovation
-                else "通用完整性检查；赛道专属要求以当前 Skill 和学校通知为准"
+                else "通用内容检查，不代表学校正式标准或事实核验；具体要求以学校通知和模板为准"
             ),
         }
 

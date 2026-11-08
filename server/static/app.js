@@ -102,6 +102,132 @@
     chatSending: false,
   };
 
+  // Project requests may finish out of order when the student switches chats.
+  let projectLoadRevision = 0;
+  let loadingProjectId = null;
+  // A sent message can finish after a disconnect. Keep it only in the current
+  // tab, under its account and project, and never submit it automatically.
+  const chatRecoveryStorageKey = "stardust-chat-recovery-v1";
+  const interruptedChatMessages = new Map();
+  const interruptedMessagesRendered = new Set();
+  const recoveredChatInputs = new Map();
+  let loadedRecoveryOwner = null;
+  // A completed model call can outlive a failed history write. Keep its
+  // returned text only in this page, scoped to the originating project.
+  const uncertainSectionDrafts = new Map();
+  const deletedProjectEpochs = new Map();
+  let chatRecoveryEpoch = 0;
+
+  function chatRecoveryOwner() {
+    const userId = state.authSession?.user?.id;
+    if (userId) return `user:${userId}`;
+    return state.cloudMode ? null : "local";
+  }
+
+  function loadInterruptedChatMessages() {
+    const owner = chatRecoveryOwner();
+    if (!owner || loadedRecoveryOwner === owner) return;
+    interruptedChatMessages.clear();
+    interruptedMessagesRendered.clear();
+    recoveredChatInputs.clear();
+    loadedRecoveryOwner = owner;
+    try {
+      const raw = sessionStorage.getItem(chatRecoveryStorageKey);
+      if (!raw || raw.length > 8_000_000) return;
+      const saved = JSON.parse(raw);
+      if (saved?.version !== 1 || saved.owner !== owner || !Array.isArray(saved.projects)) {
+        sessionStorage.removeItem(chatRecoveryStorageKey);
+        return;
+      }
+      for (const item of saved.projects) {
+        if (!Array.isArray(item) || typeof item[0] !== "string" || item[0].length > 160 || !Array.isArray(item[1])) continue;
+        const messages = [...new Set(item[1].filter(text => typeof text === "string" && text.trim() && text.length <= 12000))];
+        if (messages.length) interruptedChatMessages.set(item[0], messages);
+      }
+    } catch {} // Storage may be blocked, full, or contain corrupt data.
+  }
+
+  function persistInterruptedChatMessages() {
+    const owner = chatRecoveryOwner();
+    if (!owner) return;
+    try {
+      if (!interruptedChatMessages.size) sessionStorage.removeItem(chatRecoveryStorageKey);
+      else sessionStorage.setItem(chatRecoveryStorageKey, JSON.stringify({
+        version: 1, owner, projects: [...interruptedChatMessages.entries()],
+      }));
+    } catch {} // In-memory recovery remains available if storage is blocked.
+  }
+
+  function rememberInterruptedChatMessage(projectId, message) {
+    loadInterruptedChatMessages();
+    const messages = interruptedChatMessages.get(projectId) || [];
+    if (!messages.includes(message)) messages.push(message);
+    interruptedChatMessages.set(projectId, messages);
+    persistInterruptedChatMessages();
+  }
+
+  function forgetInterruptedChatMessage(projectId, message) {
+    loadInterruptedChatMessages();
+    const remaining = (interruptedChatMessages.get(projectId) || []).filter(item => item !== message);
+    if (remaining.length) interruptedChatMessages.set(projectId, remaining);
+    else interruptedChatMessages.delete(projectId);
+    interruptedMessagesRendered.delete(`${projectId}\0${message}`);
+    if (recoveredChatInputs.get(projectId) === message) recoveredChatInputs.delete(projectId);
+    persistInterruptedChatMessages();
+  }
+
+  function updateRecoveredChatInput() {
+    const projectId = state.project?.id;
+    if (!projectId) return;
+    loadInterruptedChatMessages();
+    const previous = recoveredChatInputs.get(projectId);
+    const text = ($("#chatInput")?.value || "").trim();
+    if (previous === undefined) {
+      if (text) {
+        rememberInterruptedChatMessage(projectId, text);
+        recoveredChatInputs.set(projectId, text);
+      }
+      return;
+    }
+    if (text === previous) return;
+    const messages = interruptedChatMessages.get(projectId) || [];
+    const index = messages.indexOf(previous);
+    if (index < 0) { recoveredChatInputs.delete(projectId); return; }
+    messages.splice(index, 1);
+    if (text && !messages.includes(text)) messages.splice(index, 0, text);
+    if (messages.length) interruptedChatMessages.set(projectId, messages);
+    else interruptedChatMessages.delete(projectId);
+    if (text) recoveredChatInputs.set(projectId, text);
+    else recoveredChatInputs.delete(projectId);
+    persistInterruptedChatMessages();
+  }
+
+  function clearInterruptedChatMessages() {
+    chatRecoveryEpoch++;
+    interruptedChatMessages.clear();
+    interruptedMessagesRendered.clear();
+    recoveredChatInputs.clear();
+    loadedRecoveryOwner = null;
+    try { sessionStorage.removeItem(chatRecoveryStorageKey); } catch {}
+    uncertainSectionDrafts.clear();
+    deletedProjectEpochs.clear();
+    const input = $("#chatInput");
+    if (input) {
+      input.value = "";
+      if (input.style) input.style.height = "auto";
+    }
+    $("#chatMessages")?.replaceChildren();
+  }
+
+  function invalidateProjectLoad() {
+    projectLoadRevision++;
+    loadingProjectId = null;
+  }
+
+  function chatProjectIsActive(projectId) {
+    return state.project?.id === projectId && (!loadingProjectId || loadingProjectId === projectId);
+  }
+
   function countWords(str) {
     if (!str) return 0;
     const cjk = (str.match(/[\u4e00-\u9fa5]/g) || []).length;
@@ -907,9 +1033,15 @@
     const subscription = state.authClient.auth.onAuthStateChange((event, session) => {
       if (state.authSession?.user?.id && session?.user?.id
           && state.authSession.user.id !== session.user.id) {
+        invalidateProjectLoad();
+        clearInterruptedChatMessages();
         state.privateRagConsentProjectId = null;
         if ($("#privateRagConsent")) $("#privateRagConsent").checked = false;
         clearExportArtifacts();
+        state.project = null;
+        state.messages = [];
+        state.documents = [];
+        showWelcomeView();
         modelConfigRevision++;
         state.appStarted = false;
         state.llmConfig = { provider: "preset", model: "workbench-bundle", api_key: "", base_url: "" };
@@ -919,6 +1051,8 @@
         // 不在 Auth 回调锁内调用 SDK，避免 setSession/getSession 死锁。
         setTimeout(() => { void startApplication(session); }, 0);
       } else if (!session && event === "SIGNED_OUT") {
+        invalidateProjectLoad();
+        clearInterruptedChatMessages();
         state.privateRagConsentProjectId = null;
         if ($("#privateRagConsent")) $("#privateRagConsent").checked = false;
         state.appStarted = false;
@@ -1092,11 +1226,7 @@
         if (!confirm(`确定删除项目“${project.title}”吗？`)) return;
         try {
           await api(`/api/projects/${project.id}`, { method: "DELETE" });
-          if (state.project?.id === project.id) {
-            showWelcomeView();
-            clearExportArtifacts();
-            state.project = null;
-          }
+          closeDeletedProject(project.id);
           await refreshProjects($("#projectSearchInput")?.value || "");
           toast("项目已删除。");
         } catch (err) {
@@ -1160,13 +1290,50 @@
     $$(".project-item").forEach(item => item.classList.remove("active"));
   }
 
+  function closeDeletedProject(projectId) {
+    loadInterruptedChatMessages();
+    interruptedChatMessages.delete(projectId);
+    recoveredChatInputs.delete(projectId);
+    persistInterruptedChatMessages();
+    deletedProjectEpochs.set(projectId, (deletedProjectEpochs.get(projectId) || 0) + 1);
+    for (const key of uncertainSectionDrafts.keys()) {
+      if (key.startsWith(`${projectId}\0`)) uncertainSectionDrafts.delete(key);
+    }
+    for (const key of interruptedMessagesRendered) {
+      if (key.startsWith(`${projectId}\0`)) interruptedMessagesRendered.delete(key);
+    }
+    if (state.project?.id !== projectId) return;
+    const input = $("#chatInput");
+    if (input) {
+      input.value = "";
+      if (input.style) input.style.height = "auto";
+    }
+    // Keep a different project's in-flight load; do not revive the deleted one.
+    if (!loadingProjectId || loadingProjectId === projectId) invalidateProjectLoad();
+    clearExportArtifacts();
+    state.project = null;
+    showWelcomeView();
+  }
+
   async function loadProject(projectId) {
+    const revision = ++projectLoadRevision;
+    loadingProjectId = projectId;
     try {
       $$(".project-item").forEach(el => {
         el.classList.toggle("active", el.dataset.id === projectId);
       });
       const project = await api(`/api/projects/${projectId}`);
+      if (revision !== projectLoadRevision) return;
       if (state.project?.id !== projectId) {
+        const input = $("#chatInput");
+        const previousProjectId = state.project?.id;
+        if (previousProjectId && input?.value?.trim()) {
+          updateRecoveredChatInput();
+          rememberInterruptedChatMessage(previousProjectId, input.value.trim());
+          recoveredChatInputs.delete(previousProjectId);
+          input.value = "";
+          if (input.style) input.style.height = "auto";
+        }
         state.privateRagConsentProjectId = null;
         if ($("#privateRagConsent")) $("#privateRagConsent").checked = false;
         $("#privateRagResults")?.replaceChildren();
@@ -1193,21 +1360,48 @@
       renderConfirmedSources();
       renderOutline();
       renderSections();
-      if (window.MaterialPilot) await window.MaterialPilot.mount({ api, state, toast, reload: loadProject });
+      if (window.MaterialPilot) await window.MaterialPilot.mount({ api, state, toast, reload: loadProject, isProjectActive: chatProjectIsActive });
+      if (revision !== projectLoadRevision) return;
       renderDiagrams();
       renderMessages();
+      restoreInterruptedChatMessage(projectId);
       updateTemplateQuickActions(project);
       void refreshProjects();
       if (state.llmConfig.provider === "preset") void loadUserBalance();
     } catch (error) {
-      toast(error.message, true);
+      if (revision === projectLoadRevision) toast(error.message, true);
+    } finally {
+      if (revision === projectLoadRevision) loadingProjectId = null;
     }
   }
 
+  function isPersonalApplication(project) {
+    const skillId = project?.state?.skill_id || "";
+    const category = project?.state?.skill_category || state.skills.find((skill) => skill.id === skillId)?.category || "";
+    return (["scholarship", "honor"].includes(category) || ["national-scholarship", "major-transfer", "graduate-recommendation"].includes(skillId)) && skillId !== "class-collective";
+  }
+
   function configureSkillWorkspace(project) {
-    const skillId = project?.state?.skill_id || "innovation-research";
+    const skillId = project?.state?.skill_id === "" ? "" : (project?.state?.skill_id || "innovation-research");
+    const picker = $("#conversationSkillPicker");
+    const selector = $("#conversationSkillSelect");
+    if (picker && selector) {
+      picker.classList.toggle("hidden", project?.state?.skill_id !== "");
+      selector.replaceChildren();
+      const empty = document.createElement("option");
+      empty.value = "";
+      empty.textContent = "选择材料类型";
+      selector.append(empty);
+      for (const skill of state.skills) {
+        const option = document.createElement("option");
+        option.value = skill.id;
+        option.textContent = skill.name;
+        selector.append(option);
+      }
+    }
     const skillMeta = state.skills.find((skill) => skill.id === skillId);
     const category = project?.state?.skill_category || skillMeta?.category || "";
+    const personalApplication = isPersonalApplication(project);
     const researchOrCompetition = ["research", "competition"].includes(category);
     const practical = category === "practice";
     const diagramsAvailable = researchOrCompetition || practical;
@@ -1219,21 +1413,82 @@
     if (diagramPanel) diagramPanel.classList.toggle("hidden", !diagramsAvailable);
     const photoTab = $('.upload-tab[data-kind="photo"]');
     if (photoTab) photoTab.classList.toggle("hidden", !(researchOrCompetition || practical));
+    $("#innovationReviewRow")?.classList.toggle("hidden", skillId !== "innovation-research");
+    if (skillId !== "innovation-research") $("#reviewResult")?.classList.add("hidden");
+    if ($("#exportHint")) $("#exportHint").textContent = researchOrCompetition || practical
+      ? "缺失内容保留“待补充”，无实验图保留标准化占位线框。"
+      : "请补充草稿中的空缺内容后导出。";
     $("#officialQuery").placeholder = `输入「${project?.state?.skill_name || "申报材料"}」相关的学校或当年通知关键词`;
     $("#factsSummary").dataset.skillId = skillId;
+    const materialHeading = $("#panel-materials .panel-heading h2");
+    const materialDescription = $("#panel-materials .panel-heading p");
+    const sourceHeading = $("#sources-panel .panel-heading h2");
+    const sourceDescription = $("#sources-panel .panel-heading p");
+    const sourceTab = $('.workspace-tab-btn[data-target="sources-panel"]');
+    const sourceUploadTab = $('.upload-tab[data-kind="source"]');
+    if (materialHeading) materialHeading.textContent = personalApplication ? "个人参考材料与知识库" : "项目参考材料与知识库";
+    if (materialDescription) materialDescription.textContent = personalApplication
+      ? "上传个人资料、成绩证明或学校模板，帮助整理申请材料。"
+      : "上传你的实验记录、已有阶段报告或学校模板，作为申报书撰写的参考依据。";
+    if (sourceHeading) sourceHeading.textContent = personalApplication ? "学校通知与申报依据" : "学术文献检索与官方立项依据";
+    if (sourceDescription) sourceDescription.textContent = personalApplication
+      ? "查找学校和官方发布的评审通知，了解申请条件和材料要求。"
+      : "通过 Crossref 检索真实前沿文献；通过白名单检索 edu.cn / gov.cn 官方立项文件。";
+    if (sourceTab) sourceTab.textContent = personalApplication ? "🔍 学校通知与依据" : "🔍 学术文献与通知";
+    if (sourceUploadTab) sourceUploadTab.textContent = personalApplication ? "个人资料" : "项目资料";
 
     // 动态调整右侧对话快捷提示词
     const toolsRoot = $("#chatTools");
     if (toolsRoot) {
       toolsRoot.replaceChildren();
       let customPrompts = [];
-      if (category === "scholarship") {
+      if (skillId === "national-scholarship") {
         customPrompts = [
-          { label: "🎖️ 突出学业与排名优势", prompt: "请根据我的成绩与GPA排名信息，帮我撰写突出学业优异、刻苦钻研的申请段落。" },
-          { label: "🤝 整理家庭经济与资助情况", prompt: "请帮我规范整理家庭经济困难依据与家庭实际开支，语言真诚朴素、数据翔实。" },
-          { label: "💼 梳理勤工助学经历", prompt: "请帮我总结在校期间参加勤工助学、自立自强的具体岗位与收获体会。" },
+          { label: "🎖️ 突出学业与排名", prompt: "请根据我提供的成绩和排名，帮我整理学习表现；没有的信息请留空。" },
+          { label: "🏆 梳理竞赛与科研", prompt: "请根据我提供的竞赛和科研经历整理成果，没有的经历不要添加。" },
+          { label: "✍️ 起草申请书", prompt: "请根据我提供的资料写一份国家奖学金申请书，缺少的信息留空。" },
+          { label: "📋 检查申请书格式", prompt: "请检查申请书的称呼、段落和落款格式。" },
+          { label: "🔍 查学校评审通知", prompt: "请查找我所在学校本年度的国家奖学金评审通知。" },
+        ];
+      } else if (skillId === "grant-application" || skillId === "motivation-scholarship") {
+        customPrompts = [
+          { label: "🤝 整理家庭情况", prompt: "请根据我提供的家庭情况整理申请理由，没有提供的信息请留空。" },
+          { label: "💼 梳理勤工助学经历", prompt: "请根据我提供的勤工助学经历整理申请内容；没有提供的经历不要添加。" },
+          { label: "✍️ 起草申请书", prompt: `请根据我提供的资料写一份${project?.state?.skill_name || "奖助学金"}申请书，缺少的信息留空。` },
           { label: "📋 检查书信体规范与称呼", prompt: "请帮我检查当前申请书的抬头、称呼、此致敬礼与落款格式是否符合标准公文规范。" },
           { label: "🔍 查高校奖助学金评审细则", prompt: "请帮我检索本年度高校奖学金评定的一般门槛和打分偏向。" },
+        ];
+      } else if (category === "scholarship") {
+        customPrompts = [
+          { label: "🎖️ 整理学习表现", prompt: "请根据我提供的成绩和学习经历整理申请内容，没有提供的信息请留空。" },
+          { label: "🏆 梳理已有成果", prompt: "请根据我提供的获奖和实践经历整理成果，没有提供的经历不要添加。" },
+          { label: "✍️ 起草申请书", prompt: `请根据我提供的资料写一份${project?.state?.skill_name || "奖学金"}申请书，缺少的信息留空。` },
+          { label: "📋 检查申请书格式", prompt: "请检查申请书的称呼、段落和落款格式。" },
+          { label: "🔍 查学校评审通知", prompt: "请查找我所在学校本年度的奖学金评审通知。" },
+        ];
+      } else if (category === "honor" && personalApplication) {
+        customPrompts = [
+          { label: "⭐ 整理已有表现", prompt: "请根据我提供的学习、工作和实践情况整理个人表现，未提供的信息留空。" },
+          { label: "🏆 梳理已有成果", prompt: "请根据我提供的获奖和活动经历整理成果，没有提供的经历不要添加。" },
+          { label: "✍️ 起草申请书", prompt: `请根据我提供的资料写一份${project?.state?.skill_name || "评优"}申请书，缺少的信息留空。` },
+          { label: "📋 检查申请书格式", prompt: "请检查申请书的称呼、段落和落款格式。" },
+          { label: "🔍 查学校评审通知", prompt: "请查找我所在学校本年度的评优评审通知。" },
+        ];
+      } else if (skillId === "graduate-recommendation") {
+        customPrompts = [
+          { label: "🎓 整理学习与排名", prompt: "请根据我提供的成绩和排名整理保研申请材料，没有提供的信息留空。" },
+          { label: "🔬 梳理已有科研经历", prompt: "请根据我提供的科研或实践经历整理材料，没有提供的经历不要添加。" },
+          { label: "✍️ 起草个人陈述", prompt: "请根据我提供的资料起草保研个人陈述，缺少的信息留空。" },
+          { label: "📋 检查材料完整性", prompt: "请检查我已有的保研申请材料还有哪些内容需要补充。" },
+          { label: "🔍 查院校推免通知", prompt: "请查找目标院校本年度的推免通知与材料要求。" },
+        ];
+      } else if (skillId === "major-transfer") {
+        customPrompts = [
+          { label: "🎓 整理转专业原因", prompt: "请根据我提供的经历整理转专业原因，没有提供的信息请留空。" },
+          { label: "📚 梳理目标专业了解", prompt: "请根据我提供的资料整理对目标专业课程和培养方向的了解，不要编造学校信息。" },
+          { label: "✍️ 起草申请书", prompt: "请根据我提供的资料起草转专业申请书，缺少的信息留空。" },
+          { label: "📋 检查申请书格式", prompt: "请检查申请书的称呼、段落和落款格式。" },
+          { label: "🔍 查学校转专业通知", prompt: "请查找我所在学校本年度的转专业通知和申请条件。" },
         ];
       } else if (category === "practice") {
         customPrompts = [
@@ -1310,6 +1565,40 @@
     $("#projectRequest").focus();
   }
 
+  async function startGeneralChat() {
+    const button = $("#newChatBtn");
+    button.disabled = true;
+    try {
+      const project = await api("/api/projects/conversation", { method: "POST" });
+      await refreshProjects();
+      await loadProject(project.id);
+      $("#chatInput").focus();
+    } catch (error) {
+      toast(error.message, true);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function selectConversationSkill() {
+    const projectId = state.project?.id;
+    const selected = $("#conversationSkillSelect").value;
+    if (!projectId || !selected) return toast("请选择要准备的材料类型。", true);
+    const submit = $("#conversationSkillApply");
+    submit.disabled = true;
+    try {
+      await api(`/api/projects/${projectId}/skill`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ skill_id: selected }),
+      });
+      if (state.project?.id === projectId) await loadProject(projectId);
+    } catch (error) {
+      toast(error.message, true);
+    } finally {
+      submit.disabled = false;
+    }
+  }
+
   async function loadSkills() {
     const cached = readPublicCache("skills");
     if (cached) renderSkills(cached);
@@ -1344,6 +1633,7 @@
       groups.get(category).append(option);
     }
     if (skills.some((skill) => skill.id === selected)) select.value = selected;
+    if (state.project?.state?.skill_id === "") configureSkillWorkspace(state.project);
   }
 
   function showRouteCandidates(candidates, message) {
@@ -1401,7 +1691,7 @@
 
   function updateTemplateQuickActions(project) {
     const bar = $("#templateQuickActions");
-    const needsAnswer = project?.state?.template_preference === "not_asked";
+    const needsAnswer = project?.state?.skill_id !== "" && project?.state?.template_preference === "not_asked";
     bar.classList.toggle("hidden", !needsAnswer);
     renderPrivacyNotice(project);
   }
@@ -1410,7 +1700,9 @@
     const box = $("#templateStatus");
     const template = (project.documents || []).find((document) => document.kind === "template");
     box.classList.remove("hidden", "warning", "ready");
-    if (template) {
+    if (project.state?.skill_id === "" && !template) {
+      box.textContent = "你可以先对话，确定要准备的材料后再选择或上传模板。";
+    } else if (template) {
       box.classList.add("ready");
       box.textContent = template.original_name.toLowerCase().endsWith(".docx")
         ? "已上传 Word 模板：导出时会尽量在原模板字段内填写；无法识别的位置会保留并提示核对。"
@@ -1957,7 +2249,7 @@
         if (!confirm(`确定从本项目移除“${doc.original_name}”吗？`)) return;
         try {
           await api(`/api/documents/${doc.id}`, { method: "DELETE" });
-          await loadProject(state.project.id);
+          await refreshChatAfterError(projectId);
           toast("材料和对应索引已删除。");
         } catch (error) {
           toast(error.message, true);
@@ -1975,7 +2267,9 @@
     const factSources = state.project?.state?.fact_sources || {};
     const summary = $("#factsSummary");
     summary.replaceChildren();
-    const commonKeys = [
+    const skillId = state.project?.state?.skill_id;
+    const personalApplication = isPersonalApplication(state.project);
+    const commonKeys = personalApplication ? ["application_year", "education_level", "college"] : [
       "project_name", "problem", "target_user", "method", "foundation",
       "goal", "expected_output", "constraints", "duration", "budget",
       "leader_name", "advisor_name", "team", "application_year", "education_level", "college"
@@ -2024,7 +2318,7 @@
       $("#factsEditor").classList.remove("hidden");
       $("#chooseLeaderPhotoBtn")?.focus();
     });
-    summary.append(photoBox);
+    if (!personalApplication || photoId) summary.append(photoBox);
     renderLeaderPhoto();
     const dynamic = $("#dynamicFactsGrid");
     if (dynamic) {
@@ -2034,6 +2328,23 @@
         appendDynamicFact(key, value);
       }
     }
+    // The editor survives project switches. Always refresh every input,
+    // including fields hidden in the current application type, so saving a
+    // new project cannot carry over another project's data.
+    const projectOnlyFacts = new Set(["project_name", "problem", "target_user", "method", "foundation", "goal",
+      "expected_output", "constraints", "duration", "budget", "leader_name", "advisor_name", "team"]);
+    $$("[data-fact]").forEach((field) => {
+      const key = field.dataset.fact;
+      const value = facts[key];
+      field.value = value == null ? "" : String(value);
+      const parent = field.closest(".field");
+      if (parent && projectOnlyFacts.has(key)) {
+        // Existing values remain visible/editable even after a skill change.
+        parent.classList.toggle("hidden", personalApplication && !String(value ?? "").trim());
+      }
+    });
+    const photoField = $(".leader-photo-field");
+    if (photoField) photoField.classList.toggle("hidden", personalApplication && !photoId);
     $$("[data-project]").forEach((field) => {
       field.value = state.project?.[field.dataset.project] || "";
     });
@@ -2522,12 +2833,15 @@
 
   async function generateOutline() {
     const btn = $("#generateOutlineBtn");
+    const projectId = state.project?.id;
+    if (!projectId) return;
     btn.disabled = true;
     btn.textContent = "正在整理…";
     try {
       const result = window.MaterialPilot?.active()
         ? await window.MaterialPilot.outline()
-        : await api(`/api/projects/${state.project.id}/outline/generate`, { method: "POST" });
+        : await api(`/api/projects/${projectId}/outline/generate`, { method: "POST" });
+      if (state.project?.id !== projectId) return;
       state.outline = result.outline;
       renderOutline();
       $("#outlineActions").classList.remove("hidden");
@@ -2540,6 +2854,56 @@
     } finally {
       btn.disabled = false;
       btn.textContent = "拟一份目录";
+    }
+  }
+
+  async function recommendOutline() {
+    const projectId = state.project?.id;
+    const btn = $("#resetOutlineBtn");
+    if (!projectId || !btn) return;
+    btn.disabled = true;
+    try {
+      await flushDraftEdits();
+      if (state.project?.id !== projectId) return;
+      const result = await api(`/api/projects/${projectId}/outline/recommend`);
+      if (state.project?.id !== projectId) return;
+      if (!result.outline?.length) {
+        toast(result.warning || "请先确定申报类型", true);
+        return;
+      }
+      // This is a preview. The existing saved directory and sections are not
+      // changed until the student explicitly confirms the displayed outline.
+      const current = state.project.outline || [];
+      const saved = state.project.sections || {};
+      const existingByTitle = new Map(current.map(item => [String(item.title || "").trim(), item]));
+      const reserved = new Set(current.map(item => item.id));
+      const used = new Set();
+      const next = result.outline.map(item => {
+        const sameTitle = existingByTitle.get(String(item.title || "").trim());
+        let id = sameTitle?.id || item.id;
+        if (!sameTitle && reserved.has(id)) {
+          const prefix = String(id).slice(0, 65) + "_recommended";
+          id = prefix;
+          let number = 2;
+          while (reserved.has(id) || used.has(id)) id = `${prefix}_${number++}`;
+        }
+        used.add(id);
+        return { ...item, id };
+      });
+      const preserved = current.filter(item => String(saved[item.id] || "").trim() && !used.has(item.id));
+      if (next.length + preserved.length > 20) {
+        toast("为保留已有正文，暂不能自动替换目录；请先调整现有章节。", true);
+        return;
+      }
+      state.outline = [...next, ...preserved];
+      renderOutline();
+      $("#outlineWarning").textContent = (result.warning || "请核对并保存目录。")
+        + (preserved.length ? " 已保留含正文的原章节。" : "");
+      toast("已整理推荐目录，请核对后保存。");
+    } catch (error) {
+      toast(error.message, true);
+    } finally {
+      btn.disabled = false;
     }
   }
 
@@ -2604,14 +2968,26 @@
   }
 
   async function saveOutline() {
+    const projectId = state.project?.id;
+    if (!projectId) return;
     try {
+      await flushDraftEdits();
+      if (state.project?.id !== projectId) return;
       if (window.MaterialPilot?.active()) await window.MaterialPilot.flushEdits();
-      const result = await api(`/api/projects/${state.project.id}/outline`, {
+      if (state.project?.id !== projectId) return;
+      const result = await api(`/api/projects/${projectId}/outline`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ outline: state.outline }),
+        body: JSON.stringify({ outline: state.outline, expected_revision: state.project.material_revision }),
       });
+      if (state.project?.id !== projectId) return;
       state.outline = result.outline;
+      state.project.outline = result.outline.map(item => ({ ...item }));
+      state.project.sections ||= {};
+      for (const item of result.outline) state.project.sections[item.id] ??= "";
+      state.project.state ||= {};
+      state.project.state.outline_confirmed = true;
+      if (result.material_revision !== undefined) state.project.material_revision = result.material_revision;
       $("#outlineActions").classList.add("hidden");
       renderOutline();
       renderSections();
@@ -2633,6 +3009,32 @@
   }
 
   let allSectionsFolded = false;
+  async function observeMaterialRequest(url, options, timeoutMs, timeoutMessage) {
+    // Timing out the browser's wait does not establish whether the server or
+    // model finished. Never automatically resubmit a potentially paid request.
+    const controller = new AbortController();
+    let timer;
+    let timedOut = false;
+    try {
+      return await Promise.race([
+        api(url, { ...options, signal: controller.signal }),
+        new Promise((_, reject) => { timer = setTimeout(() => {
+          timedOut = true;
+          controller.abort();
+          reject(new Error(timeoutMessage));
+        }, timeoutMs); }),
+      ]);
+    } catch (error) {
+      if (timedOut) throw new Error(timeoutMessage);
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  const SECTION_WAIT_NOTICE = "等待时间过长，当前章节可能仍在后台处理，结果和费用状态尚未确认。请先刷新项目、查看任务和费用，再决定是否重新生成；系统不会自动重复提交。";
+  const SECTION_STATUS_NOTICE = "暂时无法获取后台任务状态，任务可能仍在进行；请先查看任务和费用，不要重复生成。";
+
   function toggleAllSections() {
     allSectionsFolded = !allSectionsFolded;
     $$(".draft-section-body").forEach(body => {
@@ -2654,6 +3056,28 @@
 
     state.batchGenerating = true;
     state.batchAbort = false;
+    const projectId = state.project.id;
+    const accountId = state.authSession?.user?.id || null;
+    const generationEpoch = chatRecoveryEpoch;
+    const deletionEpoch = deletedProjectEpochs.get(projectId) || 0;
+    const isCurrent = () => chatRecoveryEpoch === generationEpoch &&
+      (state.authSession?.user?.id || null) === accountId &&
+      (deletedProjectEpochs.get(projectId) || 0) === deletionEpoch && chatProjectIsActive(projectId);
+    try {
+      if ([...document.querySelectorAll(".draft-section textarea")].some(area => {
+        const sid = area.closest(".draft-section")?.id?.slice("draft-sec-".length);
+        return sid && area.value !== (state.project.sections?.[sid] || "");
+      })) await flushDraftEdits();
+    } catch (error) {
+      state.batchGenerating = false;
+      state.batchAbort = false;
+      if (isCurrent()) toast(error.message || "请先保存章节编辑，再开始批量生成。", true);
+      return;
+    }
+    if (!isCurrent()) { state.batchGenerating = false; state.batchAbort = false; return; }
+    const editorBaselines = new Map([...document.querySelectorAll(".draft-section textarea")]
+      .map(area => [area, area.value]));
+    const editorsChanged = () => [...editorBaselines].some(([area, value]) => area.value !== value);
 
     const wrapper = $("#batchProgressWrapper");
     const fill = $("#batchProgressFill");
@@ -2666,13 +3090,14 @@
       batchBtn.textContent = "批量生成中…";
     }
 
-    const outline = state.outline;
+    const outline = [...state.outline];
     let completedCount = 0;
     const total = outline.length;
+    let stopped = "";
 
     for (let i = 0; i < total; i++) {
-      if (state.batchAbort) {
-        toast("已中止批量生成");
+      if (state.batchAbort || !isCurrent()) {
+        stopped = state.batchAbort ? "已停止后续章节" : "已切换项目，停止后续章节";
         break;
       }
       const section = outline[i];
@@ -2682,16 +3107,42 @@
       try {
         const result = window.MaterialPilot?.active()
           ? await window.MaterialPilot.section(section.id, null)
-          : await api(`/api/projects/${state.project.id}/sections/${section.id}/generate`, { method: "POST" });
+          : await observeMaterialRequest(`/api/projects/${projectId}/sections/${section.id}/generate`,
+              { method: "POST" }, 180000, SECTION_WAIT_NOTICE);
+        if (!isCurrent()) { stopped = "已切换项目，停止后续章节"; break; }
+        if (result?.status === "processing") {
+          stopped = "当前章节仍在后台处理，请先查看任务状态；已停止后续章节，未重复提交";
+          break;
+        }
+        if (!result || (typeof result.content !== "string" && result.conflict_status !== "user_edit_preserved")) {
+          stopped = "未收到完整结果，请先查看当前章节；已停止后续章节，未重复提交";
+          break;
+        }
+        if (editorsChanged()) {
+          // Generation may already be saved on the server. Keep it as the
+          // baseline, but never replace text typed while the request ran.
+          if (result.conflict_status !== "user_edit_preserved" && typeof result.content === "string") {
+            state.project.sections ||= {};
+            state.project.sections[section.id] = result.content;
+            if (result.material_revision !== undefined) state.project.material_revision = result.material_revision;
+          }
+          stopped = "生成期间的手写编辑已保留，请保存后再继续；已停止后续章节";
+          break;
+        }
+        if (state.batchAbort) { stopped = "已停止后续章节；当前章节结果请在原项目中查看"; break; }
         if (result.conflict_status === "user_edit_preserved") {
-          toast(result.notice || "结果已保留为备选");
-          continue;
+          stopped = (result.notice || "当前章节需要核对，结果已保留为备选") + "；已停止后续章节";
+          break;
+        }
+        if (result.requires_student_input) {
+          stopped = (result.notice || "当前章节需要补充信息") + "；已停止后续章节";
+          break;
         }
         if (result.material_revision !== undefined) state.project.material_revision = result.material_revision;
         state.project.sections = state.project.sections || {};
         state.project.sections[section.id] = result.content;
 
-        if (!result.material_applied) await api(`/api/projects/${state.project.id}/sections/${section.id}`, {
+        if (!result.material_applied) await api(`/api/projects/${projectId}/sections/${section.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ content: result.content }),
@@ -2699,14 +3150,18 @@
         completedCount++;
       } catch (err) {
         console.warn(`生成章节 ${section.title} 失败:`, err);
+        stopped = "当前章节结果或费用状态尚未确认，请先查看；已停止后续章节，未自动重试";
+        break;
       }
     }
 
-    if (fill) fill.style.width = "100%";
-    if (text) text.textContent = `批量生成结束，共完成 ${completedCount}/${total} 章节。`;
-    renderSections();
-    updateDraftStats();
-    toast(`批量生成完成，共更新 ${completedCount} 个章节。`);
+    if (fill && !stopped) fill.style.width = "100%";
+    if (text) text.textContent = `${stopped || "批量生成结束"}，共完成 ${completedCount}/${total} 章节。`;
+    if (isCurrent()) {
+      if (!editorsChanged()) renderSections();
+      updateDraftStats();
+      toast(stopped || `批量生成完成，共更新 ${completedCount} 个章节。`, Boolean(stopped));
+    }
 
     setTimeout(() => {
       if (wrapper) wrapper.classList.add("hidden");
@@ -2777,6 +3232,8 @@
       return;
     }
     for (const section of state.outline) {
+      const boundProjectId = state.project?.id;
+      const uncertainKey = `${boundProjectId}\0${section.id}`;
       const wrapper = document.createElement("div");
       wrapper.className = "draft-section";
       wrapper.id = `draft-sec-${section.id}`;
@@ -2813,7 +3270,8 @@
 
       const generate = button("生成草稿", "button button-small button-secondary");
       const save = button("保存", "button button-small button-primary");
-      actions.append(copy, generate, save);
+      const history = button("历史版本", "button button-small button-quiet");
+      actions.append(copy, generate, save, history);
       head.append(titleGroup, actions);
 
       const bodyWrapper = document.createElement("div");
@@ -2854,6 +3312,85 @@
 
       const previewBox = document.createElement("div");
       previewBox.className = "section-preview-render hidden";
+
+      const versionsBox = document.createElement("div");
+      versionsBox.className = "section-versions hidden";
+      const uncertainBox = document.createElement("div");
+      uncertainBox.className = "section-versions hidden";
+
+      function renderUncertainDrafts() {
+        uncertainBox.replaceChildren();
+        const drafts = uncertainSectionDrafts.get(uncertainKey) || [];
+        for (const content of drafts) {
+          const row = document.createElement("div");
+          const note = document.createElement("p");
+          note.textContent = "草稿保存状态不明。请先复制，或放入编辑器后保存；不必重复生成。";
+          const text = document.createElement("pre");
+          text.textContent = content;
+          const copyDraft = button("复制草稿", "button button-small button-quiet");
+          copyDraft.addEventListener("click", async () => {
+            try { await navigator.clipboard.writeText(content); toast("已复制草稿。"); }
+            catch { toast("复制失败，请手动选取草稿内容。", true); }
+          });
+          const use = button("放入编辑器", "button button-small button-secondary");
+          use.addEventListener("click", () => {
+            if (!chatProjectIsActive(boundProjectId)) return;
+            if (editor.value !== (state.project?.sections?.[section.id] || "") &&
+                !confirm("当前编辑内容还未保存，确定用这份草稿替换编辑框内容吗？")) return;
+            editor.value = content;
+            wordBadge.textContent = `${countWords(content)} 字`;
+            statusPill.className = "section-status-pill unsaved";
+            statusPill.textContent = "● 未保存";
+            updateDraftStats();
+            toast("已放入编辑器，保存后生效。");
+          });
+          row.append(note, text, copyDraft, use);
+          uncertainBox.append(row);
+        }
+        uncertainBox.classList.toggle("hidden", !drafts.length);
+      }
+      renderUncertainDrafts();
+      history.addEventListener("click", async () => {
+        if (!versionsBox.classList.contains("hidden")) {
+          versionsBox.classList.add("hidden");
+          return;
+        }
+        const projectId = state.project?.id;
+        if (!projectId) return;
+        history.disabled = true;
+        try {
+          const data = await api(`/api/projects/${encodeURIComponent(projectId)}/sections/${encodeURIComponent(section.id)}/versions`);
+          if (!chatProjectIsActive(projectId)) return;
+          versionsBox.replaceChildren();
+          for (const version of data.versions || []) {
+            if (typeof version.content !== "string") continue;
+            const row = document.createElement("div");
+            const text = document.createElement("pre");
+            text.textContent = version.content;
+            const use = button("放入编辑器", "button button-small button-secondary");
+            use.addEventListener("click", () => {
+              if (!chatProjectIsActive(projectId)) return;
+              if (editor.value !== (state.project?.sections?.[section.id] || "") &&
+                  !confirm("当前编辑内容还未保存，确定用历史版本替换编辑框内容吗？")) return;
+              editor.value = version.content;
+              wordBadge.textContent = `${countWords(editor.value)} 字`;
+              statusPill.className = "section-status-pill unsaved";
+              statusPill.textContent = "● 未保存";
+              versionsBox.classList.add("hidden");
+              updateDraftStats();
+              toast("已放入编辑器，保存后生效。");
+            });
+            row.append(text, use);
+            versionsBox.append(row);
+          }
+          if (!versionsBox.children.length) versionsBox.textContent = "暂无历史版本。";
+          versionsBox.classList.remove("hidden");
+        } catch (error) {
+          toast(`读取历史版本失败：${error.message}`, true);
+        } finally {
+          history.disabled = false;
+        }
+      });
 
       function updatePreview() {
         previewBox.innerHTML = editor.value.trim()
@@ -2927,35 +3464,90 @@
       });
 
       generate.addEventListener("click", async () => {
+        const generationProjectId = state.project?.id;
+        if (!generationProjectId || generationProjectId !== boundProjectId) return;
+        const generationEpoch = chatRecoveryEpoch;
+        const generationUserId = state.authSession?.user?.id || null;
+        const deletionEpoch = deletedProjectEpochs.get(generationProjectId) || 0;
+        const mayRetainResult = () => generationEpoch === chatRecoveryEpoch &&
+          generationUserId === (state.authSession?.user?.id || null) &&
+          deletionEpoch === (deletedProjectEpochs.get(generationProjectId) || 0);
         generate.disabled = true;
         generate.textContent = "生成中…";
         statusPill.className = "section-status-pill generating";
         statusPill.textContent = "✦ 生成中…";
         wrapper.classList.add("generating");
         try {
+          if (editor.value !== (state.project?.sections?.[section.id] || "")) {
+            await flushDraftEdits();
+            if (!mayRetainResult() || !chatProjectIsActive(generationProjectId)) return;
+          }
+          const editorAtStart = editor.value;
           let result = window.MaterialPilot?.active()
             ? await window.MaterialPilot.section(section.id, editor)
-            : await api(`/api/projects/${state.project.id}/sections/${section.id}/generate`, { method: "POST" });
+            : await observeMaterialRequest(`/api/projects/${generationProjectId}/sections/${section.id}/generate`,
+                { method: "POST" }, 180000, SECTION_WAIT_NOTICE);
+          if (!mayRetainResult()) return;
           if (result && result.status === "processing" && result.job_id) {
             statusPill.textContent = "✦ 后台生成中…";
+            let completed = false;
             for (let i = 0; i < 45; i++) {
               await new Promise(r => setTimeout(r, 2000));
-              const jobSt = await api(`/api/projects/${state.project.id}/sections/${section.id}/jobs/${result.job_id}`);
+              if (!mayRetainResult()) return;
+              const jobSt = await observeMaterialRequest(`/api/projects/${generationProjectId}/sections/${section.id}/jobs/${result.job_id}`,
+                {}, 15000, SECTION_STATUS_NOTICE);
               if (jobSt && jobSt.status === "completed") {
                 result = jobSt.result || {};
+                completed = true;
                 break;
               }
-              if (jobSt && jobSt.status === "failed") {
+              if (jobSt && ["failed", "cancelled", "needs_review"].includes(jobSt.status)) {
                 throw new Error(jobSt.error_message || "后台生成失败");
               }
               statusPill.textContent = `✦ 生成中(${jobSt.step || "执行中"})…`;
             }
+            if (!completed) {
+              if (chatProjectIsActive(generationProjectId)) {
+                statusPill.className = "section-status-pill unsaved";
+                statusPill.textContent = "● 后台处理中";
+                toast("当前章节仍在后台处理，请先查看任务状态和费用，再决定是否重新生成。", true);
+              }
+              return;
+            }
+          }
+
+          if (!mayRetainResult()) return;
+          if (result?.result_save_uncertain && typeof result.content === "string" && result.content.trim()) {
+            const drafts = uncertainSectionDrafts.get(uncertainKey) || [];
+            if (!drafts.includes(result.content)) drafts.push(result.content);
+            uncertainSectionDrafts.set(uncertainKey, drafts);
+          }
+          if (!chatProjectIsActive(generationProjectId)) return;
+
+          if (result?.requires_student_input && editor.value.trim()) {
+            const changed = editor.value !== (state.project?.sections?.[section.id] || "");
+            statusPill.className = `section-status-pill ${changed ? "unsaved" : "saved"}`;
+            statusPill.textContent = changed ? "● 未保存" : "✓ 已保存";
+            toast(result.notice || "请先补充个人情况或相关材料。");
+            return;
+          }
+
+          if (result?.conflict_status !== "user_edit_preserved" && typeof result?.content === "string"
+              && editor.value !== editorAtStart) {
+            state.project.sections ||= {};
+            state.project.sections[section.id] = result.content;
+            if (result.material_revision !== undefined) state.project.material_revision = result.material_revision;
+            statusPill.className = "section-status-pill unsaved";
+            statusPill.textContent = "● 未保存";
+            toast("生成期间的新编辑已保留，请检查并保存。", true);
+            return;
           }
 
           if (result.conflict_status === "user_edit_preserved") {
+            if (result.result_save_uncertain) renderUncertainDrafts();
             toast(result.notice || "检测到您已编辑该章节，AI最新草稿已安全存入历史版本，未覆盖您的正文。", false);
-            statusPill.className = "section-status-pill saved";
-            statusPill.textContent = "● 有新备选版本";
+            statusPill.className = `section-status-pill ${result.result_save_uncertain ? "unsaved" : "saved"}`;
+            statusPill.textContent = result.result_save_uncertain ? "● 草稿待保存" : "● 有新备选版本";
             if (result.review_card) {
               renderReviewCard(wrapper, result.review_card);
             }
@@ -2971,7 +3563,7 @@
             state.project.sections = state.project.sections || {};
             state.project.sections[section.id] = result.content;
 
-            if (!result.material_applied) await api(`/api/projects/${state.project.id}/sections/${section.id}`, {
+            if (!result.material_applied) await api(`/api/projects/${generationProjectId}/sections/${section.id}`, {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ content: result.content }),
@@ -2983,11 +3575,13 @@
             statusPill.className = "section-status-pill saved";
             statusPill.textContent = "✓ 已保存";
             updateDraftStats();
-            toast("章节草稿已生成并自动保存。");
+            toast(result.notice || "章节草稿已生成并自动保存。");
           }
         } catch (error) {
           statusPill.className = "section-status-pill unsaved";
-          statusPill.textContent = "● 生成失败";
+          statusPill.textContent = ([SECTION_WAIT_NOTICE, SECTION_STATUS_NOTICE].includes(error.message)
+            || /可能.*(?:后台|开始)|任务已提交|暂未收到草稿保存结果|草稿已处理/.test(error.message || ""))
+            ? "● 结果待确认" : "● 生成失败";
           toast(error.message, true);
           if ((error.message || "").includes("积分不足") || (error.message || "").includes("402")) {
             openRechargeDialog();
@@ -2999,33 +3593,42 @@
         }
       });
       save.addEventListener("click", async () => {
+        const projectId = state.project?.id;
+        if (!projectId) return;
         const previousContent = state.project.sections?.[section.id] || "";
         const currentVal = editor.value;
         save.disabled = true;
         save.textContent = "保存中…";
         statusPill.className = "section-status-pill saved";
         statusPill.textContent = "✓ 保存中…";
-        state.project.sections = state.project.sections || {};
-        state.project.sections[section.id] = currentVal;
         updateDraftStats();
         try {
-          const saved = await api(`/api/projects/${state.project.id}/sections/${section.id}`, {
+          const saved = await api(`/api/projects/${projectId}/sections/${section.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ content: currentVal,
               ...(state.project?.material?.enabled ? { expected_revision: state.project.material_revision,
                 base_content: previousContent } : {}) }),
           });
+          if (!chatProjectIsActive(projectId)) return;
+          state.project.sections = state.project.sections || {};
+          state.project.sections[section.id] = currentVal;
+          const drafts = uncertainSectionDrafts.get(uncertainKey) || [];
+          const remaining = drafts.filter(content => content !== currentVal);
+          if (remaining.length) uncertainSectionDrafts.set(uncertainKey, remaining);
+          else uncertainSectionDrafts.delete(uncertainKey);
+          renderUncertainDrafts();
           if (saved.material_revision !== undefined) state.project.material_revision = saved.material_revision;
-          statusPill.className = "section-status-pill saved";
-          statusPill.textContent = "✓ 已保存";
-          save.textContent = "已保存";
+          const changedWhileSaving = editor.value !== currentVal;
+          statusPill.className = `section-status-pill ${changedWhileSaving ? "unsaved" : "saved"}`;
+          statusPill.textContent = changedWhileSaving ? "● 未保存" : "✓ 已保存";
+          save.textContent = changedWhileSaving ? "保存" : "已保存";
           setTimeout(() => {
             save.textContent = "保存";
             save.disabled = false;
           }, 800);
           if (state.project?.material?.enabled) void window.MaterialPilot?.refresh();
-          toast(`已保存“${section.title}”。`);
+          toast(changedWhileSaving ? "已保存提交时的内容，后续修改仍需保存。" : `已保存“${section.title}”。`);
         } catch (error) {
           save.disabled = false;
           save.textContent = "保存";
@@ -3035,7 +3638,7 @@
         }
       });
 
-      bodyWrapper.append(toolbar, editor, previewBox, sources);
+      bodyWrapper.append(toolbar, editor, previewBox, versionsBox, uncertainBox, sources);
       wrapper.append(head, bodyWrapper);
       root.append(wrapper);
     }
@@ -3273,6 +3876,46 @@
     input.style.height = `${Math.min(180, Math.max(44, input.scrollHeight))}px`;
   }
 
+  function restoreInterruptedChatMessage(projectId) {
+    loadInterruptedChatMessages();
+    const messages = interruptedChatMessages.get(projectId) || [];
+    if (!messages.length || state.project?.id !== projectId) return;
+    const input = $("#chatInput");
+    if (input && !input.value) {
+      const message = messages[0];
+      input.value = message;
+      autoResizeChatInput();
+      recoveredChatInputs.set(projectId, message);
+      toast("已保留上次输入；若发送曾中断，请先查看对话结果。");
+    }
+    // The student has already started another message. Do not overwrite it;
+    // display each previous input with a dedicated copy action instead.
+    for (const message of [...(interruptedChatMessages.get(projectId) || [])]) {
+      if (input?.value === message) {
+        recoveredChatInputs.set(projectId, message);
+        continue;
+      }
+      const key = `${projectId}\0${message}`;
+      if (interruptedMessagesRendered.has(key)) continue;
+      interruptedMessagesRendered.add(key);
+      appendMessage("user", message);
+      const copy = document.createElement("button");
+      copy.type = "button";
+      copy.className = "button button-secondary button-small";
+      copy.textContent = "复制上次输入";
+      copy.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(message);
+          forgetInterruptedChatMessage(projectId, message);
+          toast("已复制上次输入");
+        } catch {
+          toast("复制失败，请手动选取上方文字", true);
+        }
+      });
+      appendMessage("assistant", "刚才的输入已保留在上方。请先查看对话及积分状态，再决定是否重新发送。", copy);
+    }
+  }
+
   function syncChatControls() {
     $("#sendBtn").disabled = state.chatSending;
     $$("#chatTools button").forEach((button) => { button.disabled = state.chatSending; });
@@ -3313,6 +3956,7 @@
   function renderMessages() {
     const root = $("#chatMessages");
     root.replaceChildren();
+    interruptedMessagesRendered.clear();
     if (!(state.messages || []).length) {
       appendMessage(
         "assistant",
@@ -3365,6 +4009,78 @@
     return row;
   }
 
+  // Read SSE frames incrementally: proxies may use CRLF and UTF-8 characters
+  // or frame separators may be split across network chunks. A terminal frame
+  // is authoritative, so do not wait for EOF after receiving it.
+  async function readChatEvents(reader, onEvent, isActive = () => true) {
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let eventType = "message";
+    let dataLines = [];
+    let terminal = false;
+
+    function processBuffer(final = false) {
+      while (!terminal) {
+        const match = /\r\n|\r|\n/.exec(buffer);
+        if (!match) break;
+        // A trailing CR may be the first byte of a CRLF separator.
+        if (!final && match[0] === "\r" && match.index === buffer.length - 1) break;
+        const line = buffer.slice(0, match.index);
+        buffer = buffer.slice(match.index + match[0].length);
+        if (!line) {
+          if (dataLines.length) {
+            const parsed = JSON.parse(dataLines.join("\n"));
+            const type = eventType;
+            eventType = "message";
+            dataLines = [];
+            onEvent(type, parsed);
+            terminal = type === "done" || type === "error";
+          } else {
+            eventType = "message";
+          }
+          continue;
+        }
+        if (line.startsWith(":")) continue;
+        const colon = line.indexOf(":");
+        const field = colon < 0 ? line : line.slice(0, colon);
+        let value = colon < 0 ? "" : line.slice(colon + 1);
+        if (value.startsWith(" ")) value = value.slice(1);
+        if (field === "event") eventType = value;
+        else if (field === "data") dataLines.push(value);
+      }
+    }
+
+    while (!terminal) {
+      const { done, value } = await reader.read();
+      if (!isActive()) return;
+      if (done) {
+        buffer += decoder.decode();
+        processBuffer(true);
+        break;
+      }
+      buffer += decoder.decode(value, { stream: true });
+      processBuffer();
+    }
+  }
+
+  async function refreshChatAfterError(projectId) {
+    // Refresh is helpful, but the same network outage may also hang it. Do not
+    // hold the editor or erase recoverable input while waiting indefinitely.
+    let timer;
+    const previousRevision = projectLoadRevision;
+    let expired = false;
+    try {
+      await Promise.race([
+        Promise.resolve().then(() => loadProject(projectId)).catch(() => {}),
+        new Promise(resolve => { timer = setTimeout(() => { expired = true; resolve(); }, 5000); }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+      if (expired && loadingProjectId === projectId && projectLoadRevision === previousRevision + 1)
+        invalidateProjectLoad();
+    }
+  }
+
   async function sendChat(event, messageOverride = null) {
     event?.preventDefault();
     const input = $("#chatInput");
@@ -3373,7 +4089,21 @@
     if (state.chatSending) return toast("上一条请求还未完成，请勿重复发送。", true);
     if (state.cloudMode && ["loading", "error"].includes(state.modelConfigSyncStatus))
       return toast("云端模型配置尚未同步完成，请稍候或在模型设置中重试同步。", true);
+    // A new instruction may change what belongs in the document. Revoke old
+    // local download links immediately, even before the request completes.
+    clearExportArtifacts();
+    window.MaterialPilot?.invalidateArtifacts?.();
     const projectId = state.project.id;
+    const accountId = state.authSession?.user?.id || null;
+    const requestEpoch = chatRecoveryEpoch;
+    const sameAccount = () => chatRecoveryEpoch === requestEpoch && (state.authSession?.user?.id || null) === accountId;
+    if (messageOverride === null) {
+      updateRecoveredChatInput();
+      // Persist before the request: a refresh can happen while the provider is
+      // still working, and must not trigger an automatic second request.
+      rememberInterruptedChatMessage(projectId, message);
+      recoveredChatInputs.delete(projectId);
+    }
     state.chatSending = true;
     syncChatControls();
     if (messageOverride === null) {
@@ -3381,7 +4111,7 @@
       input.style.height = "auto";
     }
     appendMessage("user", message);
-    const pending = appendThinkingMessage();
+    let pending = appendThinkingMessage();
 
     // Check if api was replaced by a mock (e.g. in headless unit tests)
     const isMockApi = typeof api === "function" && api !== originalApi;
@@ -3393,10 +4123,11 @@
           body: JSON.stringify({ message }),
         });
         pending.remove();
-        if (state.project?.id !== projectId) return;
+        if (!sameAccount() || !chatProjectIsActive(projectId)) return;
         if (typeof result.message !== "string" || !result.message.trim()) {
           throw new Error("模型未返回可用正文，请勿连续重试；请先查看积分流水并联系管理员核对。");
         }
+        if (messageOverride === null) forgetInterruptedChatMessage(projectId, message);
         appendMessage("assistant", result.message);
         state.messages.push({ role: "user", content: message }, { role: "assistant", content: result.message });
         if (result.free_chat) {
@@ -3414,12 +4145,18 @@
         if (result.setup_updated || (result.tool_calls || []).some((name) => ["save_project_fact", "save_section"].includes(name))) {
           await loadProject(state.project.id);
         }
-        await refreshProjects();
-        if (state.llmConfig.provider === "preset") await loadUserBalance();
+        void refreshProjects().catch(() => {});
+        if (state.llmConfig.provider === "preset") void loadUserBalance();
       } catch (error) {
         pending.remove();
-        if (state.project?.id !== projectId) return;
-        await loadProject(projectId);
+        if (messageOverride === null && sameAccount())
+          rememberInterruptedChatMessage(projectId, message);
+        if (!sameAccount() || !chatProjectIsActive(projectId)) return;
+        // Refresh is best-effort: an unavailable server must not prevent us
+        // restoring the student's unsent text and unlocking the input.
+        await refreshChatAfterError(projectId);
+        if (!sameAccount() || !chatProjectIsActive(projectId)) return;
+        restoreInterruptedChatMessage(projectId);
         const isCreditsErr = (error.message || "").includes("积分不足") || (error.message || "").includes("402");
         if (isCreditsErr) {
           const ctaWrap = document.createElement("div");
@@ -3444,7 +4181,7 @@
         } else {
           appendMessage("assistant", `暂时无法完成：${error.message}`);
         }
-        if (state.llmConfig.provider === "preset") await loadUserBalance();
+        if (state.llmConfig.provider === "preset") void loadUserBalance();
       } finally {
         state.chatSending = false;
         syncChatControls();
@@ -3458,6 +4195,23 @@
     let streamedText = "";
     let finalResult = null;
     let streamReader = null;
+    let serverErrorEvent = false;
+    const uncertainReply = "连接已中断，回复未完成，结果和计费状态尚未确认。请先刷新对话并查看积分流水，再决定是否重新发送；系统不会自动重复发送。";
+    const waitingTimeoutReply = "等待时间过长，已停止等待；任务可能仍在处理，结果和计费状态尚未确认。请先刷新对话并查看积分流水，再决定是否重新发送；系统不会自动重复发送。";
+    const chatAbort = new AbortController();
+    let chatTimedOut = false;
+    let inactivityTimer;
+    // Network intermediaries can leave an SSE connection open indefinitely.
+    // Abort only this observation after 3 minutes with no response event;
+    // the provider may still finish and may still charge for the request.
+    function resetChatInactivityTimer() {
+      clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => {
+        chatTimedOut = true;
+        chatAbort.abort();
+      }, 180000);
+    }
+    resetChatInactivityTimer();
 
     try {
       const url = `/api/projects/${projectId}/chat?stream=true`;
@@ -3478,11 +4232,17 @@
         llm_config: { ...state.llmConfig },
       };
 
-      const response = await fetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body),
-      });
+      let response;
+      try {
+        response = await fetch(url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(body),
+          signal: chatAbort.signal,
+        });
+      } catch {
+        throw new Error(chatTimedOut ? waitingTimeoutReply : uncertainReply);
+      }
 
       if (!response.ok) {
         let errText = "";
@@ -3495,35 +4255,22 @@
         throw new Error(errText || `请求失败 (${response.status})`);
       }
 
+      if (!response.body) throw new Error(uncertainReply);
       const reader = streamReader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let sseBuffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (state.project?.id !== projectId) return;
-        sseBuffer += decoder.decode(value, { stream: true });
-        const blocks = sseBuffer.split("\n\n");
-        sseBuffer = blocks.pop() || "";
-        for (const block of blocks) {
-          if (!block.trim()) continue;
-          let eventType = "message";
-          let eventData = "";
-          for (const line of block.split("\n")) {
-            if (line.startsWith("event:")) {
-              eventType = line.slice(6).trim();
-            } else if (line.startsWith("data:")) {
-              eventData = line.slice(5).trim();
-            }
-          }
-          if (!eventData) continue;
-          const parsed = JSON.parse(eventData);
-
+      try {
+        await readChatEvents(reader, (eventType, parsed) => {
+          resetChatInactivityTimer();
+          if (!sameAccount() || !chatProjectIsActive(projectId)) return;
           if (eventType === "status") {
             if (pending.setStatus && parsed.message) {
               pending.setStatus(parsed.message);
             }
+          } else if (eventType === "reset") {
+            assistantRow?.remove();
+            assistantRow = null;
+            bubble = null;
+            streamedText = "";
+            if (!pending.row.isConnected) pending = appendThinkingMessage();
           } else if (eventType === "delta") {
             if (!assistantRow) {
               pending.remove();
@@ -3546,21 +4293,26 @@
           } else if (eventType === "done") {
             finalResult = parsed;
           } else if (eventType === "error") {
+            serverErrorEvent = true;
             throw new Error(parsed.error || "请求发生错误");
           }
-        }
+        }, () => sameAccount() && chatProjectIsActive(projectId));
+      } catch (error) {
+        if (serverErrorEvent) throw error;
+        throw new Error(chatTimedOut ? waitingTimeoutReply : uncertainReply);
       }
 
       pending.remove();
-      if (state.project?.id !== projectId) return;
+      if (!sameAccount() || !chatProjectIsActive(projectId)) return;
 
       if (!finalResult || typeof finalResult.message !== "string") {
-        throw new Error("连接已中断，回复未完成。请稍后重试；系统不会自动重复发送。");
+        throw new Error(uncertainReply);
       }
       const finalText = finalResult.message;
       if (!finalText.trim()) {
         throw new Error("模型未返回可用正文，请勿连续重试；请先查看积分流水并联系管理员核对。");
       }
+      if (messageOverride === null) forgetInterruptedChatMessage(projectId, message);
 
       if (assistantRow && bubble) {
         bubble.innerHTML = renderMarkdownSafe(finalText);
@@ -3597,15 +4349,20 @@
         renderFreeChatsIndicator();
       }
       if (finalResult?.setup_updated || (finalResult?.tool_calls || []).some((name) => ["save_project_fact", "save_section"].includes(name))) {
-        await loadProject(state.project.id);
+        await refreshChatAfterError(projectId);
       }
-      await refreshProjects();
-      if (state.llmConfig.provider === "preset") await loadUserBalance();
+      void refreshProjects().catch(() => {});
+      if (state.llmConfig.provider === "preset") void loadUserBalance();
     } catch (error) {
       pending.remove();
       if (assistantRow && !streamedText.trim()) assistantRow.remove();
-      if (state.project?.id !== projectId) return;
-      await loadProject(projectId);
+      if (messageOverride === null && sameAccount())
+        rememberInterruptedChatMessage(projectId, message);
+      if (!sameAccount() || !chatProjectIsActive(projectId)) return;
+      // An unsuccessful refresh must not strand the input in recovery storage.
+      await refreshChatAfterError(projectId);
+      if (!sameAccount() || !chatProjectIsActive(projectId)) return;
+      restoreInterruptedChatMessage(projectId);
       const isCreditsErr = (error.message || "").includes("积分不足") || (error.message || "").includes("402");
       if (isCreditsErr) {
         const ctaWrap = document.createElement("div");
@@ -3630,8 +4387,9 @@
       } else {
         appendMessage("assistant", `暂时无法完成：${error.message}`);
       }
-      if (state.llmConfig.provider === "preset") await loadUserBalance();
+      if (state.llmConfig.provider === "preset") void loadUserBalance();
     } finally {
+      clearTimeout(inactivityTimer);
       state.chatSending = false;
       syncChatControls();
       if (streamReader) {
@@ -3685,6 +4443,11 @@
       photo.textContent = result.photo_notice;
       list.append(photo);
       box.append(list);
+      if (result.validation_scope) {
+        const scope = document.createElement("div");
+        scope.textContent = result.validation_scope;
+        box.append(scope);
+      }
       if (result.draft_notice) {
         const note = document.createElement("div");
         note.textContent = result.draft_notice;
@@ -3742,8 +4505,10 @@
 
   let exportDownloadUrl = null;
   let exportInProgress = false;
+  let exportArtifactRevision = 0;
 
   function clearExportArtifacts() {
+    exportArtifactRevision++;
     if (exportDownloadUrl) URL.revokeObjectURL(exportDownloadUrl);
     exportDownloadUrl = null;
     $("#exportResult")?.replaceChildren();
@@ -3802,15 +4567,16 @@
       const label = document.createElement("label");
       const check = document.createElement("input");
       check.type = "checkbox";
-      check.checked = !item.already_saved && !item.conflict;
-      check.disabled = item.already_saved || item.conflict;
+      check.checked = !item.already_saved && !item.conflict && !item.requires_review;
+      check.disabled = item.already_saved;
       const title = document.createElement("strong");
       title.textContent = item.title;
       label.append(check, title);
       const note = document.createElement("p");
       note.textContent = item.already_saved ? "已保存过此版本，保留当前章节及手动修改。"
-        : item.conflict ? "已有不同正文，不会覆盖。请在章节编辑器中手动核对合并。"
-        : "请核对内容、事实和预算建议；勾选后才会保存。";
+        : item.conflict ? "已有不同正文；勾选后用这份草稿替换，原正文保留为历史版本。"
+        : item.requires_review ? "请先核对并修改这份草稿，再勾选保存。"
+        : "勾选后保存，也可以先在下方修改内容。";
       if (item.warnings?.length) note.textContent += ` ${item.warnings.join(" ")}`;
       const editor = document.createElement("textarea");
       editor.value = item.content;
@@ -3824,12 +4590,26 @@
       note.textContent = "尚未发现完整的章节草稿。请先在对话中起草，或在章节编辑器中保存正文。";
       root.append(note);
     }
+    if (afterSave && (state.project.outline || []).some(s => (state.project.sections?.[s.id] || "").trim())) {
+      const useSaved = document.createElement("button");
+      useSaved.type = "button";
+      useSaved.className = "button button-secondary";
+      useSaved.textContent = "保持已保存正文并继续导出";
+      useSaved.addEventListener("click", async () => {
+        if (state.project?.id !== projectId) return;
+        dialog.close();
+        root.replaceChildren();
+        save.onclick = null;
+        await afterSave({ skipChatDrafts: true });
+      });
+      root.append(useSaved);
+    }
     save.textContent = afterSave ? "确认保存并继续导出" : "确认保存所选章节";
     save.disabled = !choices.some(c => !c.check.disabled);
     save.onclick = async () => {
       if (state.project?.id !== projectId) return;
       const items = choices.filter(c => c.check.checked && !c.check.disabled)
-        .map(c => ({ id: c.item.id, content: c.editor.value }));
+        .map(c => ({ id: c.item.id, content: c.editor.value, ...(c.item.conflict ? { replace_existing: true } : {}) }));
       if (!items.length) { toast("请至少选择一个待保存章节", true); return; }
       save.disabled = true;
       try {
@@ -3843,7 +4623,7 @@
         root.replaceChildren();
         save.onclick = null;
         toast(result.notice);
-        if (afterSave) await afterSave();
+        if (afterSave) await afterSave({ skipChatDrafts: true });
       } catch (error) {
         $("#chatDraftNotice").textContent = error.message;
         toast(error.message, true);
@@ -3865,10 +4645,12 @@
     return response.blob();
   }
 
-  async function exportDoc() {
+  async function exportDoc(options = {}) {
     if (exportInProgress || !state.project) return;
     exportInProgress = true;
     const projectId = state.project.id;
+    const artifactRevision = exportArtifactRevision;
+    const isCurrentExport = () => chatProjectIsActive(projectId) && artifactRevision === exportArtifactRevision;
     const btn = $("#exportBtn");
     const topBtn = $("#quickExportTopBtn");
     const headingBtn = $("#headingExportBtn");
@@ -3881,11 +4663,14 @@
     });
     try {
       await flushDraftEdits();
-      const preview = await api(`/api/projects/${projectId}/chat-drafts`);
-      if (state.project?.id !== projectId) return;
-      if (preview.items.some(item => !item.already_saved && !item.conflict)) {
-        await showChatDrafts(preview, exportDoc);
-        return;
+      if (!isCurrentExport()) return;
+      if (!options.skipChatDrafts) {
+        const preview = await api(`/api/projects/${projectId}/chat-drafts`);
+        if (!isCurrentExport()) return;
+        if (preview.items.some(item => !item.already_saved)) {
+          await showChatDrafts(preview, exportDoc);
+          return;
+        }
       }
       const hasContent = (state.project.outline || state.outline || [])
         .some(s => (state.project.sections?.[s.id] || "").trim());
@@ -3895,15 +4680,16 @@
         if (!allowEmpty) return;
       }
       if (window.MaterialPilot?.active()) {
-        await window.MaterialPilot.exportDocument({ allow_empty_draft: allowEmpty });
+        await window.MaterialPilot.exportDocument({ allow_empty_draft: allowEmpty }, isCurrentExport);
         return;
       }
       const result = await api(`/api/projects/${projectId}/export`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ allow_empty_draft: allowEmpty }),
       });
+      if (!isCurrentExport()) return;
       const blob = await fetchExportBlob(result.download_url, projectId);
-      if (state.project?.id !== projectId) return;
+      if (!isCurrentExport()) return;
       if (exportDownloadUrl) URL.revokeObjectURL(exportDownloadUrl);
       exportDownloadUrl = URL.createObjectURL(blob);
       $("#exportResult").replaceChildren();
@@ -3948,14 +4734,11 @@
 
   async function deleteCurrentProject() {
     if (!state.project || !confirm(`确定删除“${state.project.title}”及其本机材料吗？删除后无法恢复。`)) return;
+    const projectId = state.project.id;
     try {
-      await api(`/api/projects/${state.project.id}`, { method: "DELETE" });
-      clearExportArtifacts();
-      state.project = null;
+      await api(`/api/projects/${projectId}`, { method: "DELETE" });
+      closeDeletedProject(projectId);
       await refreshProjects();
-      $("#workspace").classList.add("hidden");
-      $("#welcome").classList.remove("hidden");
-      $("#crumbProject").textContent = "欢迎";
       toast("项目和关联材料已从本机删除。");
     } catch (error) {
       toast(error.message, true);
@@ -4054,6 +4837,8 @@
 
   function bindEvents() {
     $("#newProjectBtn").addEventListener("click", startConversation);
+    $("#newChatBtn").addEventListener("click", startGeneralChat);
+    $("#conversationSkillApply").addEventListener("click", selectConversationSkill);
     $("#welcomeCreateBtn").addEventListener("click", startConversation);
     $("#welcomeSetupBtn").addEventListener("click", createPanel);
     $("#heroStartBtn")?.addEventListener("click", triggerHeroStart);
@@ -4149,7 +4934,7 @@
     $("#knowledgeSearchBtn").addEventListener("click", searchPublicKnowledge);
     $("#officialUrlBtn").addEventListener("click", previewOfficialUrl);
     $("#generateOutlineBtn").addEventListener("click", generateOutline);
-    $("#resetOutlineBtn")?.addEventListener("click", generateOutline);
+    $("#resetOutlineBtn")?.addEventListener("click", recommendOutline);
     $("#saveOutlineBtn").addEventListener("click", saveOutline);
     $("#batchGenerateSectionsBtn")?.addEventListener("click", startBatchGeneration);
     $("#cancelBatchBtn")?.addEventListener("click", cancelBatchGeneration);
@@ -4165,7 +4950,10 @@
         sendChat();
       }
     });
-    $("#chatInput").addEventListener("input", autoResizeChatInput);
+    $("#chatInput").addEventListener("input", () => {
+      autoResizeChatInput();
+      updateRecoveredChatInput();
+    });
     $$(".chat-tools button").forEach((button) => button.addEventListener("click", () => {
       $("#chatInput").value = button.dataset.prompt;
       autoResizeChatInput();

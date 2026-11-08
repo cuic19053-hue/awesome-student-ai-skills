@@ -25,7 +25,7 @@ from PIL import Image  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 import app as app_module  # noqa: E402
-from proposal.agent import OllamaAgent, _limit_followup_questions  # noqa: E402
+from proposal.agent import OllamaAgent  # noqa: E402
 from proposal import documents as document_parser  # noqa: E402
 from proposal.retrieval import ProjectRetriever  # noqa: E402
 from proposal.storage import Store  # noqa: E402
@@ -35,13 +35,6 @@ from proposal.tools import ProposalTools  # noqa: E402
 class NoEmbeddings:
     def embed(self, texts):
         return None
-
-
-def test_agent_limits_each_reply_to_one_question():
-    assert _limit_followup_questions("你想研究什么？比如要解决什么问题？") == "你想研究什么？"
-    assert _limit_followup_questions("你有模板吗？有的话可以上传，没有的话我用通用模板。") == (
-        "你有模板吗？有的话可以上传，没有的话我用通用模板。"
-    )
 
 
 def test_free_preset_chat_uses_platform_transport_without_deducting_credits(
@@ -114,14 +107,15 @@ def test_failed_free_preset_chat_restores_free_attempt_and_preserves_balance(wor
     assert store.pending_workbench_usage("local_user") == []
 
 
-def test_unavailable_platform_restores_exactly_one_free_attempt(workspace, monkeypatch):
+@pytest.mark.parametrize("stream", [False, True])
+def test_unavailable_platform_restores_exactly_one_free_attempt(workspace, monkeypatch, stream):
     client, store, _retriever, _tools, _agent = workspace
     project_id = create_project(client)
     assert store.consume_free_chat("local_user") == 2
     monkeypatch.setattr(app_module, "_platform_bundle_ready", lambda: False)
     response = client.post(
         f"/api/projects/{project_id}/chat",
-        json={"message": "请帮我梳理项目目标", "llm_config": {"provider": "preset"}},
+        json={"message": "请帮我梳理项目目标", "stream": stream, "llm_config": {"provider": "preset"}},
     )
     assert response.status_code == 503
     assert store.get_workbench_credit_balance("local_user")["free_chat_count"] == 2

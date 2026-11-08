@@ -1,7 +1,7 @@
 /* Material UI: all user/project text uses textContent, never injected HTML. */
 (() => {
   "use strict";
-  let host, data, root, projectId, urls = [], fillPlan;
+  let host, data, root, projectId, urls = [], fillPlan, artifactEpoch = 0;
   const el = (tag, text, cls) => {
     const n = document.createElement(tag);
     if (text !== undefined) n.textContent = text;
@@ -16,6 +16,17 @@
   const request = (suffix, method = "GET", body) => host.api(path(suffix), {
     method, ...(body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
   });
+  async function waitFor(promise, timeoutMs, message) {
+    // A timeout only ends observation; the server may still finish the task.
+    let timer;
+    try {
+      return await Promise.race([promise, new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+      })]);
+    } finally { clearTimeout(timer); }
+  }
+  const JOB_STATUS_NOTICE = "暂时无法获取任务状态，任务可能仍在后台运行；请稍后刷新任务列表，不要重复生成。";
+  const JOB_SUBMIT_NOTICE = "暂未收到任务提交结果，任务可能已经开始；请先刷新任务列表及费用记录，不要重复提交。";
   function action(text, fn, parent) {
     const button = el("button", text, "button button-small button-secondary");
     button.type = "button";
@@ -56,11 +67,16 @@
     saving_artifacts: "保存下载文件",
   };
   async function blobUrl(url) {
+    const epoch = artifactEpoch;
+    const requestProject = host.state.project?.id;
     const headers = {};
     if (host.state.authSession?.access_token) headers.Authorization = `Bearer ${host.state.authSession.access_token}`;
     const response = await fetch(url, { headers });
     if (!response.ok) throw new Error("私有产物读取失败，请检查登录状态");
-    const objectUrl = URL.createObjectURL(await response.blob());
+    const blob = await response.blob();
+    if (epoch !== artifactEpoch || host.state.project?.id !== requestProject || host.isProjectActive?.(requestProject) === false)
+      throw new Error("项目内容已更新，请重新打开文件。");
+    const objectUrl = URL.createObjectURL(blob);
     urls.push(objectUrl);
     return objectUrl;
   }
@@ -92,6 +108,7 @@
   }
   function draw() {
     if (!data || !configured()) return;
+    artifactEpoch++;
     urls.forEach(u => URL.revokeObjectURL(u)); urls = [];
     root.replaceChildren();
     const details = el("details"); details.open = true;
@@ -125,13 +142,25 @@
       if (["pending", "running"].includes(job.status))
         action("取消后续执行", async () => { await request(`/jobs/${job.id}/cancel`, "POST"); await refresh(); }, row);
       if (job.status === "completed") {
+        const reviewIncomplete = job.kind === "section" && (job.result?.review_incomplete || job.result?.status === "review_failed");
+        if (reviewIncomplete) row.append(el("p", job.result?.grounding_issues?.length
+          ? (job.result?.grounding_kind === "project"
+            ? "草稿中的项目数据、成果或来源需要你核对，可在下方查看并决定是否使用。"
+            : "草稿中的部分个人数字需要你核对，可在下方查看并决定是否使用。")
+          : "本轮检查未完成，草稿可在下方查看并由你决定是否使用。"));
         if (!job.result?.applied && job.kind !== "export")
-          action("保存结果／保留为备选", async () => {
+          action(reviewIncomplete ? "使用此草稿" : "保存结果／保留为备选", async () => {
             await flushEdits();
-            const result = await request(`/jobs/${job.id}/apply`, "POST");
-            host.toast(result.notice || "结果已保存"); await host.reload(projectId);
+            const result = await request(`/jobs/${job.id}/apply`, "POST",
+              reviewIncomplete ? { use_unreviewed_draft: true } : undefined);
+            host.toast(reviewIncomplete && !result.conflict_status
+              ? (job.result?.grounding_issues?.length
+                ? (job.result?.grounding_kind === "project" ? "草稿已保存，请核对项目数据、成果和来源。" : "草稿已保存，请核对其中的个人数字。")
+                : "草稿已保存，本轮检查尚未完成。")
+              : (result.notice || "结果已保存"));
+            await host.reload(projectId);
           }, row);
-        if (job.result?.conflict_status) row.append(el("p", "输入已经变化：结果保留为备选，未覆盖当前内容。"));
+        if (job.result?.conflict_status && !reviewIncomplete) row.append(el("p", "输入已经变化：结果保留为备选，未覆盖当前内容。"));
         if (job.kind === "section" && job.result?.content) {
           const alternative = el("details"); alternative.append(el("summary", "查看生成正文"));
           alternative.append(el("pre", job.result.content)); row.append(alternative);
@@ -292,47 +321,76 @@
     if (paid && !confirm((kind === "section" ? "本章沿用现有撰写与评审流程，最多六次模型请求。" :
         kind === "figure" ? "本次生成一张图片。" : "本次调用一次文字模型拟定候选方案。") +
         "平台模型按现有积分规则结算，自定义模型由服务商收费；不自动付费重绘。是否确认？")) return null;
-    const job = await request("/jobs", "POST", {
+    const job = await waitFor(request("/jobs", "POST", {
       revision: data.context.revision, kind, target, idempotency_key: crypto.randomUUID(),
       llm_config: paid ? { ...host.state.llmConfig } : null, confirm_paid: Boolean(paid),
       ...extra,
-    });
-    await refresh(); host.toast("任务已保存，刷新页面后仍可查询。");
+    }), 30000, JOB_SUBMIT_NOTICE);
+    try {
+      await waitFor(refresh(), 15000, "任务已提交，但暂时无法刷新任务列表；请稍后查看，不要重复提交。");
+    } catch {
+      throw new Error("任务已提交，但暂时无法刷新任务列表；请稍后查看，不要重复提交。");
+    }
+    host.toast("任务已保存，刷新页面后仍可查询。");
     return job;
   }
   async function section(sid, editor) {
+    const id = host.state.project?.id;
+    const isCurrent = () => Boolean(id && host.state.project?.id === id && projectId === id && host.isProjectActive?.(id) !== false);
     const loadedRevision = host.state.project.material_revision;
     const original = editor?.value;
-    await refresh();
+    await waitFor(refresh(), 15000, "材料状态暂时无法读取，请检查网络后再生成。");
+    if (!isCurrent()) throw new Error("项目已切换，未提交该章节任务。");
     if (editor && original !== (host.state.project.sections?.[sid] || "")) {
       if (loadedRevision !== data.context.revision)
         throw new Error("项目已在其他操作中变化，请先保存并核对当前章节，未覆盖您的编辑");
-      await host.api(`/api/projects/${projectId}/sections/${sid}`, {
+      await waitFor(host.api(`/api/projects/${projectId}/sections/${sid}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: original, expected_revision: loadedRevision,
           base_content: host.state.project.sections?.[sid] || "" }),
-      });
+      }), 15000, "暂未收到编辑保存结果，请先刷新项目核对；尚未提交生成任务。");
+      if (!isCurrent()) throw new Error("项目已切换，请返回原项目查看已保存的编辑。");
       host.state.project.sections[sid] = original;
-      await refresh();
+      if (editor.value !== original) throw new Error("保存期间正文又有修改，请先保存最新编辑，再生成草稿。");
+      await waitFor(refresh(), 15000, "材料状态暂时无法读取，请检查网络后再生成。");
+      if (!isCurrent()) throw new Error("项目已切换，未提交该章节任务。");
     }
     const baseRevision = data.context.revision;
     const job = await submit("section", sid, true);
     if (!job) throw new Error("已取消模型调用");
-    const id = projectId;
+    if (!isCurrent()) throw new Error("任务可能仍在原项目中执行，请返回原项目查询。");
     for (let i = 0; i < 120; i++) {
       await new Promise(resolve => setTimeout(resolve, 2500));
-      if (host.state.project?.id !== id) throw new Error("任务继续运行，可返回项目查询");
-      const current = await request(`/jobs/${job.id}`);
+      if (!isCurrent()) throw new Error("任务继续运行，可返回项目查询");
+      const current = await waitFor(request(`/jobs/${job.id}`), 15000, JOB_STATUS_NOTICE);
+      if (!isCurrent()) throw new Error("任务可能仍在原项目中执行，请返回原项目查询。");
       if (current.status === "completed") {
-        if (editor && editor.value !== original && editor.value !== host.state.project.sections?.[sid]) {
-          await host.api(`/api/projects/${id}/sections/${sid}`, { method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ content: editor.value, expected_revision: baseRevision,
-              base_content: host.state.project.sections?.[sid] || "" }) });
-          host.state.project.sections[sid] = editor.value;
+        if (current.result?.review_incomplete || current.result?.status === "review_failed") {
+          // Keep the completed (and potentially billed) result in the task
+          // list. Never silently apply or re-run an unreviewed draft.
+          await refresh();
+          return { ...current.result, review_incomplete: true, conflict_status: "user_edit_preserved",
+            notice: current.result?.grounding_issues?.length
+              ? (current.result?.grounding_kind === "project"
+                ? "草稿中的项目数据、成果或来源需要你核对，已保留在任务区。"
+                : "草稿中的部分个人数字需要你核对，已保留在任务区。")
+              : "本轮检查未完成，草稿已保留在任务区，可查看后决定是否使用。" };
         }
-        const result = await request(`/jobs/${job.id}/apply`, "POST");
-        await refresh();
+        if (editor && editor.value !== original && editor.value !== host.state.project.sections?.[sid]) {
+          const latestEdit = editor.value;
+          await waitFor(host.api(`/api/projects/${id}/sections/${sid}`, { method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content: latestEdit, expected_revision: baseRevision,
+              base_content: host.state.project.sections?.[sid] || "" }) }), 15000,
+            "暂未收到编辑保存结果，生成草稿仍在任务区；请刷新项目核对。");
+          if (!isCurrent()) throw new Error("项目已切换，请返回原项目查看已保存的编辑。");
+          host.state.project.sections[sid] = latestEdit;
+          if (editor.value !== latestEdit) throw new Error("保存期间正文又有修改，请先保存最新编辑；生成结果仍在任务区。");
+        }
+        const result = await waitFor(request(`/jobs/${job.id}/apply`, "POST"), 15000,
+          "暂未收到草稿保存结果，请刷新原项目查看，不要重复生成。");
+        if (!isCurrent()) throw new Error("项目已切换，请返回原项目查看草稿结果。");
+        await waitFor(refresh(), 15000, "草稿已处理，但暂时无法刷新项目，请稍后查看。");
         return { ...result, material_applied: true };
       }
       if (["failed", "cancelled", "needs_review"].includes(current.status)) throw new Error(current.error || current.status);
@@ -341,22 +399,40 @@
   }
   async function flushEdits() {
     // Save visible edits before freezing an export snapshot; never discard them by reloading.
+    const id = host.state.project?.id;
+    const userId = host.state.authSession?.user?.id || null;
+    const isCurrent = () => Boolean(id && projectId === id && host.state.project?.id === id &&
+      (host.state.authSession?.user?.id || null) === userId && host.isProjectActive?.(id) !== false);
     for (const area of document.querySelectorAll(".draft-section textarea")) {
+      if (!isCurrent()) throw new Error("项目已切换，请回到原项目后继续操作。");
       const sid = area.closest(".draft-section").id.slice("draft-sec-".length);
-      if (area.value !== (host.state.project.sections?.[sid] || "")) {
-        const result = await host.api(`/api/projects/${projectId}/sections/${sid}`, { method: "PUT",
+      const content = area.value;
+      if (content !== (host.state.project.sections?.[sid] || "")) {
+        const result = await host.api(`/api/projects/${id}/sections/${sid}`, { method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: area.value, expected_revision: host.state.project.material_revision,
+          body: JSON.stringify({ content, expected_revision: host.state.project.material_revision,
             base_content: host.state.project.sections?.[sid] || "" }) });
+        if (!isCurrent()) throw new Error("项目已切换，请回到原项目查看保存结果。");
         host.state.project.material_revision = result.material_revision;
-        host.state.project.sections[sid] = area.value;
+        host.state.project.sections[sid] = content;
+        if (area.value !== content) throw new Error("保存期间正文又有修改，请保存最新版本后继续。");
       }
     }
   }
-  async function exportDocument(options = {}) {
-    await flushEdits();
-    await refresh();
+  function invalidateArtifacts() {
+    artifactEpoch++;
+    urls.forEach(url => URL.revokeObjectURL(url));
+    urls = [];
+    if (data && configured()) draw();
+  }
+
+  async function exportDocument(options = {}, isCurrent = () => true) {
+    await waitFor(flushEdits(), 15000, "正文保存结果暂未确认，请先检查项目中的正文再导出。");
+    if (!isCurrent()) return;
+    await waitFor(refresh(), 15000, "材料状态暂时无法读取，请检查网络后再导出。");
+    if (!isCurrent()) return;
     const job = await submit("export", "", false, options);
+    if (!isCurrent()) return;
     const id = projectId;
     let lastStep;
     // Observe the existing durable job only. Never retry/resubmit model work.
@@ -366,13 +442,19 @@
         host.toast("导出仍在后台执行，可返回原项目查看任务。");
         return;
       }
-      const current = await request(`/jobs/${job.id}`);
-      if (host.state.project?.id !== id) return;
+      if (!isCurrent()) return;
+      const current = await waitFor(request(`/jobs/${job.id}`), 15000,
+        "暂时无法获取导出状态，文件可能仍在后台生成；请查看任务区，不要重复提交。");
+      if (host.state.project?.id !== id || !isCurrent()) return;
       if (current.status === "completed") {
-        await refresh();
-        if (host.state.project?.id !== id) return;
+        await waitFor(refresh(), 15000, "Word 已生成，但暂时无法刷新任务区，请稍后查看任务并下载。");
+        if (host.state.project?.id !== id || !isCurrent()) return;
         const url = await blobUrl(path(`/jobs/${job.id}/files/proposal.docx`));
-        if (host.state.project?.id !== id) return;
+        if (host.state.project?.id !== id || !isCurrent()) {
+          URL.revokeObjectURL(url);
+          urls = urls.filter(item => item !== url);
+          return;
+        }
         const link = el("a");
         link.href = url;
         link.download = "申报材料草稿.docx";
@@ -381,7 +463,7 @@
         return;
       }
       if (["failed", "cancelled", "needs_review"].includes(current.status)) {
-        await refresh();
+        await waitFor(refresh(), 15000, "导出未完成，暂时无法刷新任务区，请稍后查看。");
         throw new Error(current.error || "导出未完成，请查看任务记录；不会自动重复生成或扣费。");
       }
       if (current.step !== lastStep) {
@@ -389,7 +471,7 @@
         lastStep = current.step;
       }
     }
-    await refresh();
+    await waitFor(refresh(), 15000, "导出可能仍在后台执行，请稍后查看任务区。");
     host.toast("导出仍在后台执行，请稍后刷新任务区，不必重复生成正文。");
   }
   async function outline() {
@@ -412,5 +494,5 @@
     }
     throw new Error("目录仍在后台生成，请在任务区查询");
   }
-  window.MaterialPilot = { mount, active, refresh, section, outline, exportDocument, flushEdits, blobUrl };
+  window.MaterialPilot = { mount, active, refresh, section, outline, exportDocument, flushEdits, blobUrl, invalidateArtifacts };
 })();

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import codecs
 import re
 import zipfile
 from dataclasses import dataclass
@@ -33,6 +34,29 @@ def _clean_text(text: str) -> str:
     text = re.sub(r"[ \t]+\n", "\n", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
+
+
+def _decode_text(data: bytes) -> tuple[str, str]:
+    """Decode common text encodings without silently inserting replacement characters."""
+    warning = ""
+    try:
+        if data.startswith((codecs.BOM_UTF32_LE, codecs.BOM_UTF32_BE)):
+            text = data.decode("utf-32")
+        elif data.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
+            text = data.decode("utf-16")
+        else:
+            try:
+                text = data.decode("utf-8-sig")
+            except UnicodeDecodeError:
+                text = data.decode("gb18030")
+                warning = "已按中文文本编码读取，请检查识别文字。"
+    except UnicodeError as exc:
+        raise ValueError("无法识别文本编码，请另存为 UTF-8 后重新上传；原文件已保留。") from exc
+    if "\x00" in text:
+        raise ValueError("文本中包含无法识别的字符，请另存为 UTF-8 后重新上传；原文件已保留。")
+    if "\ufffd" in text:
+        warning = "文本中包含替换字符，请检查原文件是否存在乱码。"
+    return text, warning
 
 
 @lru_cache(maxsize=1)
@@ -103,11 +127,10 @@ def extract_file(filename: str, data: bytes) -> Extraction:
         )
 
     if ext in {".txt", ".md"}:
-        text = data.decode("utf-8-sig", errors="replace")
-        warning = ""
+        text, warning = _decode_text(data)
         if len(text) > 1_000_000:
             text = text[:1_000_000]
-            warning = "文件文字超过 100 万字符，仅提取前 100 万字符；原文件完整保留。"
+            warning = " ".join(filter(None, [warning, "文件文字超过 100 万字符，仅提取前 100 万字符；原文件完整保留。"]))
         lines = [line for line in text.splitlines() if line.strip()]
         return Extraction(
             text=_clean_text("\n".join(f"[行 {i + 1}] {line}" for i, line in enumerate(lines))),
@@ -143,6 +166,8 @@ def extract_file(filename: str, data: bytes) -> Extraction:
                             ocr_warning = f"第 {page_no} 页未能识别扫描文字：{exc}"
                     elif not text and rendered_pdf is None:
                         ocr_warning = f"第 {page_no} 页是扫描图，但 PDF 图像读取组件不可用。"
+                    if not text and not ocr_warning:
+                        ocr_warning = f"第 {page_no} 页未能识别文字，可能为空白页或扫描内容。"
                     if text:
                         pages.append((f"第 {page_no} 页", text))
             finally:

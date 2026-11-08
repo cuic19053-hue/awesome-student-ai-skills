@@ -66,6 +66,7 @@ from proposal.official_pricing import official_v1_charge, official_2x_charge
 from proposal.wopally_transport import wopally_urlopen
 from proposal.tools import ProposalTools
 from proposal.jobs import GenerationJobRunner
+from proposal.local_chat_api import LocalChatAPI, register_local_chat_api
 from proposal.materials import MaterialConflict, enabled as material_enabled
 from proposal.skills import normalize_skill_id, registry as skill_registry, valid_fact_key
 from proposal.wopally_client import WopallyCardRejected, WopallyClient, WopallyUnavailable
@@ -96,6 +97,10 @@ class CreateProject(BaseModel):
 
 class RouteRequest(BaseModel):
     query: str = Field(min_length=1, max_length=4000)
+
+
+class ConversationSkillInput(BaseModel):
+    skill_id: str = Field(min_length=1, max_length=100)
 
 
 class LLMConfigInput(BaseModel):
@@ -187,6 +192,7 @@ class ProjectUpdate(BaseModel):
 
 class OutlineUpdate(BaseModel):
     outline: list[dict[str, str]]
+    expected_revision: int | None = None
 
 
 class SectionUpdate(BaseModel):
@@ -236,6 +242,8 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 SUPABASE_PUBLISHABLE_KEY = os.environ.get("SUPABASE_PUBLISHABLE_KEY", "")
 TURNSTILE_SITE_KEY = os.environ.get("TURNSTILE_SITE_KEY", "").strip()
 CLOUD_MODE = bool(SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY)
+from proposal.material_release_gate import gate_cloud_material_api
+gate_cloud_material_api(CLOUD_MODE)
 store = (
     SupabaseStore(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
     if CLOUD_MODE
@@ -265,6 +273,7 @@ async def lifespan(application):
         application.state.auth_http = client
         yield
         application.state.auth_http = None
+        local_chat_service.close()
 
 
 @asynccontextmanager
@@ -292,6 +301,12 @@ logger = logging.getLogger("proposal_agent.credits")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 observability.configure(lambda: store)
 register_ops_api(app)
+local_chat_service = LocalChatAPI(
+    lambda: store,
+    lambda: OllamaAgent(store, tools, base_url=agent.base_url, model=agent.model),
+    lambda: CLOUD_MODE,
+)
+register_local_chat_api(app, local_chat_service)
 
 @app.exception_handler(RequestValidationError)
 async def validation_error(request: Request, exc: RequestValidationError):
@@ -1588,6 +1603,19 @@ def create_project(payload: CreateProject) -> dict[str, Any]:
     return project
 
 
+@app.post("/api/projects/conversation")
+def create_conversation_project() -> dict[str, Any]:
+    """Start a general conversation without silently selecting a Skill."""
+    project = store.create_project(title="新对话")
+    state = dict(project["state"])
+    state.update(skill_id="", skill_name="", skill_category="", template_preference="not_asked")
+    store.update_project(project["id"], state=state)
+    store.add_message(project["id"], "assistant", "你好！告诉我你想申请什么、需要准备什么材料，或者先说说你的想法。")
+    result = store.get_project(project["id"]) or project
+    result["messages"] = store.messages(project["id"])
+    return result
+
+
 @app.post("/api/projects/start")
 def start_conversation_project() -> dict[str, Any]:
     """Start with a conversational template question instead of a long setup form."""
@@ -1619,6 +1647,24 @@ def get_project(project_id: str) -> dict[str, Any]:
     return project
 
 
+@app.post("/api/projects/{project_id}/skill")
+def select_conversation_skill(project_id: str, payload: ConversationSkillInput) -> dict[str, Any]:
+    """Let the user resolve ambiguity without overwriting an existing project track."""
+    project = _safe_project(project_id)
+    state = dict(project["state"])
+    if state.get("skill_id") != "":
+        raise HTTPException(status_code=409, detail="该项目已有赛道，请新建对话准备其他材料。")
+    skill = skill_registry.get(payload.skill_id)
+    if not skill:
+        raise HTTPException(status_code=422, detail="未找到该申报赛道。")
+    state["skill_id"] = skill["id"]
+    state["skill_name"] = skill.get("display_name") or skill.get("name", "")
+    state["skill_category"] = skill.get("category", "")
+    if skill["id"] == "outstanding-student":
+        state["skill_variant"] = "outstanding_student"
+    return store.update_project(project_id, state=state) or {}
+
+
 @app.patch("/api/projects/{project_id}")
 def update_project(project_id: str, payload: ProjectUpdate) -> dict[str, Any]:
     _safe_project(project_id)
@@ -1643,30 +1689,54 @@ async def upload_documents(
         raise HTTPException(status_code=400, detail="kind 只能是 source、template、photo 或 official")
     if not files or len(files) > 12:
         raise HTTPException(status_code=400, detail="一次可上传 1–12 个文件")
+    # Validate the entire batch before writing any file. A late invalid file
+    # must not make an already-saved earlier file look like a failed upload.
+    for upload in files:
+        name = Path(upload.filename or "upload").name
+        ext = Path(name).suffix.lower()
+        if ext not in ALLOWED_EXTENSIONS:
+            raise HTTPException(status_code=415, detail=f"不支持文件类型：{ext or '无扩展名'}")
+        if kind == "photo" and ext not in {".png", ".jpg", ".jpeg", ".webp"}:
+            raise HTTPException(status_code=415, detail="项目照片只支持 PNG/JPG/WebP")
+        size = 0
+        while chunk := await upload.read(1024 * 1024):
+            size += len(chunk)
+            if size > MAX_UPLOAD_BYTES:
+                raise HTTPException(status_code=413, detail=f"{name} 超过 50 MB")
+        await upload.seek(0)
     project_folder = store.files_dir / project_id
     project_folder.mkdir(parents=True, exist_ok=True)
     results = []
     for upload in files:
         name = Path(upload.filename or "upload").name
         ext = Path(name).suffix.lower()
-        if ext not in ALLOWED_EXTENSIONS:
-            raise HTTPException(status_code=415, detail=f"不支持文件类型：{ext or '无扩展名'}")
-        content = await upload.read(MAX_UPLOAD_BYTES + 1)
-        if len(content) > MAX_UPLOAD_BYTES:
-            raise HTTPException(status_code=413, detail=f"{name} 超过 50 MB")
-        if kind == "photo" and ext not in {".png", ".jpg", ".jpeg", ".webp"}:
-            raise HTTPException(status_code=415, detail="项目照片只支持 PNG/JPG/WebP")
         document_id = os.urandom(16).hex()
         stored_path = project_folder / f"{document_id}{ext}"
-        stored_path.write_bytes(content)
-        document = store.add_document(
-            project_id,
-            name,
-            str(stored_path),
-            kind,
-            mimetypes.guess_type(name)[0] or "application/octet-stream",
-            document_id=document_id,
-        )
+        try:
+            content = await upload.read(MAX_UPLOAD_BYTES + 1)
+            stored_path.write_bytes(content)
+            document = store.add_document(
+                project_id,
+                name,
+                str(stored_path),
+                kind,
+                mimetypes.guess_type(name)[0] or "application/octet-stream",
+                document_id=document_id,
+            )
+        except Exception:
+            # Do not remove an original whose registration outcome is unknown.
+            # Return per-file status so successful files are not retried blindly.
+            try:
+                existing = store.get_document(document_id)
+            except Exception:
+                existing = None
+            results.append({
+                "document": _public_document(existing) if existing else {"original_name": name},
+                "error": "保存结果暂不明确，请先查看材料列表，确认后再重试。",
+                "chunk_count": 0,
+                "needs_confirmation": True,
+            })
+            continue
         try:
             extraction = _extract_uploaded_document(name, content, kind)
             # Templates are used for structure only. Source text and OCR must
@@ -1698,17 +1768,21 @@ async def upload_documents(
                 }
             )
         except Exception as exc:
-            store.update_document_extraction(
-                document_id,
-                "",
-                "error",
-                _document_extraction_error(exc),
-                0,
-                confirmed=False,
-            )
+            try:
+                store.update_document_extraction(
+                    document_id,
+                    "",
+                    "error",
+                    _document_extraction_error(exc),
+                    0,
+                    confirmed=False,
+                )
+                updated = store.get_document(document_id) or document
+            except Exception:
+                updated = document
             results.append(
                 {
-                    "document": _public_document(store.get_document(document_id) or document),
+                    "document": _public_document(updated),
                     "chunk_count": 0,
                     "needs_confirmation": True,
                     "error": _document_extraction_error(exc),
@@ -2024,6 +2098,35 @@ def chat(project_id: str, payload: ChatInput, request: Request) -> dict[str, Any
     text = payload.message.strip()
     state = dict(project["state"])
     fields: dict[str, Any] = {}
+    recent_messages = store.messages(project_id, limit=8)
+    previous_assistant = next((message["content"] for message in reversed(recent_messages)
+                               if message["role"] == "assistant"), "")
+    from proposal.track_clarification import INTERNET_TRACK_QUESTION, is_track_choice, should_ask_internet_track
+    ask_internet_track = False
+    # Only conversations explicitly created without a Skill are eligible for
+    # automatic selection. Never switch an existing project's chosen track.
+    if state.get("skill_id") == "" and dispatcher:
+        # Keep a chat turn from silently invoking a second model just to route;
+        # ambiguous requests remain in conversation until clarified.
+        route = dispatcher.route(text, top_n=5, allow_model=False)
+        if previous_assistant == INTERNET_TRACK_QUESTION and is_track_choice(text):
+            route = dispatcher.route("中国国际大学生创新大赛 " + text, top_n=5, allow_model=False)
+        ask_internet_track = should_ask_internet_track(text, route)
+        selected = skill_registry.get(route.get("selected") or "")
+        if selected:
+            state["skill_id"] = selected["id"]
+            state["skill_name"] = selected.get("display_name") or selected.get("name", "")
+            state["skill_category"] = selected.get("category", "")
+            prior_request = next((message["content"] for message in reversed(recent_messages)
+                                  if message["role"] == "user"), "")
+            state["initial_request"] = ((prior_request + "\n" + text) if previous_assistant == INTERNET_TRACK_QUESTION
+                                        else text)[:4000]
+            if selected["id"] == "outstanding-student":
+                variant = infer_honor_variant(text)
+                if variant:
+                    state["skill_variant"] = variant
+                    if variant == "outstanding_youth_league":
+                        state["skill_name"] = "优秀团员"
     template_preference = state.get("template_preference", "generic")
     normalized = re.sub(r"\s+", "", text).lower()
     mentions_template = "模板" in normalized
@@ -2040,14 +2143,6 @@ def chat(project_id: str, payload: ChatInput, request: Request) -> dict[str, Any
         elif positive_template or normalized in {"有", "有的", "有学校模板"}:
             state["template_preference"] = "has_template"
             state["template_answer"] = text[:300]
-    previous_assistant = next(
-        (
-            message["content"]
-            for message in reversed(store.messages(project_id, limit=8))
-            if message["role"] == "assistant"
-        ),
-        "",
-    )
     levels = ("国家级", "省级", "校级")
     level = text.strip()
     if level not in levels or not any(
@@ -2082,8 +2177,41 @@ def chat(project_id: str, payload: ChatInput, request: Request) -> dict[str, Any
         fields["state"] = state
     if fields:
         store.update_project(project_id, **fields)
-    from proposal.knowledge import is_policy_question
-    if is_policy_question(text):
+    if ask_internet_track:
+        # A track question is a local clarification, not a model invocation.
+        store.add_message(project_id, "user", text)
+        store.add_message(project_id, "assistant", INTERNET_TRACK_QUESTION)
+        stream = bool(payload.stream or (request.headers.get("accept") == "text/event-stream")
+                      or (request.query_params.get("stream") == "true"))
+        result = {"message": INTERNET_TRACK_QUESTION, "tool_calls": [], "model": "evidence-only",
+                  "setup_updated": bool(fields), "free_chat": False}
+        if stream:
+            def clarification_events():
+                for event in ({"type": "delta", "text": INTERNET_TRACK_QUESTION}, {"type": "done", **result}):
+                    yield f"event: {event['type']}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
+            return StreamingResponse(clarification_events(), media_type="text/event-stream",
+                                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+        return result
+    from proposal.knowledge import is_policy_question, mixed_drafting_request
+    from proposal.chat_context import is_grant_draft_request, is_outstanding_draft_request, is_scholarship_draft_request, is_scholarship_preparation_request
+    from proposal.transfer_draft import is_transfer_draft_request
+    from proposal.motivation_draft import is_motivation_draft_request
+    from proposal.graduate_draft import is_graduate_draft_request
+    draft_request = mixed_drafting_request(text)
+    graduate_local_reply = False
+    if state.get("skill_id") == "graduate-recommendation":
+        graduate_local_reply = is_graduate_draft_request(
+            draft_request or text, {**project, "state": state}, documents=store.list_documents(project_id),
+            history=store.messages(project_id, limit=200),
+        )
+    local_reply = (is_motivation_draft_request(draft_request or text, {**project, "state": state})
+                   or is_transfer_draft_request(draft_request or text, {**project, "state": state})
+                   or graduate_local_reply
+                   or is_outstanding_draft_request(draft_request or text, {**project, "state": state}, previous_assistant)
+                   or is_grant_draft_request(draft_request or text, {**project, "state": state})
+                   or is_scholarship_draft_request(draft_request or text, {**project, "state": state})
+                   or is_scholarship_preparation_request(text, {**project, "state": state}))
+    if local_reply or (is_policy_question(text) and not draft_request):
         # Evidence-only answers neither call a model nor consume a free chat or
         # require a paid-model configuration. The project is already authorized.
         policy_stream = bool(payload.stream or (request.headers.get("accept") == "text/event-stream")
@@ -2124,6 +2252,8 @@ def chat(project_id: str, payload: ChatInput, request: Request) -> dict[str, Any
         )
         if is_free:
             if not _platform_bundle_ready():
+                # No model request was started, so restore the reserved trial.
+                store.refund_free_chat(user_id)
                 raise HTTPException(status_code=503, detail="工作台服务账户与实际用量结算尚未接通")
             stream_candidate = OllamaAgent(
                 store, tools,
@@ -2221,6 +2351,15 @@ def chat(project_id: str, payload: ChatInput, request: Request) -> dict[str, Any
         raise
 
 
+@app.get("/api/projects/{project_id}/outline/recommend")
+def recommend_outline(project_id: str) -> dict[str, Any]:
+    """Suggest an editable starting structure without a model or a write."""
+    project = _safe_project(project_id)
+    from proposal.outline_fallback import recommended_outline
+    outline, notice = recommended_outline(project)
+    return {"outline": outline, "warning": notice, "confirmed": False}
+
+
 @app.post("/api/projects/{project_id}/outline/generate")
 def generate_outline(project_id: str, payload: LLMRequest | None = None, request: Request = None) -> dict[str, Any]:
     project = _safe_project(project_id)
@@ -2231,19 +2370,11 @@ def generate_outline(project_id: str, payload: LLMRequest | None = None, request
         )
         warning = ""
     except ModelUnavailable as exc:
-        # The fallback is transparent and editable; it is a skeleton, not generated content.
-        discipline = project["discipline"] or "本项目方向"
-        outline = [
-            {"id": "project_info", "title": "项目基本信息"},
-            {"id": "abstract", "title": "项目摘要"},
-            {"id": "background", "title": f"项目背景与{discipline}问题"},
-            {"id": "research_content", "title": "研究目标与研究内容"},
-            {"id": "research_route", "title": "研究方法与实施方案"},
-            {"id": "schedule", "title": "进度安排与资源预算"},
-            {"id": "foundation", "title": "团队基础与条件"},
-            {"id": "references", "title": "参考文献与资料来源"},
-        ]
-        warning = f"本地模型不可用，先提供可编辑的通用目录：{exc}"
+        from proposal.outline_fallback import recommended_outline
+        outline, notice = recommended_outline(project)
+        if not outline:
+            raise HTTPException(status_code=409, detail=notice) from exc
+        warning = f"模型暂不可用，先提供可编辑的起始目录。{notice}"
     store.update_project(project_id, outline=outline)
     state_data = dict(project["state"])
     state_data["outline_confirmed"] = False
@@ -2326,26 +2457,45 @@ def generate_section(
 ) -> dict[str, Any]:
     project = _safe_project(project_id)
     try:
-        if material_enabled(project):
-            result = _metered_invoke(
-                payload.llm_config if payload else None, request, f"section:{section_id}", project_id,
-                lambda model: model.generate_section(project_id, section_id, persist=False))
+        result = _metered_invoke(
+            payload.llm_config if payload else None, request, f"section:{section_id}", project_id,
+            lambda model: model.generate_section(project_id, section_id, persist=False))
+        if result.get("requires_student_input") and str(project.get("sections", {}).get(section_id) or "").strip():
+            return result
+        from proposal.generation_safety import mark_review_alternative, mark_review_save_uncertain, review_incomplete
+        if review_incomplete(result):
             try:
-                updated = store.update_project(project_id, expected_revision=project["material_revision"],
-                    sections={**project["sections"], section_id: result["content"]})
-                result.update(material_applied=True, material_revision=updated["material_revision"])
-                source = "ai_generated"
-            except MaterialConflict:
-                source = "ai_generated_alternative"
-                result.update(conflict_status="user_edit_preserved",
-                              notice="项目在生成期间发生变化，正文未覆盖，结果已存为备选版本")
+                version = store.save_section_version(project_id, section_id, result["content"],
+                                                     source="ai_generated_alternative", review_card=result.get("review_card"))
+                mark_review_alternative(result, str(version["id"]))
+            except Exception:
+                mark_review_save_uncertain(result)
+            return result
+        # The legacy path needs the same optimistic revision check: a slow
+        # generation must not overwrite text the student saved meanwhile.
+        try:
+            updated = store.update_project(project_id, expected_revision=project["material_revision"],
+                sections={**project["sections"], section_id: result["content"]})
+            if not updated:
+                raise MaterialConflict("项目已变化")
+            result.update(material_applied=True, material_revision=updated["material_revision"])
+            source = "ai_generated"
+        except MaterialConflict:
+            source = "ai_generated_alternative"
+            result.update(conflict_status="user_edit_preserved",
+                          notice="项目在生成期间发生变化，正文未覆盖，结果已存为备选版本")
+        try:
             store.save_section_version(project_id, section_id, result["content"],
                                        source=source, review_card=result.get("review_card"))
-            return result
-        return _metered_invoke(
-            payload.llm_config if payload else None, request, f"section:{section_id}", project_id,
-            lambda model: model.generate_section(project_id, section_id),
-        )
+        except Exception:
+            # Never turn a finished, potentially billed generation into a
+            # generic HTTP failure solely because its extra version failed.
+            if source == "ai_generated_alternative":
+                result.update(result_save_uncertain=True,
+                              notice="项目在生成期间发生变化，正文未覆盖；备选版本保存状态不明，请先复制当前草稿。")
+            else:
+                result["notice"] = "正文已保存，历史版本暂未保存。"
+        return result
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ModelUnavailable as exc:
@@ -2369,18 +2519,22 @@ def update_outline(project_id: str, payload: OutlineUpdate) -> dict[str, Any]:
             raise HTTPException(status_code=400, detail="章节标题不能为空")
         outline.append({"id": section_id, "title": title[:100]})
     project = _safe_project(project_id)
-    existing_sections = project["sections"]
+    existing_sections = dict(project["sections"])
     confirmed_state = dict(project["state"])
     confirmed_state["outline_confirmed"] = True
     for item in outline:
         existing_sections.setdefault(item["id"], "")
-    store.update_project(
+    updated = store.update_project(
         project_id,
+        expected_revision=(payload.expected_revision if payload.expected_revision is not None
+                           else project.get("material_revision", 0)),
         outline=outline,
         sections=existing_sections,
         state=confirmed_state,
     )
-    return {"outline": outline}
+    if not updated:
+        raise HTTPException(status_code=404, detail="找不到这个项目。")
+    return {"outline": outline, "material_revision": updated.get("material_revision", 0)}
 
 
 @app.put("/api/projects/{project_id}/sections/{section_id}")
@@ -2804,6 +2958,11 @@ def export_docx(project_id: str, payload: ExportInput | None = None) -> dict[str
         raise HTTPException(status_code=422, detail=f"Word 草稿生成失败：{exc}") from exc
     if not result.get("success"):
         raise HTTPException(status_code=500, detail=result.get("error", "Word 导出失败"))
+    if result.get("template_status") == "needs_review":
+        preflight = dict(preflight)
+        preflight["passed"] = False
+        preflight["consistency_warnings"] = [*preflight.get("consistency_warnings", []),
+            "学校模板尚有未填写内容或无法自动映射，请在 Word 中检查并补齐。"]
 
     # 排版硬化 + 质检：35 个子 skill 各自手写 docx，表格防拆/图注绑定/页码/大纲
     # 的覆盖率是 0，在这一层统一补齐，用户拿到的每一份都过同一把尺子。
@@ -2811,7 +2970,20 @@ def export_docx(project_id: str, payload: ExportInput | None = None) -> dict[str
         from utils.docx_layout_fix import fix as _harden
         from utils.layout_audit import audit as _audit
 
-        _harden(output_path)
+        # Generic hardening changes pagination/styles; keep school-provided
+        # templates intact and only audit their generated copy.
+        if not result.get("used_original_template"):
+            import shutil
+            import tempfile
+            from docx import Document
+            # Harden a separate copy. A crash, broken output, or failed write
+            # must not destroy the Word document we already generated.
+            with tempfile.TemporaryDirectory(prefix="layout-", dir=output_path.parent) as temp_dir:
+                candidate = Path(temp_dir) / "proposal.docx"
+                shutil.copyfile(output_path, candidate)
+                _harden(candidate)
+                Document(candidate)  # Reject an unreadable copy before replacing the original.
+                os.replace(candidate, output_path)
         _qa = _audit(Path(output_path), render=False)
         result["layout"] = {
             "score": _qa.score,
@@ -2843,19 +3015,31 @@ def download_docx(project_id: str) -> Response:
     project = _safe_project(project_id)
     download_name = f"{project.get('state', {}).get('skill_name') or '申报材料'}草稿.docx"
     storage_path = project["state"].get("exported_docx_storage_path")
+    from proposal.exporter import ensure_grant_income_artifact_safe
     if storage_path and hasattr(store, "read_generated_file"):
+        content = store.read_generated_file(storage_path)
+        try:
+            ensure_grant_income_artifact_safe(store, project, content)
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=f"{exc} 请处理后重新导出。") from None
         return Response(
-            content=store.read_generated_file(storage_path),
+            content=content,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{urllib.parse.quote(download_name)}"},
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{urllib.parse.quote(download_name)}",
+                     "Cache-Control": "private, no-store"},
         )
     path = store.files_dir / project_id / "申报书草稿.docx"
     if not path.is_file():
         raise HTTPException(status_code=404, detail="请先导出 Word 草稿")
+    try:
+        ensure_grant_income_artifact_safe(store, project, path)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=f"{exc} 请处理后重新导出。") from None
     return FileResponse(
         path,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         filename=download_name,
+        headers={"Cache-Control": "private, no-store"},
     )
 
 

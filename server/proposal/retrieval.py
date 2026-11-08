@@ -168,14 +168,29 @@ class ProjectRetriever:
         return len(items), "vector" if vectors else "keyword_fallback"
 
     def search(self, project_id: str, query: str, top_k: int = 5) -> dict[str, Any]:
-        query_embedding, query_revision = self._embed_verified([query[:1000]], project_id)
-        query_vector = query_embedding[0] if query_embedding else None
         terms = sorted(_tokens(query), key=lambda term: (-len(term), term))[:80]
         db_search = (
             os.environ.get("RAG_DB_SEARCH_ENABLED", "").lower() == "true"
             and callable(getattr(self.store, "search_project_chunks", None))
         )
         failure = ""
+        chunks = None
+        if not db_search:
+            # With no searchable, user-confirmed material there is nothing to
+            # rank. Avoid loading/calling the embedding model on every empty
+            # project, including the remote compatibility store. Database
+            # vector search keeps its existing behavior and error handling.
+            chunks = self.store.chunks_for_project(project_id)
+            if not chunks:
+                return {
+                    "results": [],
+                    "retrieval_mode": "empty",
+                    "reranked": False,
+                    "fallback_reason": "",
+                    "message": "未找到匹配的已确认项目资料，请补充材料或调整问题。",
+                }
+        query_embedding, query_revision = self._embed_verified([query[:1000]], project_id)
+        query_vector = query_embedding[0] if query_embedding else None
         if db_search:
             try:
                 chunks = self.store.search_project_chunks(
@@ -185,7 +200,7 @@ class ProjectRetriever:
                 # Migration or database-side search may not yet be available.
                 failure = "数据库检索暂不可用，已使用兼容模式。"
                 db_search = False
-        if not db_search:
+        if not db_search and chunks is None:
             chunks = self.store.chunks_for_project(project_id)
         if not chunks:
             return {

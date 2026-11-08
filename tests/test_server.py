@@ -118,6 +118,67 @@ def test_uploaded_material_original_requires_confirmation_for_indexing(client):
     assert client.get(f"/api/projects/{project['id']}").json()["documents"][0]["confirmed"] is True
 
 
+def test_invalid_later_file_does_not_leave_a_partially_saved_batch(client):
+    project = client.post("/api/projects", json={"title": "批量上传"}).json()
+    result = client.post(f"/api/projects/{project['id']}/documents?kind=source", files=[
+        ("files", ("成绩.txt", "成绩资料".encode(), "text/plain")),
+        ("files", ("获奖.doc", b"not a supported format", "application/msword")),
+    ])
+    assert result.status_code == 415
+    assert client.get(f"/api/projects/{project['id']}").json()["documents"] == []
+
+
+def test_oversized_later_file_is_rejected_before_any_document_is_saved(client, monkeypatch):
+    import app as server_app
+    monkeypatch.setattr(server_app, "MAX_UPLOAD_BYTES", 5)
+    project = client.post("/api/projects", json={"title": "批量大小"}).json()
+    result = client.post(f"/api/projects/{project['id']}/documents?kind=source", files=[
+        ("files", ("one.txt", b"1234", "text/plain")),
+        ("files", ("two.txt", b"123456", "text/plain")),
+    ])
+    assert result.status_code == 413
+    assert client.get(f"/api/projects/{project['id']}").json()["documents"] == []
+
+
+def test_unexpected_second_file_save_failure_preserves_first_result(client, monkeypatch):
+    import app as server_app
+    project = client.post("/api/projects", json={"title": "批量保存失败"}).json()
+    add_document = server_app.store.add_document
+
+    def fail_second(project_id, original_name, *args, **kwargs):
+        if original_name == "two.txt":
+            raise OSError("internal path or credential must not leak")
+        return add_document(project_id, original_name, *args, **kwargs)
+
+    monkeypatch.setattr(server_app.store, "add_document", fail_second)
+    result = client.post(f"/api/projects/{project['id']}/documents?kind=source", files=[
+        ("files", ("one.txt", b"first", "text/plain")),
+        ("files", ("two.txt", b"second", "text/plain")),
+    ])
+    assert result.status_code == 200
+    first, second = result.json()["documents"]
+    assert first["document"]["original_name"] == "one.txt" and not first.get("error")
+    assert second["document"]["original_name"] == "two.txt"
+    assert "确认后再重试" in second["error"]
+    assert "credential" not in result.text
+    documents = client.get(f"/api/projects/{project['id']}").json()["documents"]
+    assert [item["original_name"] for item in documents] == ["one.txt"]
+
+
+def test_unreadable_text_file_is_saved_but_not_falsely_marked_ready(client):
+    project = client.post("/api/projects", json={"title": "文本编码"}).json()
+    source = b"\xff\xff\xff"
+    response = client.post(f"/api/projects/{project['id']}/documents?kind=source", files={
+        "files": ("说明.txt", source, "text/plain"),
+    })
+    assert response.status_code == 200
+    item = response.json()["documents"][0]
+    assert "UTF-8" in item["error"]
+    assert item["document"]["extraction_status"] == "error"
+    assert item["document"]["extracted_text"] == ""
+    assert client.get(f"/api/documents/{item['document']['id']}/file").content == source
+
+
 def test_failed_reconfirmation_never_reveals_stale_chunks(client, monkeypatch):
     import app as server_app
     project = client.post("/api/projects", json={"title": "材料重确认"}).json()
