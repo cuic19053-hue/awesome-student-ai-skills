@@ -234,7 +234,7 @@ def get_skill_requirements(skill_name: str) -> Dict[str, Any]:
     if not skill_md.is_relative_to(SUBSKILLS_DIR.resolve()) or not skill_md.is_file():
         return {"error": f"找不到赛道 '{skill_name}' 的 SKILL.md 文档"}
 
-    from server.proposal.skills import model_safe_guidance
+    from server.proposal.skills import model_safe_guidance, safe_skill_reference, skill_reference_names
     content = model_safe_guidance(skill_md.read_text(encoding="utf-8"))
 
     # 尝试提取信息采集清单章节与注意事项
@@ -258,6 +258,16 @@ def get_skill_requirements(skill_name: str) -> Dict[str, Any]:
     for sec_title, sec_content in sections.items():
         if any(k in sec_title for k in ["信息采集", "采集清单", "必填", "格式规范", "评审", "避坑", "输入数据", "字段"]):
             relevant_sections[sec_title] = sec_content[:3000]
+
+    # Progressive disclosure may move the whole intake checklist out of the
+    # main guide. Return its filtered content, not a server-local path that a
+    # remote MCP client cannot read. Some skills combine intake and schema.
+    for name in skill_reference_names(skill_md):
+        if not (name.endswith("/intake-checklist.md") or name.endswith("/json-schema.md")):
+            continue
+        reference = safe_skill_reference(skill_md, name)
+        if reference and (name.endswith("/intake-checklist.md") or "信息采集" in reference[:500]):
+            relevant_sections[f"信息采集参考：{name}"] = reference[:12000]
 
     return {
         "skill_name": norm_name,

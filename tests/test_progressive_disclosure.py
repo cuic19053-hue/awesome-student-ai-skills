@@ -134,6 +134,37 @@ def test_refactor_skips_small_sections(sandbox_skill):
     assert result["moved"] == []
 
 
+def test_refactor_multiple_passes_preserves_existing_references(tmp_path, monkeypatch):
+    """分批外移同类章节时，保留先前的内容和指针。"""
+    import progressive_disclosure as pd
+
+    sub = tmp_path / "subskills"
+    skill_dir = sub / "demo-skill"
+    skill_dir.mkdir(parents=True)
+    md = skill_dir / "SKILL.md"
+    md.write_text(
+        "## 附录甲\n" + "原文甲\n" * 40
+        + "## 附录乙\n" + "原文乙\n" * 40,
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(pd, "SUBSKILLS", sub)
+
+    first = refactor_skill("demo-skill", max_move=1, dry_run=False)
+    first_ref = skill_dir / "references" / "appendix.md"
+    first_content = first_ref.read_text(encoding="utf-8")
+    preview = refactor_skill("demo-skill", max_move=1, dry_run=True)
+    second = refactor_skill("demo-skill", max_move=1, dry_run=False)
+
+    assert first["moved"][0]["slug"] == "appendix"
+    assert preview["moved"][0]["slug"] == second["moved"][0]["slug"] == "appendix-2"
+    assert first_ref.read_text(encoding="utf-8") == first_content
+    assert "原文甲" in first_content
+    assert "原文乙" in (skill_dir / "references" / "appendix-2.md").read_text(encoding="utf-8")
+    text = md.read_text(encoding="utf-8")
+    assert "](references/appendix.md)" in text
+    assert "](references/appendix-2.md)" in text
+
+
 # --- CLI ---
 
 def test_cli_dry_run_runs():

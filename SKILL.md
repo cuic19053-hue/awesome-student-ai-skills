@@ -208,12 +208,10 @@ if candidates:
 2. **确认**：如果不确定，列出 2~3 个候选让用户选
 3. **移交**：明确告诉用户"正在为你调用 [子 skill 名称]，它专门处理 [该类型]"
 4. **执行**：调用子 skill 的 SKILL.md，按其工作流执行（信息采集 → 撰写 → build.py 生成 → 质检）
-5. **质检**：字数 + 结构 + 内容 + 格式 + **AI 味检测（硬门禁）** + 可选查重/评审模拟
+5. **质检**：字数 + 结构 + 内容 + 格式 + **AI 味检测（辅助复核）** + 可选查重/评审模拟
 
-> ⚠️ **写作风格是硬门禁，不是建议**：正文生成后必须跑
-> `python3 utils/ai_flavor_check.py --file draft.txt --min-score 75`，
-> 得分 <75 不允许交付。完整规范见 `docs/design/WRITING_STYLE.md`，
-> 每个子 skill 的 SKILL.md 已注入压缩版约束块。
+> 文风检测可用 `python3 utils/ai_flavor_check.py --file draft.txt` 辅助复核；
+> 分数是启发式提示，不能单凭分数拒绝交付或编造事实。完整规范见 `docs/design/WRITING_STYLE.md`。
 
 ---
 
@@ -228,7 +226,7 @@ if candidates:
 | `school_template.py` | 760 | 5 所学校格式适配（PKU/THU/WHU/ZJU/default） | `SCHOOL_README.md` |
 | `pdf_export.py` | 1036 | docx → PDF 转换（LibreOffice/docx2pdf 双引擎） | `PDF_README.md` |
 | `plagiarism_checker.py` | 742 | n-gram 查重 + 关键短语匹配 + 查重报告 | — |
-| `ai_flavor_check.py` | 620 | **AI 味检测**：6 维度量化（套话/排比/抽象词/具体性/句长/模板），0~100 分，及格线 75 | `docs/design/WRITING_STYLE.md` |
+| `ai_flavor_check.py` | 620 | **AI 味检测**：6 维度量化（套话/排比/抽象词/具体性/句长/模板），0~100 分，75 分仅供参考 | `docs/design/WRITING_STYLE.md` |
 | `review_simulator.py` | 1089 | 按 review_criteria.json 模拟评审打分 + 改进建议（已含文风维度） | `REVIEW_README.md` |
 | `example_usage.py` | 303 | 完整调用示例（分流→采集→生成→质检→PDF） | — |
 

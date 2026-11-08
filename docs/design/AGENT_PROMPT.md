@@ -72,8 +72,8 @@
   ├─ 字数质检：build.py 自动输出全文字数
   ├─ 结构质检：核对段落结构是否完整
   ├─ 内容质检：禁用句自检（必用句机制已废弃，见 WRITING_STYLE.md）
-  └─ 文风质检（硬门禁）：python3 utils/ai_flavor_check.py --file draft.txt --min-score 75
-       得分 <75 必须按报告逐条改写后重跑，不允许交付
+  └─ 文风质检（辅助复核）：python3 utils/ai_flavor_check.py --file draft.txt
+       结合语境核实提示；不能单凭分数拒绝交付或虚构事实
 ```
 
 ---

@@ -373,3 +373,49 @@ def test_all_repo_sample_passages_pass():
             if score < 75:
                 failures.append(f"{md.parent.name}: {score:.1f}")
     assert not failures, "范文误报：" + "；".join(failures)
+
+
+def test_similar_sentence_lengths_alone_are_not_parallelism():
+    text = (
+        "本研究关注校园图书借阅习惯与阅读偏好。"
+        "我们收集匿名借阅记录并分析选书偏好。"
+        "团队依据匿名问卷了解学生的阅读需求。"
+        "随后比较不同院系之间的借阅行为差异。"
+        "我们访谈图书馆工作人员核实分类问题。"
+        "研究根据借阅历史生成个性化推荐列表。"
+        "学生可随时关闭推荐并删除自己的记录。"
+        "研究结果将用于改进图书采购工作流程。"
+    )
+    report = check_ai_flavor(text)
+    assert report.dimensions["PARALLELISM"] == 0
+
+
+def test_small_table_does_not_exempt_prose_from_specificity():
+    vague = (
+        "我热爱集体，关心同学，乐于助人，在各方面都严格要求自己。"
+        "我将继续努力，不断进步，争取做得更好，为集体争光添彩。"
+        "我深知任重道远，定当不负期望，砥砺前行。"
+    )
+    table = "\n| 项目 | 内容 |\n| --- | --- |\n| 名称 | 图书借阅 |"
+    plain = check_ai_flavor(vague)
+    with_table = check_ai_flavor(vague + table)
+    assert plain.dimensions["SPECIFICITY"] > 0
+    assert with_table.dimensions["SPECIFICITY"] == plain.dimensions["SPECIFICITY"]
+
+
+def test_table_facts_can_support_prose_specificity():
+    prose = "我参与了社区调研，并整理居民提出的意见。我们将意见反馈给社区工作人员。"
+    empty_table = "\n| 事项 | 内容 |\n| --- | --- |\n| 社区 | 调研 |"
+    factual_table = "\n| 事项 | 内容 |\n| --- | --- |\n| 回收问卷 | 120 份 |"
+    assert check_ai_flavor(prose + empty_table).dimensions["SPECIFICITY"] > 0
+    assert check_ai_flavor(prose + factual_table).dimensions["SPECIFICITY"] == 0
+
+
+def test_large_table_does_not_exempt_long_prose():
+    prose = (
+        "我热爱集体，关心同学，乐于助人，在各方面都严格要求自己。"
+        "我将继续努力，不断进步，争取做得更好，为集体争光添彩。"
+        "我深知任重道远，定当不负期望，砥砺前行。"
+    ) * 3
+    table = "\n| 内容 | 说明 |\n|---|---|\n" + "| 志愿服务 | 服务同学和社区 |\n" * 50
+    assert check_ai_flavor(prose + table).dimensions["SPECIFICITY"] > 0

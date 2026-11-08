@@ -60,7 +60,7 @@ def test_block_contains_core_rules(skill_id: str):
     block = text[text.index(START_MARK):text.index(END_MARK)]
     for must_have in (
         "每个句子都必须能落到具体的人、事、时间、数字或对象上",
-        "及格线 75",
+        "75 分为参考",
         "ai_flavor_check.py",
         "plagiarism_checker.py",
         "review_simulator.py",
@@ -168,3 +168,31 @@ def test_description_checker_passes_strict():
         capture_output=True, text=True, timeout=120,
     )
     assert proc.returncode == 0, proc.stdout + proc.stderr
+
+
+def test_documented_review_example_invokes_supported_cli(tmp_path):
+    """文档中的评审示例应能解析真实参数并进入评审，而非参数或赛道错误。"""
+    import subprocess
+
+    draft = tmp_path / "draft.txt"
+    draft.write_text("我在学校图书馆参与借阅调研。", encoding="utf-8")
+    proc = subprocess.run(
+        [sys.executable, str(ROOT / "utils" / "review_simulator.py"),
+         "--skill", "grant_application", "--text-file", str(draft)],
+        capture_output=True, text=True, timeout=30,
+    )
+    # 材料不完整可能触发评审不通过，重点是成功执行评审而非 CLI 错误。
+    assert "申报项目" in proc.stdout, proc.stdout + proc.stderr
+    assert "unrecognized arguments" not in proc.stderr
+
+
+def test_style_examples_do_not_invent_personal_facts():
+    """写作示例中的成绩和次数应保留占位，并明确不能虚构。"""
+    from scripts.inject_writing_style import BLOCK
+
+    doc = STYLE_DOC.read_text(encoding="utf-8")
+    for content in (BLOCK, doc):
+        assert "不得为提高得分编造" in content
+        assert "专业 3/127" not in content
+        assert "「多次」→「7 次」" not in content
+        assert "--skill <skill_name> --file draft.txt" not in content

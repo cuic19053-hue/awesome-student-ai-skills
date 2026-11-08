@@ -452,7 +452,8 @@ def _is_structural_line(text: str) -> bool:
 def _check_parallelism(sentences: Sequence[str]) -> Tuple[List[FlavorHit], float, Dict[str, float]]:
     """维度 2：排比对仗密度。
 
-    判定：连续 3 句以上，句首 2 字相同，或句长相近(±2字)且句首结构相似。
+    判定：连续 3 句以上，句首 2 字相同或均符合「在……上，」句式。
+    句长相近不单独作为依据。
 
     重要：Markdown 表格行、列表项、引用块的结构相同属于格式要求，
     不计入排比（否则会大量误报格式说明类内容）。
@@ -471,10 +472,12 @@ def _check_parallelism(sentences: Sequence[str]) -> Tuple[List[FlavorHit], float
             if _is_structural_line(sentences[j]):
                 break
             a, b = sentences[j - 1], sentences[j]
-            la, lb = _cjk_len(a), _cjk_len(b)
             same_prefix = len(a) >= 2 and len(b) >= 2 and a[:2] == b[:2]
-            similar_len = la > 0 and lb > 0 and abs(la - lb) <= 2 and la >= 8
-            if same_prefix or similar_len:
+            # 相近句长本身不代表句式相同；缺少句首依据会误伤普通事实叙述。
+            # 「在思想上，…」「在学习上，…」等带共同框架的句式。
+            framing = r"^在[^，。！？]{1,8}上[，,]"
+            same_frame = bool(re.match(framing, a) and re.match(framing, b))
+            if same_prefix or same_frame:
                 j += 1
             else:
                 break
@@ -546,61 +549,45 @@ def _check_specificity(text: str, cjk_total: int) -> Tuple[List[FlavorHit], floa
     （如团章原文「共青团是党联系青年的桥梁和纽带」）。
     """
     hits: List[FlavorHit] = []
+    # 表格的数字和专名可以作为证据，但只对散文字符计算密度。
+    # 含有任意一行表格不代表全文以表格为主，更不能豁免其他正文。
+    prose = [s for s in _split_sentences(text) if not _is_structural_line(s)]
+    prose_text = "\n".join(prose)
+    prose_cjk = _cjk_len(prose_text)
     numbers = _NUMBERISH.findall(text)
     proper = _PROPER_NOUN_HINT.findall(text)
     evidence_total = len(numbers) + len(proper)
-    density = (evidence_total / cjk_total * 1000) if cjk_total else 0.0
+    density = (evidence_total / prose_cjk * 1000) if prose_cjk else 0.0
+    base_metrics = {
+        "evidence_anchor_count": evidence_total,
+        "evidence_anchor_per_kchar": density,
+        "number_count": len(numbers),
+        "proper_noun_count": len(proper),
+    }
 
-    # 表格型段落：主体信息在结构化表格里（日期/地点/人数等已表格化），
-    # 散文只是注脚（「备注：…」「雨天启用备用场所」），不应按散文密度判罚。
-    # 这一豁免对长短段落都成立，因此在分支之前统一判断。
-    _sents = _split_sentences(text)
-    if any(s.strip().startswith("|") for s in _sents):
-        return hits, 0.0, {
-            "evidence_anchor_count": evidence_total,
-            "evidence_anchor_per_kchar": density,
-            "number_count": len(numbers),
-            "proper_noun_count": len(proper),
-        }
-
-    # 短文本：按绝对数量判定，不做密度惩罚（整篇申报书才会有密度意义）。
-    # 但「多句且零锚点」仍属空洞，需判罚；单句引用（如团章原文）则豁免。
-    if cjk_total < 120:
-        sentence_like = text.count("。") + text.count("！") + text.count("？")
-        # 表格/列表型段落：散文只是表格的注脚（如「备注：…」「雨天启用备用场所」），
-        # 主体信息在结构化表格里，不应按「散文具体性」判罚。
-        prose_ratio = 0.0
-        if cjk_total:
-            prose_sentences = [s for s in _split_sentences(text) if not _is_structural_line(s)]
-            prose_cjk = sum(_cjk_len(s) for s in prose_sentences)
-            prose_ratio = prose_cjk / cjk_total
-        # 段落含表格行 → 主体信息在结构化表格里，散文只是注脚，不判具体性
-        has_table = any(s.strip().startswith("|") for s in _split_sentences(text))
-        is_table_dominant = has_table or prose_ratio < 0.60
-        if evidence_total == 0 and sentence_like >= 2 and not is_table_dominant:
+    # 纯表格或列表不含待评价的散文，短注脚按实际散文长度处理。
+    if not prose_cjk:
+        return hits, 0.0, base_metrics
+    if prose_cjk < 120:
+        # 表格主体附少量备注时，不把备注当成完整申报书判罚。
+        table_cjk = sum(_cjk_len(s) for s in _split_sentences(text) if s.strip().startswith("|"))
+        if table_cjk >= prose_cjk:
+            return hits, 0.0, base_metrics
+        sentence_like = sum(prose_text.count(mark) for mark in "。！？")
+        if evidence_total == 0 and sentence_like >= 2:
             hits.append(
                 FlavorHit(
                     dimension="SPECIFICITY",
                     label="具体性不足",
-                    detail=f"本段 {cjk_total} 字 / {sentence_like} 句，无任何数字/专名锚点",
+                    detail=f"本段 {prose_cjk} 字 / {sentence_like} 句，无任何数字/专名锚点",
                     evidence="",
                     position=-1,
                     severity="high",
                     advice="补具体数字或专有名词；纯抒情/表态句应删除",
                 )
             )
-            return hits, 30.0, {
-                "evidence_anchor_count": evidence_total,
-                "evidence_anchor_per_kchar": density,
-                "number_count": len(numbers),
-                "proper_noun_count": len(proper),
-            }
-        return hits, 0.0, {
-            "evidence_anchor_count": evidence_total,
-            "evidence_anchor_per_kchar": density,
-            "number_count": len(numbers),
-            "proper_noun_count": len(proper),
-        }
+            return hits, 30.0, base_metrics
+        return hits, 0.0, base_metrics
 
     # 每千字至少 8 个具体锚点才算合格（1500 字约 12 个）
     if density < 4:

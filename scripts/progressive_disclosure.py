@@ -201,16 +201,17 @@ def refactor_skill(
     ref_dir = SUBSKILLS / skill_id / "references"
     moved_info = []
 
-    # slug 去重：同一 skill 内多个章节命中同一关键词时（如多个「附录」），
-    # 追加序号，避免相互覆盖
-    used_slugs: Dict[str, int] = {}
+    # 已有文件也占用 slug；重跑或分批外移时不能覆盖之前的参考资料。
+    used_slugs = {path.stem for path in ref_dir.glob("*.md")}
 
     def _unique_slug(base: str) -> str:
-        if base not in used_slugs:
-            used_slugs[base] = 1
-            return base
-        used_slugs[base] += 1
-        return f"{base}-{used_slugs[base]}"
+        slug = base
+        suffix = 2
+        while slug in used_slugs:
+            slug = f"{base}-{suffix}"
+            suffix += 1
+        used_slugs.add(slug)
+        return slug
 
     # 从后往前替换，避免行号漂移
     new_lines = list(lines)

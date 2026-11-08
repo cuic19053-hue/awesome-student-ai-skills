@@ -290,11 +290,7 @@ class ReviewSimulator:
                         for h in fr.hits[:5]
                     ],
                 }
-                if fr.score < 55.0:
-                    result.veto_triggered.append(
-                        f"文风重度机器腔：AI 味得分 {fr.score:.1f}/100（低于 55），"
-                        "通篇套话/排比，需按具体事实重写后再提交"
-                    )
+                # 文风启发式可能误判，只提供修改线索，不作为一票否决依据。
             except Exception as e:  # pragma: no cover
                 flavor_dict = {"error": str(e)}
         result.ai_flavor = flavor_dict
@@ -740,7 +736,7 @@ class ReviewSimulator:
         if result.ai_flavor and not result.ai_flavor.get("passed", True):
             out.append(
                 f"【文风】AI 味得分 {result.ai_flavor.get('score', 0):.1f}/100"
-                f"（{result.ai_flavor.get('grade', '-')}），套话/排比过多。"
+                f"（{result.ai_flavor.get('grade', '-')}），建议结合具体命中人工复核。"
             )
         return out
 

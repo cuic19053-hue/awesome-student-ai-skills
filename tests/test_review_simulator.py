@@ -165,3 +165,22 @@ def test_cli_plain_output_does_not_recommend_pass_below_threshold(tmp_path):
     assert "\u672a\u901a\u8fc7\u9884\u5ba1" in proc.stdout
     assert "\u5efa\u8bae\u901a\u8fc7" not in proc.stdout
     assert "\u63a8\u8350\u901a\u8fc7" not in proc.stdout
+
+
+def test_low_style_score_is_advisory_not_an_automatic_veto(monkeypatch):
+    from utils.ai_flavor_check import FlavorReport
+    from utils import review_simulator
+
+    monkeypatch.setattr(
+        review_simulator,
+        "check_ai_flavor",
+        lambda text: FlavorReport(score=10, grade="重度 AI 味", text_length=200, sentence_count=5),
+    )
+    monkeypatch.setattr(review_simulator, "check_plagiarism", None)
+    sim = ReviewSimulator("major_transfer", application_text="示例正文", applicant_data={"gpa_rank_percent": 20})
+    result = sim.simulate_review()
+
+    assert result.ai_flavor["score"] == 10
+    assert not result.veto_triggered
+    assert result.passed
+    assert any("文风" in item for item in result.weaknesses)
