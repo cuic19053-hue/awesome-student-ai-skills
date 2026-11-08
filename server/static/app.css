@@ -3855,6 +3855,20 @@ button[type="submit"]:active,
   overflow-x: auto;
 }
 
+.section-versions {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-light);
+}
+
+.section-versions pre {
+  max-height: 320px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  line-height: 1.7;
+}
+
 .section-preview-render p {
   margin: 0 0 10px;
   text-indent: 2em;

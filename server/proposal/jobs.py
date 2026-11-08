@@ -20,6 +20,7 @@ from threading import Lock
 from typing import Any, Callable, Dict, Optional
 
 from . import observability as obs
+from .generation_safety import mark_review_alternative, mark_review_save_uncertain, review_incomplete
 
 logger = logging.getLogger("proposal_agent.jobs")
 
@@ -153,20 +154,31 @@ class GenerationJobRunner:
             current_now = (project.get("sections") or {}).get(section_id, "") if project else ""
             current_ver_now = content_hash(current_now)
 
-            if current_ver_now != base_version:
+            if review_incomplete(result) or current_ver_now != base_version:
                 # 用户在后台生成期间手动编辑了输入框！绝不强行静默覆盖！
-                saved_ver = self.store.save_section_version(
-                    project_id=project_id,
-                    section_id=section_id,
-                    content=generated_content,
-                    source="ai_generated_alternative",
-                    review_card=review_card,
-                )
-                result["conflict_status"] = "user_edit_preserved"
-                result["alternative_version_id"] = saved_ver["id"]
-                result["notice"] = (
-                    "检测到您在生成期间手动编辑了该章节，AI 生成的最新版本已安全存入版本历史，未覆盖您的当前编辑。"
-                )
+                try:
+                    saved_ver = self.store.save_section_version(
+                        project_id=project_id,
+                        section_id=section_id,
+                        content=generated_content,
+                        source="ai_generated_alternative",
+                        review_card=review_card,
+                    )
+                except Exception:
+                    if not review_incomplete(result):
+                        raise
+                    # The model result remains available through the job if
+                    # the task store itself is still writable.
+                    mark_review_save_uncertain(result)
+                else:
+                    if review_incomplete(result):
+                        mark_review_alternative(result, saved_ver["id"])
+                    else:
+                        result["conflict_status"] = "user_edit_preserved"
+                        result["alternative_version_id"] = saved_ver["id"]
+                        result["notice"] = (
+                            "检测到您在生成期间手动编辑了该章节，AI 生成的最新版本已安全存入版本历史，未覆盖您的当前编辑。"
+                        )
             else:
                 # 正常覆盖更新并记录版本
                 if project:

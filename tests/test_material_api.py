@@ -57,6 +57,69 @@ def test_non_innovation_export_job_runs_end_to_end(api, monkeypatch):
     assert "国家奖学金" in "\n".join(p.text for p in Document(path).paragraphs)
 
 
+def test_export_snapshot_preserves_income_optout_after_30_messages(api):
+    import material_worker
+    client, store, project = api
+    pid = project["id"]
+    state = {"skill_id": "grant-application", "outline_confirmed": True,
+             "confirmed_facts": {"family_income": "2万元"}}
+    project = store.update_project(pid, state=state, outline=[{"id": "letter", "title": "申请书"}],
+                                   sections={"letter": "尊敬的老师，现申请国家助学金。"})
+    store.add_message(pid, "user", "不要把我家的收入放进申请书。")
+    for i in range(35):
+        store.add_message(pid, "assistant", f"普通对话 {i}")
+    url = f"/api/projects/{pid}/material/jobs"
+    response = client.post(url, json={"revision": project["material_revision"], "kind": "export",
+                                     "idempotency_key": "after-30"})
+    assert response.status_code == 202, response.text
+    job_id = response.json()["id"]
+    raw = MaterialJobs(store).call("raw", project_id=pid, id=job_id)
+    assert any("不要把我家的收入" in item["content"] for item in raw["payload"]["messages"])
+    assert material_worker.run_one(local_store=store)
+    assert client.get(f"{url}/{job_id}/files/proposal.docx").status_code == 200
+    # Other assets are not certified by checking the generated Word file.
+    folder = store.files_dir / pid / "_material" / job_id
+    (folder / "report.json").write_text('{"info":"示例"}', encoding="utf-8")
+    (folder / "figure.png").write_bytes(b"synthetic")
+    assert client.get(f"{url}/{job_id}/files/report.json").status_code == 409
+    assert client.get(f"{url}/{job_id}/files/figure.png").status_code == 409
+
+
+def test_running_export_cannot_be_downloaded_after_income_optout(api):
+    import material_worker
+    client, store, project = api
+    pid = project["id"]
+    state = {"skill_id": "grant-application", "outline_confirmed": True,
+             "confirmed_facts": {"family_income": "2万元"}}
+    project = store.update_project(pid, state=state, outline=[{"id": "letter", "title": "申请书"}],
+                                   sections={"letter": "我的家庭年收入是2万元。"})
+    url = f"/api/projects/{pid}/material/jobs"
+    response = client.post(url, json={"revision": project["material_revision"], "kind": "export",
+                                     "idempotency_key": "before-optout"})
+    assert response.status_code == 202, response.text
+    job_id = response.json()["id"]
+    store.add_message(pid, "user", "不要把我家的收入写进申请书。")
+    assert material_worker.run_one(local_store=store)
+    response = client.get(f"{url}/{job_id}/files/proposal.docx")
+    assert response.status_code == 409 and "重新导出" in response.json()["detail"]
+    store.add_message(pid, "user", "现在可以写家庭年收入。")
+    assert client.get(f"{url}/{job_id}/files/proposal.docx").status_code == 200
+
+
+def test_worker_submission_rejects_saved_income_after_optout_before_queue(api):
+    client, store, project = api
+    pid = project["id"]
+    project = store.update_project(pid, state={"skill_id": "grant-application", "outline_confirmed": True,
+        "confirmed_facts": {"family_income": "2万元"}},
+        outline=[{"id": "letter", "title": "申请书"}], sections={"letter": "我家的收入是2万元。"})
+    store.add_message(pid, "user", "不要把我家的收入写进申请书。")
+    response = client.post(f"/api/projects/{pid}/material/jobs", json={
+        "revision": project["material_revision"], "kind": "export", "idempotency_key": "no-income",
+    })
+    assert response.status_code == 422 and "正文" in response.json()["detail"]
+    assert not MaterialJobs(store).call("list", project_id=pid)
+
+
 def test_cloud_job_snapshots_retrieval_only_with_matching_user_consent(api, monkeypatch):
     import app
     import proposal.material_api as material_api

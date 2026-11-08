@@ -526,7 +526,8 @@ class Store:
         with self.connect() as db:
             db.execute(
                 "INSERT INTO messages(id,project_id,role,content,created_at) VALUES (?,?,?,?,?)",
-                (new_id(), project_id, role, content, utc_now()),
+                (new_id(), project_id, role, content,
+                 datetime.now(timezone.utc).isoformat(timespec="microseconds")),
             )
             db.execute("UPDATE projects SET updated_at=? WHERE id=?", (utc_now(), project_id))
 
@@ -534,7 +535,7 @@ class Store:
         with self.connect() as db:
             rows = db.execute(
                 """SELECT role,content FROM messages WHERE project_id=?
-                ORDER BY created_at DESC LIMIT ?""",
+                ORDER BY created_at DESC, rowid DESC LIMIT ?""",
                 (project_id, limit),
             ).fetchall()
         return [dict(row) for row in reversed(rows)]

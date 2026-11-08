@@ -11,6 +11,7 @@ class Element {
     this.dataset = {};
     this.attributes = {};
     this.listeners = {};
+    this.style = {};
     this.open = false;
     this.textContent = "";
     const classes = new Set();
@@ -38,7 +39,7 @@ class Element {
   close() { this.open = false; this.listeners.close?.(); }
 }
 
-function harness() {
+function harness(sharedSession = new Map()) {
   const elements = new Map();
   const revoked = [];
   const created = [];
@@ -46,24 +47,26 @@ function harness() {
   const timers = new Map();
   let nextTimer = 1;
   let draftAreas = [];
+  let factFields = [];
   const document = {
     querySelector(selector) {
       if (!elements.has(selector)) elements.set(selector, new Element());
       return elements.get(selector);
     },
-    querySelectorAll: (selector) => selector === ".draft-section textarea" ? draftAreas : [],
+    querySelectorAll: (selector) => selector === ".draft-section textarea" ? draftAreas : selector === "[data-fact]" ? factFields : [],
     createElement: (tag) => new Element(tag),
     addEventListener() {},
     body: new Element("body"),
   };
   const storage = new Map();
-  const session = new Map();
+  const session = sharedSession;
   const context = vm.createContext({
     document,
     window: { location: { origin: "https://workbench.example.test" } },
     localStorage: { getItem: (k) => storage.get(k) || null, setItem: (k,v) => storage.set(k,v), removeItem: (k) => storage.delete(k) },
     sessionStorage: { getItem: (k) => session.get(k) || null, setItem: (k,v) => session.set(k,v), removeItem: (k) => session.delete(k) },
     Headers,
+    AbortController,
     Blob,
     TextEncoder,
     TextDecoder,
@@ -92,7 +95,7 @@ function harness() {
       renderPrivacyNotice, showModelStatus, updateTemplateQuickActions,
       syncAuthControls, initializeCloudAuth, submitAuthForm,
       readPublicCache, writePublicCache, sameOriginAuthFetch, storeLlmConfig, loadCloudModelConfig, saveSelectedLlmConfig,
-      sendChat, syncChatControls,
+      sendChat, syncChatControls, loadProject, deleteCurrentProject, startGeneralChat, selectConversationSkill, configureSkillWorkspace, renderFacts, saveFacts, renderSections, recommendOutline, saveOutline, validate, restoreInterruptedChatMessage, updateRecoveredChatInput, startBatchGeneration, cancelBatchGeneration,
       exportDoc, fetchExportBlob, flushDraftEdits, showChatDrafts, clearExportArtifacts,
       setApi(fn) { api = fn; },
       setLoadProject(fn) { loadProject = fn; },
@@ -101,9 +104,10 @@ function harness() {
   })();`);
   vm.runInContext(source, context, { filename: file });
   return {
-    ui: context.ui, context, requests, revoked, created, timers,
+    ui: context.ui, context, requests, revoked, created, timers, session,
     element: (selector) => document.querySelector(selector),
     setDraftAreas: (areas) => { draftAreas = areas; },
+    setFactFields: (fields) => { factFields = fields; },
   };
 }
 
@@ -116,12 +120,254 @@ const doc = {
   confirmed: false,
 };
 
+test("recommended outline previews without a model and retains saved chapters", async () => {
+  const h = harness();
+  h.ui.state.project = { id: "project-one", outline: [{ id: "old-summary", title: "项目摘要" },
+    { id: "custom", title: "学生自写章节" }], sections: { "old-summary": "原有摘要", custom: "学生原文" } };
+  const calls = [];
+  h.ui.setApi(async (url, options) => {
+    calls.push({ url, options });
+    return { outline: [{ id: "abstract", title: "项目摘要" }, { id: "background", title: "选题背景" }], warning: "请核对学校模板。" };
+  });
+  await h.ui.recommendOutline();
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, "/api/projects/project-one/outline/recommend");
+  assert.equal(calls[0].options, undefined);
+  assert.deepEqual(Array.from(h.ui.state.outline, item => item.id), ["old-summary", "background", "custom"]);
+  assert.equal(h.ui.state.project.outline.length, 2, "the saved outline is unchanged until confirmation");
+  assert.match(h.element("#outlineWarning").textContent, /已保留含正文的原章节/);
+});
+
+test("a recommendation arriving after a project switch cannot replace the new outline", async () => {
+  const h = harness();
+  h.ui.state.project = { id: "old", outline: [], sections: {} };
+  let finish;
+  h.ui.setApi(() => new Promise(resolve => { finish = resolve; }));
+  const pending = h.ui.recommendOutline();
+  await Promise.resolve();
+  h.ui.state.project = { id: "new", outline: [], sections: {} };
+  h.ui.state.outline = [{ id: "new-section", title: "新项目章节" }];
+  finish({ outline: [{ id: "old-section", title: "旧项目推荐" }] });
+  await pending;
+  assert.equal(h.ui.state.outline[0].id, "new-section");
+});
+
+test("confirming an outline updates the current project for subsequent edits", async () => {
+  const h = harness();
+  h.ui.state.project = { id: "project-one", outline: [], sections: {}, state: {} };
+  h.ui.state.outline = [{ id: "abstract", title: "项目摘要" }];
+  const calls = [];
+  h.ui.setApi(async (url, options) => { calls.push({ url, options }); return { outline: [{ id: "abstract", title: "项目摘要" }] }; });
+  await h.ui.saveOutline();
+  assert.equal(calls[0].url, "/api/projects/project-one/outline");
+  assert.equal(h.ui.state.project.outline[0].id, "abstract");
+  assert.equal(h.ui.state.project.sections.abstract, "");
+  assert.equal(h.ui.state.project.state.outline_confirmed, true);
+});
+
+test("student validation displays the limited scope of the check", async () => {
+  const h = harness();
+  h.ui.state.project = { id: "project-one" };
+  h.ui.setApi(async () => ({ passed: true, validation_scope: "通用内容检查，具体以学校通知和模板为准。", photo_notice: "" }));
+  await h.ui.validate();
+  const box = h.element("#validationResult");
+  assert.ok(box.children.some(child => child.textContent.includes("具体以学校通知和模板为准")));
+});
+
+test("national scholarship workspace offers relevant prompts and hides innovation review", () => {
+  const h = harness();
+  const project = { state: { skill_id: "national-scholarship", skill_category: "scholarship", skill_name: "国家奖学金" } };
+  h.ui.configureSkillWorkspace(project);
+  const prompts = h.element("#chatTools").children.map(child => child.textContent);
+  assert.ok(prompts.some(text => text.includes("学业")));
+  assert.ok(prompts.some(text => text.includes("起草申请书")));
+  assert.ok(prompts.every(text => !text.includes("家庭经济") && !text.includes("勤工助学")));
+  assert.equal(h.element("#innovationReviewRow").classList.contains("hidden"), true);
+  assert.ok(!h.element("#exportHint").textContent.includes("实验图"));
+  h.ui.state.project = project;
+  h.ui.renderFacts();
+  const factLabels = h.element("#factsSummary").children.map(child => child.children[0]?.textContent);
+  assert.ok(factLabels.includes("所在学院"));
+  assert.ok(!factLabels.includes("预算") && !factLabels.includes("负责人照片"));
+  h.ui.configureSkillWorkspace({ state: { skill_id: "innovation-research", skill_category: "research" } });
+  assert.equal(h.element("#innovationReviewRow").classList.contains("hidden"), false);
+});
+
+test("national scholarship keeps personal layout before skill metadata is available", () => {
+  const h = harness();
+  const project = { state: { skill_id: "national-scholarship" } };
+  h.ui.state.project = project;
+  h.ui.renderFacts();
+  const labels = h.element("#factsSummary").children.map(child => child.children[0]?.textContent);
+  assert.ok(labels.includes("所在学院") && !labels.includes("预算"));
+});
+
+test("personal award workspaces use student-specific fields and guidance", () => {
+  const h = harness();
+  for (const [id, category] of [["outstanding-student", "honor"], ["grant-application", "scholarship"], ["university-scholarship", "scholarship"], ["major-transfer", "other"], ["graduate-recommendation", "other"]]) {
+    const project = { state: { skill_id: id, skill_category: category } };
+    h.ui.state.project = project;
+    h.ui.configureSkillWorkspace(project);
+    h.ui.renderFacts();
+    const labels = h.element("#factsSummary").children.map(child => child.children[0]?.textContent);
+    assert.ok(labels.includes("所在学院"));
+    assert.ok(!labels.includes("预算") && !labels.includes("项目名称") && !labels.includes("负责人照片"));
+    assert.equal(h.element("#panel-materials .panel-heading h2").textContent, "个人参考材料与知识库");
+    assert.equal(h.element("#sources-panel .panel-heading h2").textContent, "学校通知与申报依据");
+    const prompts = h.element("#chatTools").children.map(child => child.textContent);
+    assert.equal(prompts.some(text => text.includes("家庭")), id === "grant-application");
+    if (id === "major-transfer") assert.ok(prompts.some(text => text.includes("转专业")));
+    if (id === "graduate-recommendation") assert.ok(prompts.some(text => text.includes("个人陈述")));
+  }
+  h.ui.configureSkillWorkspace({ state: { skill_id: "innovation-research", skill_category: "research" } });
+  assert.equal(h.element("#panel-materials .panel-heading h2").textContent, "项目参考材料与知识库");
+  assert.equal(h.element("#sources-panel .panel-heading h2").textContent, "学术文献检索与官方立项依据");
+});
+
+test("switching from a research project clears hidden editor fields before saving a student application", async () => {
+  const h = harness();
+  const budget = h.element('[data-fact="budget"]');
+  const budgetParent = new Element("label");
+  budget.dataset.fact = "budget";
+  budget.closest = () => budgetParent;
+  const college = h.element('[data-fact="college"]');
+  college.dataset.fact = "college";
+  college.closest = () => new Element("label");
+  h.setFactFields([budget, college]);
+  h.ui.state.project = { id: "research", state: { skill_id: "innovation-research", skill_category: "research", confirmed_facts: { budget: "50000 元", college: "原学院" } } };
+  h.ui.renderFacts();
+  assert.equal(budget.value, "50000 元");
+  h.ui.state.project = { id: "award", state: { skill_id: "outstanding-student", skill_category: "honor", confirmed_facts: { college: "新学院" } } };
+  h.ui.renderFacts();
+  assert.equal(budget.value, "");
+  assert.equal(college.value, "新学院");
+  assert.equal(budgetParent.classList.contains("hidden"), true);
+  const requests = [];
+  h.ui.setApi(async (url, options) => { requests.push({ url, options }); return {}; });
+  h.ui.setLoadProject(async () => {});
+  await h.ui.saveFacts();
+  const payload = JSON.parse(requests[0].options.body);
+  assert.equal(payload.budget, undefined);
+  assert.equal(payload.college, "新学院");
+  h.ui.state.project.state.confirmed_facts.budget = "200 元";
+  h.ui.renderFacts();
+  assert.equal(budgetParent.classList.contains("hidden"), false, "previously saved data remains editable");
+  assert.equal(budget.value, "200 元");
+});
+
+test("chat-first entry creates a conversation without requiring a Skill", async () => {
+  const h = harness();
+  const requests = [];
+  let loaded = "";
+  h.ui.setApi(async (url, options) => {
+    requests.push({ url, options });
+    return { id: "conversation-one", state: { skill_id: "" } };
+  });
+  h.ui.setChatRefresh(async () => {});
+  h.ui.setLoadProject(async (id) => { loaded = id; });
+  h.element("#chatInput").focus = () => {};
+  await h.ui.startGeneralChat();
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].url, "/api/projects/conversation");
+  assert.equal(requests[0].options.method, "POST");
+  assert.equal(loaded, "conversation-one");
+  assert.equal(h.element("#newChatBtn").disabled, false);
+});
+
+test("user can select a Skill for an unrouted conversation", async () => {
+  const h = harness();
+  h.ui.state.project = { id: "conversation-one", state: { skill_id: "" } };
+  h.element("#conversationSkillSelect").value = "national-scholarship";
+  let loaded = "";
+  const requests = [];
+  h.ui.setApi(async (url, options) => { requests.push({ url, options }); return {}; });
+  h.ui.setLoadProject(async id => { loaded = id; });
+  await h.ui.selectConversationSkill();
+  assert.equal(requests[0].url, "/api/projects/conversation-one/skill");
+  assert.equal(JSON.parse(requests[0].options.body).skill_id, "national-scholarship");
+  assert.equal(loaded, "conversation-one");
+  assert.equal(h.element("#conversationSkillApply").disabled, false);
+});
+
 function exportingProject(h) {
   h.ui.state.project = { id: "a".repeat(32), material_revision: 2,
     outline: [{ id: "purpose", title: "项目目的" }], sections: { purpose: "已保存正文" },
     state: { skill_name: "测试材料" } };
   h.ui.state.authSession = { access_token: "fake-session-jwt" };
 }
+
+test("batch generation stops on project switch without writing into another project", async () => {
+  const h = harness(); exportingProject(h);
+  const firstProject = h.ui.state.project;
+  h.ui.state.outline = [{ id: "one", title: "第一章" }, { id: "two", title: "第二章" }];
+  const calls = [];
+  let finish;
+  h.ui.setApi((url, options) => { calls.push({ url, options }); return new Promise(resolve => { finish = resolve; }); });
+  const running = h.ui.startBatchGeneration();
+  h.ui.state.project = { id: "second-project", sections: { one: "新项目正文" } };
+  finish({ content: "旧项目生成结果" });
+  await running;
+  assert.equal(calls.length, 1);
+  assert.equal(h.ui.state.project.sections.one, "新项目正文");
+  assert.equal(firstProject.sections.one, undefined);
+  assert.equal(h.ui.state.batchGenerating, false);
+});
+
+test("batch stops after an uncertain result rather than generating further chapters", async () => {
+  const h = harness(); exportingProject(h);
+  h.ui.state.outline = [{ id: "one", title: "第一章" }, { id: "two", title: "第二章" }];
+  const calls = [];
+  h.ui.setApi(async (url, options) => { calls.push({ url, options }); return { status: "processing", job_id: "job" }; });
+  await h.ui.startBatchGeneration();
+  assert.equal(calls.length, 1);
+  assert.match(h.element("#batchProgressText").textContent, /后台处理/);
+  assert.equal(h.ui.state.project.sections.one, undefined);
+  assert.equal(h.ui.state.batchGenerating, false);
+});
+
+test("batch stops when a draft requires review", async () => {
+  const h = harness(); exportingProject(h);
+  h.ui.state.outline = [{ id: "one", title: "第一章" }, { id: "two", title: "第二章" }];
+  const calls = [];
+  h.ui.setApi(async (url, options) => { calls.push({ url, options });
+    return { conflict_status: "user_edit_preserved", notice: "请核对草稿" }; });
+  await h.ui.startBatchGeneration();
+  assert.equal(calls.length, 1);
+  assert.match(h.element("#batchProgressText").textContent, /请核对草稿.*停止后续章节/);
+});
+
+test("batch cancellation does not send subsequent model requests", async () => {
+  const h = harness(); exportingProject(h);
+  h.ui.state.outline = [{ id: "one", title: "第一章" }, { id: "two", title: "第二章" }];
+  const calls = [];
+  let finish;
+  h.ui.setApi((url, options) => { calls.push({ url, options }); return new Promise(resolve => { finish = resolve; }); });
+  const running = h.ui.startBatchGeneration();
+  h.ui.cancelBatchGeneration();
+  finish({ content: "后台当前章可能已保存" });
+  await running;
+  assert.equal(calls.length, 1);
+  assert.match(h.element("#batchProgressText").textContent, /停止后续章节/);
+});
+
+test("batch preserves a student's edit made while a chapter is generating", async () => {
+  const h = harness(); exportingProject(h);
+  h.ui.state.outline = [{ id: "purpose", title: "第一章" }, { id: "two", title: "第二章" }];
+  const area = new Element("textarea"); area.value = "已保存正文";
+  area.closest = () => ({ id: "draft-sec-purpose" });
+  h.setDraftAreas([area]);
+  const calls = []; let finish;
+  h.ui.setApi((url, options) => { calls.push({ url, options }); return new Promise(resolve => { finish = resolve; }); });
+  const running = h.ui.startBatchGeneration();
+  area.value = "等待期间手写的修改";
+  finish({ content: "后台已生成的正文", material_applied: true, material_revision: 5 });
+  await running;
+  assert.equal(calls.length, 1);
+  assert.equal(area.value, "等待期间手写的修改");
+  assert.equal(h.ui.state.project.sections.purpose, "后台已生成的正文");
+  assert.equal(h.ui.state.project.material_revision, 5);
+  assert.match(h.element("#batchProgressText").textContent, /手写编辑已保留/);
+});
 
 test("legacy export fetches private file with bearer and links only a blob", async () => {
   const h = harness(); exportingProject(h);
@@ -138,6 +384,40 @@ test("legacy export fetches private file with bearer and links only a blob", asy
   assert.equal(h.element("#exportResult").children[1].href, "blob:preview-1");
   h.ui.clearExportArtifacts();
   assert.deepEqual(h.revoked, ["blob:preview-1"]);
+});
+
+test("sending a new instruction revokes the previous Word download link", async () => {
+  const h = harness(); exportingProject(h);
+  h.ui.setChatRefresh(async () => {});
+  h.ui.setLoadProject(async () => {});
+  h.ui.setApi(async (url) => url.endsWith("/chat-drafts") ? { items: [] }
+    : url.endsWith("/chat") ? { message: "已收到" }
+    : { download_url: `/api/projects/${h.ui.state.project.id}/download` });
+  await h.ui.exportDoc();
+  assert.equal(h.element("#exportResult").children.length, 2);
+  await h.ui.sendChat(null, "这次不要写家庭收入");
+  assert.deepEqual(h.revoked, ["blob:preview-1"]);
+  assert.equal(h.element("#exportResult").children.length, 0);
+});
+
+test("an in-flight old export cannot download after a newer instruction", async () => {
+  const h = harness(); exportingProject(h);
+  h.ui.setChatRefresh(async () => {});
+  h.ui.setLoadProject(async () => {});
+  let finishExport;
+  h.ui.setApi(async (url) => {
+    if (url.endsWith("/chat-drafts")) return { items: [] };
+    if (url.endsWith("/chat")) return { message: "已收到" };
+    return new Promise(resolve => { finishExport = resolve; });
+  });
+  const exporting = h.ui.exportDoc();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(typeof finishExport, "function");
+  await h.ui.sendChat(null, "这次不要写家庭收入");
+  finishExport({ download_url: `/api/projects/${h.ui.state.project.id}/download` });
+  await exporting;
+  assert.equal(h.created.length, 0);
+  assert.equal(h.requests.length, 0);
 });
 
 test("download rejects foreign destination without sending the token", async () => {
@@ -220,6 +500,231 @@ test("chat draft recovery requires explicit selection and never auto-exports", a
   assert.ok(calls[1].url.endsWith("/chat-drafts/confirm"));
 });
 
+test("a newer chat draft replaces existing text only when explicitly selected", async () => {
+  const h = harness(); exportingProject(h);
+  const calls = [];
+  const preview = { snapshot: "f".repeat(64), notice: "选择草稿", items: [{
+    id: "e".repeat(64), title: "申请书", content: "新版正文", already_saved: false, conflict: true,
+  }] };
+  h.ui.setApi(async (url, options) => {
+    calls.push({ url, options });
+    return url.endsWith("/chat-drafts") ? preview : { notice: "已保存" };
+  });
+  h.ui.setLoadProject(async () => {});
+  await h.ui.showChatDrafts();
+  const row = h.element("#chatDraftItems").children[0];
+  const checkbox = row.children[0].children[0];
+  assert.equal(checkbox.checked, false);
+  assert.equal(checkbox.disabled, false);
+  assert.match(row.children[1].textContent, /历史版本/);
+  checkbox.checked = true;
+  await h.element("#confirmChatDraftsBtn").onclick();
+  assert.equal(JSON.parse(calls[1].options.body).items[0].replace_existing, true);
+});
+
+test("project drafts with unsupported claims are unchecked until the student reviews them", async () => {
+  const h = harness(); exportingProject(h);
+  const calls = [];
+  const preview = { snapshot: "f".repeat(64), notice: "请选择", items: [{
+    id: "e".repeat(64), title: "项目简介", content: "市场规模 5000 亿元",
+    already_saved: false, conflict: false, requires_review: true, warnings: ["项目数据需要核对。"],
+  }] };
+  h.ui.setApi(async (url, options) => {
+    calls.push({ url, options });
+    return url.endsWith("/chat-drafts") ? preview : { notice: "已保存" };
+  });
+  h.ui.setLoadProject(async () => {});
+  await h.ui.showChatDrafts();
+  const row = h.element("#chatDraftItems").children[0];
+  const checkbox = row.children[0].children[0];
+  assert.equal(checkbox.checked, false);
+  assert.match(row.children[1].textContent, /核对/);
+  await h.element("#confirmChatDraftsBtn").onclick();
+  assert.equal(calls.length, 1);
+  row.children[2].value = "市场规模待补充。";
+  checkbox.checked = true;
+  await h.element("#confirmChatDraftsBtn").onclick();
+  assert.equal(JSON.parse(calls[1].options.body).items[0].content, "市场规模待补充。");
+});
+
+test("section history can be reviewed and placed into the editor without saving automatically", async () => {
+  const h = harness(); exportingProject(h);
+  h.ui.state.project.sections = { purpose: "当前正文" };
+  h.ui.state.outline = [{ id: "purpose", title: "申请书" }];
+  const calls = [];
+  h.ui.setApi(async (url) => { calls.push(url); return { versions: [{ content: "先前正文" }] }; });
+  h.ui.renderSections();
+  const section = h.element("#draftSections").children[0];
+  const historyButton = section.children[0].children[1].children[3];
+  const body = section.children[1];
+  body.children[3].classList.add("hidden"); // Harness does not derive classList from className.
+  await historyButton.click();
+  const editor = body.children[1];
+  const versionsBox = body.children[3];
+  assert.equal(versionsBox.children[0].children[0].textContent, "先前正文");
+  versionsBox.children[0].children[1].click();
+  assert.equal(editor.value, "先前正文");
+  assert.equal(h.ui.state.project.sections.purpose, "当前正文");
+  assert.equal(calls.length, 1);
+});
+
+test("a failed section save keeps the persisted state and the student's edit", async () => {
+  const h = harness(); exportingProject(h);
+  h.ui.state.project.sections = { purpose: "之前保存的正文" };
+  h.ui.state.outline = [{ id: "purpose", title: "申请书" }];
+  h.ui.setApi(async () => { throw new Error("网络中断"); });
+  h.ui.renderSections();
+  const section = h.element("#draftSections").children[0];
+  const save = section.children[0].children[1].children[2];
+  const editor = section.children[1].children[1];
+  editor.value = "尚未保存的新正文";
+  await save.click();
+  assert.equal(h.ui.state.project.sections.purpose, "之前保存的正文");
+  assert.equal(editor.value, "尚未保存的新正文");
+});
+
+test("section generation saves an existing unsaved edit before calling the model", async () => {
+  const h = harness(); exportingProject(h);
+  h.ui.state.outline = [{ id: "purpose", title: "申请书" }];
+  h.ui.renderSections();
+  const section = h.element("#draftSections").children[0];
+  const editor = section.children[1].children[1];
+  editor.value = "生成前的手写修改";
+  editor.closest = () => ({ id: "draft-sec-purpose" });
+  h.setDraftAreas([editor]);
+  const calls = [];
+  h.ui.setApi(async (url, options = {}) => {
+    calls.push({ url, options });
+    if (url.endsWith("/sections/purpose/generate")) return { content: "新草稿", material_applied: true, material_revision: 4 };
+    if (options.method === "PUT") return { material_revision: 3 };
+    return { ...h.ui.state.project, material_revision: 2 };
+  });
+  await section.children[0].children[1].children[1].click();
+  const savedAt = calls.findIndex(call => call.options.method === "PUT");
+  const generatedAt = calls.findIndex(call => call.url.endsWith("/generate"));
+  assert.ok(savedAt >= 0 && savedAt < generatedAt);
+  assert.equal(JSON.parse(calls[savedAt].options.body).content, "生成前的手写修改");
+});
+
+test("section generation retains edits made during the model request", async () => {
+  const h = harness(); exportingProject(h);
+  h.ui.state.outline = [{ id: "purpose", title: "申请书" }];
+  h.ui.renderSections();
+  const section = h.element("#draftSections").children[0];
+  const editor = section.children[1].children[1];
+  let finish; const calls = [];
+  h.ui.setApi((url, options) => { calls.push({ url, options }); return new Promise(resolve => { finish = resolve; }); });
+  const running = section.children[0].children[1].children[1].click();
+  editor.value = "学生刚写的内容";
+  finish({ content: "服务器保存的生成正文", material_applied: true, material_revision: 5 });
+  await running;
+  assert.equal(editor.value, "学生刚写的内容");
+  assert.equal(h.ui.state.project.sections.purpose, "服务器保存的生成正文");
+  assert.equal(h.ui.state.project.material_revision, 5);
+  assert.equal(calls.length, 1);
+  assert.match(h.element("#toast").textContent, /新编辑已保留/);
+});
+
+test("section polling that remains active ends with a visible status and never resubmits", async () => {
+  const h = harness(); exportingProject(h);
+  h.context.setTimeout = (fn, delay) => { if (delay < 15000) fn(); return 1; };
+  h.ui.state.outline = [{ id: "purpose", title: "申请书" }];
+  h.ui.renderSections();
+  const section = h.element("#draftSections").children[0];
+  const calls = [];
+  h.ui.setApi(async (url, options = {}) => {
+    calls.push({ url, options });
+    return options.method === "POST" ? { status: "processing", job_id: "job" } : { status: "running" };
+  });
+  const button = section.children[0].children[1].children[1];
+  await button.click();
+  assert.equal(calls.filter(call => call.options.method === "POST").length, 1);
+  assert.equal(calls.length, 46);
+  assert.equal(button.disabled, false);
+  assert.match(h.element("#toast").textContent, /仍在后台处理/);
+});
+
+test("a silent section request unlocks with uncertain result, without retry", async () => {
+  const h = harness(); exportingProject(h);
+  const timers = new Map(); let id = 0;
+  h.context.setTimeout = (callback, delay) => { timers.set(++id, { callback, delay }); return id; };
+  h.context.clearTimeout = key => timers.delete(key);
+  h.ui.state.outline = [{ id: "purpose", title: "申请书" }];
+  h.ui.renderSections();
+  const section = h.element("#draftSections").children[0];
+  const button = section.children[0].children[1].children[1];
+  let calls = 0;
+  h.ui.setApi(() => { calls++; return new Promise(() => {}); });
+  const running = button.click();
+  const timeout = [...timers.values()].find(item => item.delay === 180000);
+  assert.ok(timeout);
+  timeout.callback();
+  await running;
+  assert.equal(calls, 1);
+  assert.equal(button.disabled, false);
+  assert.match(h.element("#toast").textContent, /可能仍在后台处理/);
+  assert.equal(section.children[0].children[0].children[3].textContent, "● 结果待确认");
+});
+
+test("version write failure displays the returned draft without applying or regenerating it", async () => {
+  const h = harness(); exportingProject(h);
+  h.ui.state.project.sections = { purpose: "原正文" };
+  h.ui.state.outline = [{ id: "purpose", title: "申请书" }];
+  const calls = [];
+  h.ui.setApi(async (url, options) => {
+    calls.push({ url, options });
+    return { conflict_status: "user_edit_preserved", result_save_uncertain: true,
+      content: "生成的候选正文", notice: "保存状态不明" };
+  });
+  h.ui.renderSections();
+  const section = h.element("#draftSections").children[0];
+  await section.children[0].children[1].children[1].click();
+  const body = section.children[1];
+  assert.equal(body.children[4].children[0].children[1].textContent, "生成的候选正文");
+  assert.equal(h.ui.state.project.sections.purpose, "原正文");
+  assert.equal(calls.length, 1);
+  body.children[4].children[0].children[3].click();
+  assert.equal(body.children[1].value, "生成的候选正文");
+  assert.equal(h.ui.state.project.sections.purpose, "原正文");
+});
+
+test("an uncertain generated draft stays scoped to its original project", async () => {
+  const h = harness(); exportingProject(h);
+  const original = h.ui.state.project;
+  original.sections = { purpose: "原正文" };
+  h.ui.state.outline = [{ id: "purpose", title: "申请书" }];
+  let complete;
+  h.ui.setApi(() => new Promise(resolve => { complete = resolve; }));
+  h.ui.renderSections();
+  const first = h.element("#draftSections").children[0];
+  const generating = first.children[0].children[1].children[1].click();
+  h.ui.state.project = { id: "second", sections: { purpose: "另一个项目" } };
+  h.ui.renderSections();
+  complete({ conflict_status: "user_edit_preserved", result_save_uncertain: true, content: "项目一私有草稿" });
+  await generating;
+  assert.equal(h.element("#draftSections").children[0].children[1].children[4].children.length, 0);
+  h.ui.state.project = original;
+  h.ui.renderSections();
+  const pending = h.element("#draftSections").children[0].children[1].children[4];
+  assert.equal(pending.children[0].children[1].textContent, "项目一私有草稿");
+  assert.equal(original.sections.purpose, "原正文");
+});
+
+test("an old account's late draft is not retained after account switch", async () => {
+  const h = harness(); exportingProject(h);
+  h.ui.state.authSession = { user: { id: "old-account" } };
+  h.ui.state.outline = [{ id: "purpose", title: "申请书" }];
+  let complete;
+  h.ui.setApi(() => new Promise(resolve => { complete = resolve; }));
+  h.ui.renderSections();
+  const generating = h.element("#draftSections").children[0].children[0].children[1].children[1].click();
+  h.ui.state.authSession = { user: { id: "new-account" } };
+  complete({ conflict_status: "user_edit_preserved", result_save_uncertain: true, content: "旧账号草稿" });
+  await generating;
+  h.ui.renderSections();
+  assert.equal(h.element("#draftSections").children[0].children[1].children[4].children.length, 0);
+});
+
 test("export opens recovery instead of exporting a cover-only document", async () => {
   const h = harness(); exportingProject(h);
   h.ui.state.project.outline = []; h.ui.state.project.sections = {};
@@ -234,6 +739,57 @@ test("export opens recovery instead of exporting a cover-only document", async (
   assert.equal(calls.length, 1);
   assert.equal(h.element("#chatDraftDialog").open, true);
   assert.equal(h.element("#confirmChatDraftsBtn").textContent, "确认保存并继续导出");
+});
+
+test("export presents a conflicting chat draft before using saved text", async () => {
+  const h = harness(); exportingProject(h);
+  const calls = [];
+  const pid = h.ui.state.project.id;
+  h.ui.setApi(async (url) => {
+    calls.push(url);
+    if (url.endsWith("/chat-drafts")) return { snapshot: "f".repeat(64), notice: "请确认", items: [{
+      id: "e".repeat(64), title: "项目目的", content: "较新的对话草稿", already_saved: false, conflict: true,
+    }] };
+    if (url.endsWith("/export")) return { download_url: `/api/projects/${pid}/download` };
+    throw Error(`unexpected ${url}`);
+  });
+  await h.ui.exportDoc();
+  assert.equal(h.element("#chatDraftDialog").open, true);
+  assert.equal(calls.filter(url => url.endsWith("/export")).length, 0);
+  const root = h.element("#chatDraftItems");
+  assert.equal(root.children[0].children[0].children[0].checked, false);
+  const keep = root.children.find(el => el.textContent === "保持已保存正文并继续导出");
+  assert.ok(keep);
+  await keep.click();
+  assert.equal(calls.filter(url => url.endsWith("/chat-drafts")).length, 1);
+  assert.equal(calls.filter(url => url.endsWith("/export")).length, 1);
+  assert.equal(h.created.length, 1);
+});
+
+test("export continues after saving selected drafts without re-prompting for unchecked ones", async () => {
+  const h = harness(); exportingProject(h);
+  const pid = h.ui.state.project.id;
+  const calls = [];
+  h.ui.setApi(async (url, options) => {
+    calls.push({ url, options });
+    if (url.endsWith("/chat-drafts")) return { snapshot: "f".repeat(64), notice: "请确认", items: [
+      { id: "e".repeat(64), title: "项目目的", content: "新版目的", already_saved: false, conflict: true },
+      { id: "d".repeat(64), title: "研究背景", content: "待审核背景", already_saved: false, conflict: false, requires_review: true },
+    ] };
+    if (url.endsWith("/chat-drafts/confirm")) return { notice: "已保存" };
+    if (url.endsWith("/export")) return { download_url: `/api/projects/${pid}/download` };
+    throw Error(`unexpected ${url}`);
+  });
+  h.ui.setLoadProject(async () => {});
+  await h.ui.exportDoc();
+  h.element("#chatDraftItems").children[0].children[0].children[0].checked = true;
+  await h.element("#confirmChatDraftsBtn").onclick();
+  const confirm = calls.find(c => c.url.endsWith("/chat-drafts/confirm"));
+  assert.equal(JSON.parse(confirm.options.body).items.length, 1);
+  assert.equal(JSON.parse(confirm.options.body).items[0].replace_existing, true);
+  assert.equal(calls.filter(c => c.url.endsWith("/chat-drafts")).length, 1);
+  assert.equal(calls.filter(c => c.url.endsWith("/export")).length, 1);
+  assert.equal(h.element("#chatDraftDialog").open, false);
 });
 
 test("persistent results show success, per-file errors, and preview actions", () => {
@@ -819,6 +1375,21 @@ test("real SSE done event is required and keeps the complete server response", a
   assert.equal(h.ui.state.messages[1].content, "完整回复");
   assert.equal(h.ui.state.chatSending, false);
   assert.equal(cancelled(), 1);
+});
+
+test("a tool call clears provisional streamed text before the final reply", async () => {
+  const h = harness();
+  realChatStream(h,
+    'event: delta\ndata: {"text":"正在查询"}\n\n' +
+    'event: reset\ndata: {}\n\n' +
+    'event: status\ndata: {"message":"正在检索"}\n\n' +
+    'event: delta\ndata: {"text":"最终答复"}\n\n' +
+    'event: done\ndata: {"message":"最终答复","tool_calls":[]}\n\n');
+  await h.ui.sendChat(null, "测试");
+  assert.equal(h.ui.state.messages[1].content, "最终答复");
+  const rows = h.element("#chatMessages").children;
+  assert.ok(rows.some((row) => row.removed && row.children.some((child) => child.textContent === "正在查询")));
+  assert.ok(rows.some((row) => !row.removed && row.children.some((child) => child.innerHTML?.includes("最终答复"))));
 });
 
 test("switching projects during real SSE cancels the reader and clears the wait timer", async () => {

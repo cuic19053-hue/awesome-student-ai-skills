@@ -5,6 +5,8 @@
 ## 目录索引
 
 ### 📁 design/ (核心架构与设计规范)
+- [AGENT_REFACTOR.md](./design/AGENT_REFACTOR.md)：学生申报 Agent 当前实现、已知缺口与后续重构路线
+- [OPEN_AGENT_RUNTIME_RESEARCH.md](./design/OPEN_AGENT_RUNTIME_RESEARCH.md)：Kode、Codex 及其他开源 Agent 运行时的源码调研与接入约束
 - [ARCHITECTURE.md](./design/ARCHITECTURE.md)：系统总体架构设计（分层架构、目录规范、数据流）
 - [AGENT_DESIGN.md](./design/AGENT_DESIGN.md)：智能体工作流与交互状态机设计
 - [AGENT_PROMPT.md](./design/AGENT_PROMPT.md)：主 Agent 与 35 个子赛道调度提示词系统

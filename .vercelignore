@@ -2,6 +2,7 @@
 .agent-data/
 .env
 .env.*
+!.env.example
 outputs/
 
 # Development-only files.
@@ -11,7 +12,6 @@ skills-lock.json
 .pytest_cache/
 tests/
 /evals/
-/infra/
 __pycache__/
 **/__pycache__/
 mcp_server.py

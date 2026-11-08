@@ -43,6 +43,9 @@
       <button id="newProjectBtn" class="button button-primary new-project">
         <span class="plus">✦</span> 开始新建材料
       </button>
+      <button id="newChatBtn" type="button" class="button button-secondary new-project">
+        💬 开始新对话
+      </button>
       <button type="button" id="sidebarRechargeBtn" class="button button-secondary sidebar-recharge-btn">
         💎 充值积分
       </button>
@@ -165,7 +168,7 @@
               <span class="point-icon">02</span>
               <div>
                 <strong>事实依据可核对</strong>
-                <p>以已上传的项目材料作为撰写依据；没有证据的信息标为“待补充”，不擅自编造。</p>
+                <p>上传和整理项目材料，为后续写作提供参考。</p>
               </div>
             </div>
             <div class="point-card">
@@ -192,7 +195,7 @@
             <div class="paper-lines">
               <span></span><span></span><span class="short"></span>
             </div>
-            <div class="paper-tag">✓ 格式与高校模板对齐 · 可编辑 Word</div>
+            <div class="paper-tag">✓ 支持学校模板参考 · 可编辑 Word</div>
           </div>
           <div class="floating-note">
             <span class="note-check">✓</span><span>赛道规范与事实来源可核对</span>
@@ -288,6 +291,13 @@
           </div>
         </div>
 
+        <div id="conversationSkillPicker" class="template-status hidden">
+          <label for="conversationSkillSelect">确定材料类型后，可手动选择 Skill：</label>
+          <select id="conversationSkillSelect" aria-label="选择申报材料类型">
+            <option value="">选择材料类型</option>
+          </select>
+          <button type="button" id="conversationSkillApply" class="button button-small button-secondary">使用此 Skill</button>
+        </div>
         <div id="templateStatus" class="template-status hidden"></div>
 
         <!-- Workspace Stage Navigation Tabs -->
@@ -467,7 +477,7 @@
                 <div class="panel-icon icon-blue">✍</div>
                 <div>
                   <h2>逐章精修与正文生成</h2>
-                  <p>每个章节均可独立生成与修改；严格遵循已确认材料，缺失依据时如实标注“待补充”。</p>
+                  <p>每个章节均可独立生成、修改和保存。</p>
                 </div>
                 <div class="draft-panel-top-actions">
                   <span id="draftStatsBadge" class="draft-stats-badge">共 0 字</span>
@@ -528,7 +538,7 @@
                 <button id="validateBtn" class="button button-secondary button-small">执行完整性检查</button>
               </div>
               <div id="validationResult" class="validation-result hidden"></div>
-              <div class="optional-review-row">
+              <div class="optional-review-row" id="innovationReviewRow">
                 <div>
                   <strong>可选环节：国家级大创立项模拟评审</strong>
                   <small>基于国赛评审指标模拟打分与修改建议；仅供参考，点击后方开始。</small>
@@ -614,7 +624,7 @@
             </section>
             <div class="assistant-safety">
               <span class="safety-icon">✦</span>
-              <span>严谨学术事实对齐：所有申报草稿均受用户核验材料约束，学术论证绝不编造无依据结论。</span>
+              <span>整理资料、修改草稿，逐步完成申报材料。</span>
             </div>
           </aside>
         </div>
@@ -842,7 +852,7 @@
     <div class="onboarding-step-indicator">
       <div class="onboarding-step-tab active" data-step="1">1. 需求与赛道</div>
       <div class="onboarding-step-tab" data-step="2">2. 两种模型模式</div>
-      <div class="onboarding-step-tab" data-step="3">3. 材料事实防幻觉</div>
+      <div class="onboarding-step-tab" data-step="3">3. 整理申报资料</div>
       <div class="onboarding-step-tab" data-step="4">4. 导出 Word 草稿</div>
     </div>
 
@@ -882,7 +892,7 @@
               <li><strong>🔑 自定义 API (自带 Key / BYOK)</strong>：云端版保存后将 Key 加密绑定当前账号，换设备登录自动同步；可随时删除。自定义模型不扣工作台积分，服务商仍可能收费。</li>
             </ul>
             <div class="onboarding-highlight">
-              🚀 <strong>小贴士</strong>：自己有官方 API Key 的同学强烈推荐使用「自定义 API」，完全免费不扣积分！
+              🚀 <strong>小贴士</strong>：使用自定义 API 不扣工作台积分；模型服务商按其规则计费。
             </div>
           </div>
         </div>
@@ -893,17 +903,17 @@
         <div class="onboarding-card">
           <div class="onboarding-card-title">
             <span class="step-badge">STEP 03</span>
-            <span>严格事实核查，绝不虚构与学术造假</span>
+            <span>整理资料，完善申请书</span>
           </div>
           <div class="onboarding-card-body">
-            <p>申报材料是面向高校与教育主管部门的严谨公文，工作台内置学术诚信底线：</p>
+            <p>通过工作台整理学校通知、证明材料和写作草稿：</p>
             <ul>
               <li><strong>上传材料做证据</strong>：支持上传学校红头文件、申报模板、已有科研成果或证明照片。</li>
-              <li><strong>未核实不引用</strong>：上传材料必须经你在界面上确认文字后，Agent 才会将其作为事实证据。</li>
-              <li><strong>拒绝无据幻觉</strong>：缺失的数据或经历，Agent 会明确标记「待补充」并逐步追问，绝不自作主张编造。</li>
+              <li><strong>确认材料文字</strong>：在界面上确认识别内容后，可供项目检索使用。</li>
+              <li><strong>编辑申请草稿</strong>：补充个人经历，并在保存前调整内容。</li>
             </ul>
             <div class="onboarding-highlight">
-              🛡️ <strong>安全提醒</strong>：提交最终材料前，务必逐项人工核验真实性与政策条款。
+              💡 <strong>小贴士</strong>：可以随时修改草稿，再导出 Word。
             </div>
           </div>
         </div>

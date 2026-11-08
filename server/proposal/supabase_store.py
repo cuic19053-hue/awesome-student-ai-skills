@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import hashlib
 import os
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -460,9 +461,28 @@ class SupabaseStore:
         )
         return [self._document_row(row, download=download) for row in rows]
 
-    def materialize_project_documents(self, project_id: str) -> None:
+    def materialize_project_documents(self, project_id: str, *, template_document_id: str | None = None) -> list[dict[str, str]]:
+        """Fetch only files the Word renderer actually embeds or opens.
+
+        Confirmed text/OCR is already in document metadata. Downloading every
+        source file adds latency and makes an unrelated missing attachment
+        prevent students from exporting their saved sections.
+        """
+        missing = []
         for document in self.list_documents(project_id, download=False):
-            self.get_document(document["id"], download=True)
+            if document.get("kind") == "photo" or document.get("id") == template_document_id:
+                try:
+                    found = self.get_document(document["id"], download=True)
+                except RuntimeError as exc:
+                    # A known missing object may be omitted with a visible
+                    # warning. Permission and network failures stay errors.
+                    if not isinstance(exc.__cause__, urllib.error.HTTPError) or exc.__cause__.code != 404:
+                        raise
+                    found = None
+                if not found:
+                    missing.append({"kind": str(document.get("kind") or ""),
+                                    "name": str(document.get("original_name") or "附件")})
+        return missing
 
     def persist_generated_file(
         self, project_id: str, filename: str, local_path: str | Path, content_type: str
@@ -489,8 +509,9 @@ class SupabaseStore:
         project = self.get_project(project_id)
         if not project:
             return None
-        self.materialize_project_documents(project_id)
+        missing = self.materialize_project_documents(project_id, template_document_id=project.get("template_document_id"))
         project = dict(project)
+        project["_missing_export_documents"] = missing
         project["diagrams"] = [dict(item) for item in project.get("diagrams", [])]
         for diagram in project["diagrams"]:
             preview = diagram.get("preview", "")
@@ -499,7 +520,12 @@ class SupabaseStore:
                 local_path = self.files_dir / project_id / Path(storage_path).name
                 local_path.parent.mkdir(parents=True, exist_ok=True)
                 if not local_path.exists():
-                    local_path.write_bytes(self.read_generated_file(storage_path))
+                    try:
+                        local_path.write_bytes(self.read_generated_file(storage_path))
+                    except RuntimeError as exc:
+                        if not isinstance(exc.__cause__, urllib.error.HTTPError) or exc.__cause__.code != 404:
+                            raise
+                        missing.append({"kind": "figure", "name": str(diagram.get("title") or "图表")})
                 diagram["preview"] = str(local_path)
         return project
 
@@ -635,7 +661,7 @@ class SupabaseStore:
                 "project_id": project_id,
                 "role": role,
                 "content": content,
-                "created_at": utc_now(),
+                "created_at": datetime.now(timezone.utc).isoformat(timespec="microseconds"),
             },
         )
         self._rest(
@@ -675,16 +701,33 @@ class SupabaseStore:
             return False
         documents = self.list_documents(project_id, download=False)
         storage_paths = [doc["storage_path"] for doc in documents]
-        if "_material_tracking" in project.get("state", {}):
+        # The presence of job records cannot be inferred from project state:
+        # older projects may have queued work before tracking was installed.
+        # Check every project and ask the restricted RPC only for storage paths.
+        from .material_jobs import MaterialJobs
+        queue = MaterialJobs(self)
+        has_jobs = queue.call("has_jobs", project_id=project_id)
+        if has_jobs is None:
+            # The pre-hardening RPC does not know has_jobs and returns null.
+            # Its project-owned, RLS-scoped list lets us prove only absence.
+            # Existing jobs may reference artifacts we cannot safely inspect
+            # under the new protocol: fail closed rather than lose them.
+            legacy_jobs = queue.call("list", project_id=project_id)
+            if not isinstance(legacy_jobs, list) or legacy_jobs:
+                raise RuntimeError("该项目的历史材料任务需要先安全迁移或清理，暂不能删除。")
+            has_jobs = False
+        if not isinstance(has_jobs, bool):
+            raise RuntimeError("材料任务状态暂不可用，请稍后重试。")
+        if has_jobs:
             offset = 0
+            prefix = f"{self._identity()['user_id']}/{project_id}/_material/"
             while True:
-                rows = self._rest("material_jobs", params={
-                    "project_id": f"eq.{project_id}", "select": "payload",
-                    "limit": "500", "offset": str(offset),
-                })
-                prefix = f"{self._identity()['user_id']}/{project_id}/_material/"
-                storage_paths.extend(row["payload"]["output_path"] for row in rows
-                    if str(row["payload"].get("output_path", "")).startswith(prefix))
+                rows = queue.call("cleanup_paths", project_id=project_id, offset=offset, limit=500)
+                if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+                    raise RuntimeError("材料文件清理暂不可用，请稍后重试。")
+                storage_paths.extend(value for row in rows for key in ("output_path", "image_path")
+                    if isinstance(value := row.get(key), str) and value.startswith(prefix)
+                    and re.fullmatch(r"[0-9a-f]{32}(?:\.zip|-image\.png)", value[len(prefix):]))
                 if len(rows) < 500:
                     break
                 offset += 500

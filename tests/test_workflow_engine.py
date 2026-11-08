@@ -109,7 +109,7 @@ def test_workflow_runs_self_correction_with_decoupled_models():
                 passed=False,
                 weaknesses=["论述偏空泛，缺少指标对比"],
                 actionable_revisions=["请补全与传统算法的对比并明确时延指标"],
-                user_action_required=["建议提供真实实验测试平台型号"],
+                user_action_required=[],
             )
 
     engine = AgenticWorkflowEngine(
@@ -126,13 +126,12 @@ def test_workflow_runs_self_correction_with_decoupled_models():
         evidence_results=[],
     )
 
-    # 因为第 1 轮指出了 user_action_required，程序安全规范将 overall passed 约束为需要注意
     assert result.final_score == 86.0
     assert result.iterations == 2
     assert "重新修订后" in result.content
     assert draft_calls == ["draft_round_1", "draft_round_2"]
     assert critic_calls == ["critic_round_1", "critic_round_2"]
-    assert any("评委建议补充" in hint for hint in result.user_hints)
+    assert result.passed
 
 
 def test_workflow_max_retries_graceful_exit():
@@ -159,7 +158,7 @@ def test_workflow_max_retries_graceful_exit():
         evidence_results=[],
     )
 
-    assert result.iterations == 2  # round 1 + 1 retry = 2
+    assert result.iterations == 1  # 学生必须补充数据，不反复请求模型猜测
     assert result.passed is False
     assert result.status == "needs_user_attention"
     assert result.review_card.grade == "需完善"
