@@ -120,13 +120,15 @@ python3 utils/ai_flavor_check.py --file draft.txt
 
 ```bash
 python3 utils/ai_flavor_check.py --file draft.txt
-python3 utils/plagiarism_checker.py --file draft.txt
+python3 utils/plagiarism_checker.py --list-skills
+# 例：仅当赛道对应 grant_application 时
+python3 utils/plagiarism_checker.py --file draft.txt --skill grant_application
 python3 utils/review_simulator.py --list-skills
 # 例：当赛道对应 grant_application 时
 python3 utils/review_simulator.py --skill grant_application --text-file draft.txt
 ```
 
-评审模拟仅支持列出的赛道，不能因为工具不支持或启发式分数低就拒绝交付。
+查重及评审模拟仅支持列出的赛道；不支持时不能声称完成赛道模板查重。不能因为工具不支持或启发式分数低就拒绝交付。
 
 ---
 

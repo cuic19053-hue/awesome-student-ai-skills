@@ -612,13 +612,15 @@ metadata:
 python3 utils/ai_flavor_check.py --file draft.txt
 
 # 按需查重；评审模拟仅用于已有评审标准的赛道。
-python3 utils/plagiarism_checker.py --file draft.txt
+python3 utils/plagiarism_checker.py --list-skills
+# 例：仅当赛道对应 grant_application 时
+python3 utils/plagiarism_checker.py --file draft.txt --skill grant_application
 python3 utils/review_simulator.py --list-skills
 # 例：当赛道对应 grant_application 时
 python3 utils/review_simulator.py --skill grant_application --text-file draft.txt
 ```
 
-对低分或高分都应核对事实与语境，不能为凑数字虚构内容。
+查重及评审模拟仅对列表中有对应赛道时使用；不支持时不能声称完成赛道模板查重。对低分或高分都应核对事实与语境，不能为凑数字虚构内容。
 
 ### 冲突处理
 

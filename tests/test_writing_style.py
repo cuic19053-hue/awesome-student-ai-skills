@@ -196,3 +196,16 @@ def test_style_examples_do_not_invent_personal_facts():
         assert "专业 3/127" not in content
         assert "「多次」→「7 次」" not in content
         assert "--skill <skill_name> --file draft.txt" not in content
+
+
+def test_documented_plagiarism_example_uses_matching_track(tmp_path):
+    import subprocess
+    draft = tmp_path / "draft.txt"
+    draft.write_text("我在学校图书馆参与借阅调研。", encoding="utf-8")
+    proc = subprocess.run(
+        [sys.executable, str(ROOT / "utils" / "plagiarism_checker.py"),
+         "--file", str(draft), "--skill", "grant_application"],
+        capture_output=True, text=True, timeout=30,
+    )
+    assert "grant_application" in proc.stdout, proc.stdout + proc.stderr
+    assert "--skill grant_application" in STYLE_DOC.read_text(encoding="utf-8")
