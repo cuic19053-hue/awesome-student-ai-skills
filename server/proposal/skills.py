@@ -91,6 +91,48 @@ def model_safe_guidance(text: str) -> str:
     return "\n".join(result) + "\n【示例、代码和数值性要求已过滤；申报规则须核对适用官方来源。】"
 
 
+def _without_example_table_columns(text: str) -> str:
+    """Drop sample columns before filtering: names and facts are not guidance."""
+    result: list[str] = []
+    example_columns: set[int] = set()
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not (stripped.startswith("|") and stripped.endswith("|")):
+            example_columns = set()
+            result.append(line)
+            continue
+        cells = stripped[1:-1].split("|")
+        if any(re.search(r"示例|样例|范例", cell) for cell in cells):
+            example_columns = {i for i, cell in enumerate(cells)
+                               if re.search(r"示例|样例|范例", cell)}
+        if example_columns:
+            cells = [cell for i, cell in enumerate(cells) if i not in example_columns]
+            line = "|" + "|".join(cells) + "|"
+        result.append(line)
+    return "\n".join(result)
+
+
+def skill_reference_names(skill_path: Path) -> list[str]:
+    """Only advertise references linked directly by the selected skill."""
+    content = skill_path.read_text(encoding="utf-8")
+    names = re.findall(r"\]\((references/[a-zA-Z0-9_-]+\.md)\)", content)
+    return list(dict.fromkeys(names))
+
+
+def safe_skill_reference(skill_path: Path, name: str) -> str | None:
+    """Read only a linked reference within this skill, filtering model content."""
+    if name not in skill_reference_names(skill_path):
+        return None
+    refs_dir = (skill_path.parent / "references").resolve()
+    # Do not permit a symlinked references directory or file to escape the skill.
+    if refs_dir.parent != skill_path.parent.resolve():
+        return None
+    path = (skill_path.parent / name).resolve()
+    if path.parent != refs_dir or not path.is_file():
+        return None
+    return model_safe_guidance(_without_example_table_columns(path.read_text(encoding="utf-8")))
+
+
 def normalize_skill_id(value: str) -> str:
     return str(value or "").strip().replace("_", "-").lower()
 
@@ -159,19 +201,29 @@ class SkillRegistry:
             return ""
         return model_safe_guidance(skill["skill_path"].read_text(encoding="utf-8"))[:max_chars]
 
-    def model_guidance_page(self, skill_id: str, offset: int, page_size: int = 8000) -> dict[str, Any]:
+    def model_guidance_page(self, skill_id: str, offset: int, page_size: int = 8000,
+                            reference: str | None = None) -> dict[str, Any]:
         """Page the *filtered* guide, never a raw Skill file or a filesystem path."""
         skill = self.get(skill_id)
         if not skill:
             return {"error": "未找到该技能。"}
         if type(offset) is not int or offset < 0:
             return {"error": "指南偏移量必须是非负整数。"}
-        guidance = model_safe_guidance(skill["skill_path"].read_text(encoding="utf-8"))
+        if reference is not None:
+            if not isinstance(reference, str):
+                return {"error": "参考资料名称无效。"}
+            guidance = safe_skill_reference(skill["skill_path"], reference)
+            if guidance is None:
+                return {"error": "该技能没有此参考资料。"}
+        else:
+            guidance = model_safe_guidance(skill["skill_path"].read_text(encoding="utf-8"))
         if offset > len(guidance):
             return {"error": "指南偏移量超出范围。"}
         end = min(offset + page_size, len(guidance))
         return {"guidance": guidance[offset:end], "offset": offset,
-                "next_offset": end if end < len(guidance) else None}
+                "next_offset": end if end < len(guidance) else None,
+                "reference": reference,
+                "available_references": skill_reference_names(skill["skill_path"])}
 
 
 registry = SkillRegistry()
@@ -187,10 +239,11 @@ def discovery_tool_schemas() -> list[dict[str, Any]]:
         }},
         {"type": "function", "function": {
             "name": "load_skill_guidance",
-            "description": "按需查阅当前项目已选 Skill 的写作指南；结果如有 next_offset，可传回该值读取后续内容。不能切换赛道或执行脚本。",
+            "description": "按需查阅当前项目已选 Skill 的写作指南；参考资料可从结果的 available_references 中选择并传入 reference。结果如有 next_offset，以相同 reference 继续读取。不能切换赛道或执行脚本。",
             "parameters": {"type": "object", "properties": {
                 "skill_id": {"type": "string", "description": "当前项目的 Skill 标识"},
                 "offset": {"type": "integer", "minimum": 0, "description": "从上次结果的 next_offset 继续；首次读取可省略"},
+                "reference": {"type": "string", "description": "可选，填写该 Skill 返回的参考资料名称"},
             }, "required": ["skill_id"], "additionalProperties": False},
         }},
     ]
@@ -226,7 +279,7 @@ def invoke_discovery_tool(name: str, arguments: dict[str, Any], project: dict[st
                 "notice": "技能目录仅供识别用途，申报规则须核对适用官方通知。"}
     if name != "load_skill_guidance":
         return {"error": "未授权的技能工具。"}
-    if (not set(arguments) <= {"skill_id", "offset"}
+    if (not set(arguments) <= {"skill_id", "offset", "reference"}
             or not isinstance(arguments.get("skill_id"), str)):
         return {"error": "请提供一个有效的技能标识。"}
     requested = normalize_skill_id(arguments["skill_id"])
@@ -237,7 +290,8 @@ def invoke_discovery_tool(name: str, arguments: dict[str, Any], project: dict[st
         return {"error": "当前对话尚未选定申报赛道，请先确认再加载对应指南。"}
     if requested != current:
         return {"error": "该技能与当前项目的赛道不同，请先明确确认并选择对应项目或赛道。"}
-    page = registry.model_guidance_page(requested, arguments.get("offset", 0))
+    page = registry.model_guidance_page(requested, arguments.get("offset", 0),
+                                        reference=arguments.get("reference"))
     if "error" in page:
         return page
     return {"skill_id": requested, "name": selected.get("display_name") or requested, **page,

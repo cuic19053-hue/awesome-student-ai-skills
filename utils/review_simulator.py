@@ -46,6 +46,13 @@ except ImportError:  # pragma: no cover
     check_plagiarism = None  # type: ignore
     PlagiarismReport = None  # type: ignore
 
+# 同目录的 AI 味检测模块（文风质检）
+try:
+    from ai_flavor_check import check_ai_flavor, FlavorReport  # type: ignore
+except ImportError:  # pragma: no cover
+    check_ai_flavor = None  # type: ignore
+    FlavorReport = None  # type: ignore
+
 # ---------------------------------------------------------------------------
 # 数据类
 # ---------------------------------------------------------------------------
@@ -79,6 +86,7 @@ class ReviewResult:
     improvements: List[str] = field(default_factory=list)
     veto_triggered: List[str] = field(default_factory=list)
     plagiarism: Optional[Dict] = None
+    ai_flavor: Optional[Dict] = None
 
     def to_dict(self) -> Dict:
         d = asdict(self)
@@ -265,6 +273,27 @@ class ReviewSimulator:
             except Exception as e:  # pragma: no cover
                 plagiarism_dict = {"error": str(e)}
         result.plagiarism = plagiarism_dict
+
+        # 1.5 文风预检（AI 味 / 机器腔）
+        flavor_dict: Optional[Dict] = None
+        if self.application_text and check_ai_flavor is not None:
+            try:
+                fr: FlavorReport = check_ai_flavor(self.application_text)
+                flavor_dict = {
+                    "score": fr.score,
+                    "grade": fr.grade,
+                    "passed": fr.passed,
+                    "hit_count": len(fr.hits),
+                    "dimensions": {k: round(v, 2) for k, v in fr.dimensions.items()},
+                    "top_hits": [
+                        {"label": h.label, "detail": h.detail, "advice": h.advice}
+                        for h in fr.hits[:5]
+                    ],
+                }
+                # 文风启发式可能误判，只提供修改线索，不作为一票否决依据。
+            except Exception as e:  # pragma: no cover
+                flavor_dict = {"error": str(e)}
+        result.ai_flavor = flavor_dict
 
         # 2. 硬门槛
         gate_ok, gate_failures = self.check_hard_gates()
@@ -704,6 +733,11 @@ class ReviewSimulator:
             out.append(f"【一票否决】共 {len(result.veto_triggered)} 项")
         if result.plagiarism and not result.plagiarism.get("passed", True):
             out.append("【原创性】查重未通过。")
+        if result.ai_flavor and not result.ai_flavor.get("passed", True):
+            out.append(
+                f"【文风】AI 味得分 {result.ai_flavor.get('score', 0):.1f}/100"
+                f"（{result.ai_flavor.get('grade', '-')}），建议结合具体命中人工复核。"
+            )
         return out
 
     def _generate_improvements(self, result: ReviewResult) -> List[str]:
@@ -726,6 +760,16 @@ class ReviewSimulator:
             out.append("【紧急】必须解决一票否决项后才能通过预审。")
         if result.plagiarism and not result.plagiarism.get("passed", True):
             out.append("【紧急】查重未通过，需重写命中段落（参考 plagiarism_checker 报告）。")
+        if result.ai_flavor and not result.ai_flavor.get("passed", True):
+            score = result.ai_flavor.get("score", 0.0)
+            advice = "；".join(
+                f"{h['label']}：{h['advice']}"
+                for h in result.ai_flavor.get("top_hits", [])[:3]
+            )
+            out.append(
+                f"【文风】AI 味得分 {score:.1f}/100，需按以下方向重写：{advice}"
+                "。核心原则：每句都要能落到具体的人/事/数字/时间，删掉所有不携带信息的修饰语。"
+            )
         return out
 
     # -------------------- 报告生成 --------------------
