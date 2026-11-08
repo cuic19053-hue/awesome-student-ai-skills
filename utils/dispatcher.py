@@ -484,7 +484,7 @@ class Dispatcher:
             if not any(alias != other and alias in other for other in hits.values())
         }
 
-    def route(self, user_input: str, top_n: int = TOP_N_DEFAULT) -> Dict[str, Any]:
+    def route(self, user_input: str, top_n: int = TOP_N_DEFAULT, *, allow_model: bool = True) -> Dict[str, Any]:
         """Return candidates and an abstaining decision, without breaking dispatch()."""
         if not user_input.strip():
             return {"selected": None, "needs_clarification": True, "candidates": [], "method": "empty"}
@@ -493,6 +493,63 @@ class Dispatcher:
         # explicitly positive and more specific skill name.
         specific = self._specific_matches(user_input)
         normalized = normalize(user_input)
+        # “社会调查” can describe an entry in the Challenge Cup rather than
+        # a separate summer-practice application. Keep explicit alternatives.
+        if ("challenge-cup" in specific and "social-survey" in specific
+                and re.search(r"挑战杯.{0,8}(?:社会调查|社会调研)", normalized)
+                and not re.search(r"三下乡|暑期社会实践|社会实践|或者|或是|还是", normalized)):
+            specific.pop("social-survey")
+
+        # A practice application explicitly describing fieldwork should not
+        # require a second choice merely because it uses “调研”, not “调查”.
+        if ("social-survey" not in negated and "三下乡" in normalized
+                and re.search(r"调研|调查|走访|问卷|访谈", normalized)
+                and not re.search(r"支教|宣讲|科技服务|医疗服务|法律援助|农业技术|或者|或是|还是", normalized)):
+            specific.setdefault("social-survey", "三下乡调研")
+        practice_options = re.split(r"或者|或是|还是|或", normalized)
+        if ("social-survey" not in negated and "三下乡" in normalized and len(practice_options) > 1
+                and any(re.search(r"调研|调查|走访|问卷|访谈", part) for part in practice_options)
+                and any(re.search(r"支教|宣讲|科技服务|医疗服务|法律援助|农业技术", part) for part in practice_options)):
+            specific.setdefault("social-survey", "三下乡调研")
+
+        event_pattern = r"中国(?:国际)?大学生创新(?:创业)?大赛|互联网(?:\+|加)(?:大赛)?"
+        denial = r"(?:不想|不要|不报|不申请|不是|不考虑|不参加|别)(?:.{0,8})$"
+        def positive_occurrences(pattern: str) -> list[re.Match]:
+            result = []
+            for match in re.finditer(pattern, normalized):
+                clause = re.split(r"[，,。;；!！?？]|(?=我要|我想|我准备|我打算|要报|想报|而是)",
+                                  normalized[:match.start()])[-1]
+                if not re.search(denial, clause[-12:]):
+                    result.append(match)
+            return result
+
+        graduate_tracks = positive_occurrences(r"九推|(?:研究生(?:推免|招生|暑期)?|推免|保研)夏令营")
+        if ("graduate-recommendation" not in negated and graduate_tracks
+                and (graduate_tracks[0].group() == "九推" or re.search(r"申请|报名|个人陈述|自荐", normalized))):
+            specific.setdefault("graduate-recommendation", graduate_tracks[0].group())
+
+        event_positive = bool(positive_occurrences(event_pattern))
+        main_track = bool(event_positive and positive_occurrences(r"高教主赛道|高教赛道|主赛道|职教赛道"))
+        red_track = bool(event_positive and positive_occurrences(r"红旅|红色之旅|红色筑梦之旅"))
+        if main_track:
+            specific.setdefault("internet-plus", "主赛道")
+        if red_track:
+            specific.setdefault("internet-plus-red-tour", "红旅赛道")
+        if event_positive and not re.search(r"或者|或是|还是|相比|比较|区别|哪个", normalized):
+            for name, alias in list(specific.items()):
+                if name in {"internet-plus", "internet-plus-red-tour"}:
+                    continue
+                location = normalized.find(alias)
+                if location < 0:
+                    continue
+                start = max(normalized.rfind(mark, 0, location) for mark in "，,。;；!！?？") + 1
+                ends = [normalized.find(mark, location) for mark in "，,。;；!！?？"]
+                end = min((position for position in ends if position >= 0), default=len(normalized))
+                context = normalized[start:end]
+                # Existing experience/project background is not a second
+                # competing application, such as a former 大创 project.
+                if re.search(r"项目|成果|原来|以前|曾经|基础", context) and not re.search(r"(?:报名|申报|参加|申请|要报|想报)", context):
+                    specific.pop(name)
         for name, alias in list(specific.items()):
             position = normalized.find(alias)
             clause = re.split(r"[，,。;；!！?？]", normalized[:position])[-1]
@@ -506,14 +563,15 @@ class Dispatcher:
         lexical = {item["name"]: item for item in self.keyword_match(user_input) if item["name"] not in negated}
         semantic = self.semantic_scorer(user_input)
         filtered_semantic = {k: v for k, v in semantic.items() if k not in negated}
-        if not lexical and max(filtered_semantic.values(), default=0.0) < 0.60:
+        if not lexical and not specific and not event_positive and max(filtered_semantic.values(), default=0.0) < 0.60:
             return {"selected": None, "needs_clarification": True, "candidates": [], "method": "insufficient"}
         by_name = {skill["name"]: skill for skill in self.skills if skill["name"] not in negated}
         all_candidates: List[Dict[str, Any]] = []
         for name, skill in by_name.items():
             base = lexical.get(name)
             similarity = max(0.0, min(1.0, float(filtered_semantic.get(name, 0.0))))
-            if not base and similarity < 0.28 and name not in specific:
+            event_candidate = event_positive and name in {"internet-plus", "internet-plus-red-tour"}
+            if not base and similarity < 0.28 and name not in specific and not event_candidate:
                 continue
             item = dict(base) if base else {
                 "name": name,
@@ -532,6 +590,9 @@ class Dispatcher:
             if name in specific:
                 item["score"] += 12
                 item["matched"].append(f"hard:{specific[name]}")
+            elif event_candidate:
+                item["score"] += 6
+                item["matched"].append("event:大学生创新大赛")
             all_candidates.append(item)
         all_candidates.sort(key=lambda item: (-item["score"], item["name"]))
 
@@ -555,16 +616,19 @@ class Dispatcher:
                     if display and display in part and skill["name"] not in negated:
                         alternatives.add(skill["name"])
         comparison = comparison or len(alternatives) > 1
+        # The event name alone covers multiple tracks. Ask which track even
+        # when semantic search or a small model prefers one of them.
+        unspecified_event = event_positive and not main_track and not red_track and not specific
         if len(specific) == 1 and not comparison:
             selected = next(iter(specific))
             method = "hard_rule"
-        elif not specific and not comparison and all_candidates:
+        elif not specific and not comparison and not unspecified_event and all_candidates:
             first = all_candidates[0]
             second_score = all_candidates[1]["score"] if len(all_candidates) > 1 else 0
             if (first["score"] >= 8 and first["score"] - second_score >= 4) or (len(all_candidates) == 1 and first["score"] >= 5):
                 selected = first["name"]
                 method = "hybrid"
-        if selected is None and self.intent_decider and all_candidates and not comparison and len(specific) < 2:
+        if allow_model and selected is None and self.intent_decider and all_candidates and not comparison and not unspecified_event and len(specific) < 2:
             choice = self.intent_decider.decide(user_input, all_candidates[:3])
             if choice in {item["name"] for item in all_candidates[:3]}:
                 selected = choice

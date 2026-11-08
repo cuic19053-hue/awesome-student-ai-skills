@@ -8,7 +8,10 @@ def test_every_indexed_skill_has_a_decisive_canonical_route():
     router = Dispatcher(intent_decider=False)
     assert len(router.skills) == 35
     for skill in router.skills:
-        result = router.route(f"我要准备{skill['display_name']}申请材料")
+        # “互联网+” is the event name, shared by several tracks; a request
+        # for the specific main-track skill must actually name that track.
+        name = "互联网+高教主赛道" if skill["name"] == "internet-plus" else skill["display_name"]
+        result = router.route(f"我要准备{name}申请材料")
         assert result["selected"] == skill["name"], skill["name"]
         assert result["candidates"][0]["name"] == skill["name"]
         assert isinstance(router.dispatch(skill["display_name"])[0]["score"], int)

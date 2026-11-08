@@ -125,18 +125,33 @@ class BodyRegion:
 
 
 def export_material(store, project_id: str, folder: Path) -> dict[str, Any]:
-    from .exporter import _fill_labeled_tables, _fill_labeled_paragraphs, _replace_tokens, _match_section_id
+    from .exporter import (_fill_labeled_tables, _fill_labeled_paragraphs, _replace_tokens,
+                           _match_section_id, _student_template_project, _template_unfilled_fields,
+                           ensure_grant_income_export_safe, _open_word_template)
     folder.mkdir(parents=True, exist_ok=True)
     project = store.project_for_export(project_id) if hasattr(store, "project_for_export") else store.get_project(project_id)
     docs = store.list_documents(project_id)
+    ensure_grant_income_export_safe(store, project, docs)
+    project = _student_template_project(store, project, docs)
     project["_documents"] = docs
     view = material_view(project, docs)
     effective = (view.get("requirements") or {}).get("effective", {})
     template = next((d for d in docs if d["id"] == project.get("template_document_id")), None)
     warnings, containers, token_sections, paragraph_anchors = [], {}, set(), {}
-    used_template = bool(template and Path(template["stored_path"]).suffix.lower() == ".docx")
+    for missing in project.get("_missing_export_documents", []):
+        if missing.get("kind") != "template":
+            warnings.append(f"{missing.get('name') or '图片'} 暂不可用，未能嵌入；请重新上传或手动补充。")
+    template_unfilled_fields = []
+    template_document = _open_word_template(template)
+    used_template = template_document is not None
+    template_path = Path(template["stored_path"]) if template and template.get("stored_path") else None
+    template_unavailable = bool(project.get("template_document_id") and
+        (not template or not template_path or not template_path.is_file() or
+         (template_path.suffix.lower() == ".docx" and not used_template)))
+    if template_unavailable:
+        warnings.append("学校模板暂不可用或无法打开；已使用通用格式保留正文，请重新上传模板并核对格式。")
     if used_template:
-        document = Document(template["stored_path"])
+        document = template_document
         regions = [(document, p) for p in document.paragraphs]
         for table in document.tables:
             for row in table.rows:
@@ -165,7 +180,12 @@ def export_material(store, project_id: str, folder: Path) -> dict[str, Any]:
             if residual:
                 paragraph.add_run(residual)
             containers[sid] = ParagraphRegion(parent, paragraph)
-        if not replaced and not filled:
+        template_unfilled_fields = _template_unfilled_fields(document)
+        if template_unfilled_fields:
+            warnings.append("学校模板仍有未填写内容，请在 Word 中补齐后再提交。")
+        if project.get("_template_fact_conflict"):
+            warnings.append("提供的信息有不同说法，请确认后再填写学校模板。")
+        if not filled:
             warnings.append("学校模板未找到可映射区域，原件保留，正文附在后面；模板适配未完成")
         for sid in filled:
             if sid not in containers:
@@ -201,7 +221,8 @@ def export_material(store, project_id: str, folder: Path) -> dict[str, Any]:
         cover_kind = _text(document, "创新训练项目申报书（草稿）" if is_innovation else f"{skill_name}（草稿）", heading=True, size=26)
         cover_kind.alignment = WD_ALIGN_PARAGRAPH.CENTER
         cover_kind.paragraph_format.space_after = Pt(24)
-        _text(document, project["title"], heading=True, size=16).alignment = WD_ALIGN_PARAGRAPH.CENTER
+        if project.get("title") and project["title"] != "新对话":
+            _text(document, project["title"], heading=True, size=16).alignment = WD_ALIGN_PARAGRAPH.CENTER
         info = document.add_table(rows=0, cols=2)
         info.style = "Table Grid"
         fields = (
@@ -225,7 +246,7 @@ def export_material(store, project_id: str, folder: Path) -> dict[str, Any]:
                     paragraph.paragraph_format.space_after = Pt(3)
         _text(document, "草稿：请核对正式通知、事实、引用及待补充项。")
         document.add_page_break()
-        if template:
+        if template and not template_unavailable:
             warnings.append("非 Word 模板不能保留原版式；使用可编辑通用排版，需人工核对")
     # Keep approval/signature blocks last. Adding unmapped chapters after the
     # signature area falsely presents them as part of the official form.
@@ -282,18 +303,24 @@ def export_material(store, project_id: str, folder: Path) -> dict[str, Any]:
         path = Path(figure.get("preview") or "")
         _text(container, f"相关图示见图 {number}。")
         if path.is_file():
-            from PIL import Image
-            with Image.open(path) as picture:
-                width_cm = 13 if container is not document else 15
-                too_tall = width_cm * picture.height / picture.width > 19
-            if too_tall:
-                warnings.append(f"图 {number} 过高，请拆分后插入；未通过缩小到不可读字号解决")
-                _text(container, f"【待补充：图 {number} 请拆分，原图保留在项目中】")
-            else:
-                p = container.add_paragraph()
-                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p.paragraph_format.keep_with_next = True
-                p.add_run().add_picture(str(path), width=Cm(width_cm))
+            try:
+                from PIL import Image
+                with Image.open(path) as picture:
+                    width_cm = 13 if container is not document else 15
+                    too_tall = width_cm * picture.height / picture.width > 19
+                if too_tall:
+                    warnings.append(f"图 {number} 过高，请拆分后插入；未通过缩小到不可读字号解决")
+                    _text(container, f"【待补充：图 {number} 请拆分，原图保留在项目中】")
+                else:
+                    p = container.add_paragraph()
+                    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    p.paragraph_format.keep_with_next = True
+                    p.add_run().add_picture(str(path), width=Cm(width_cm))
+            except Exception:
+                # A broken optional image must not prevent exporting the
+                # student's entire text. Keep a visible placeholder instead.
+                warnings.append(f"图 {number} 无法读取或嵌入，请重新上传或手动插入")
+                _text(container, f"【待补充：图 {number} 暂无法嵌入，请重新上传或手动插入】")
         else:
             warnings.append(f"图 {number} 图片缺失")
             _text(container, f"【待补充：图 {number} 图片缺失】")
@@ -374,15 +401,32 @@ def export_material(store, project_id: str, folder: Path) -> dict[str, Any]:
     document.core_properties.title = project["title"]
     document.core_properties.author = ""
     document.save(target)
-    from utils.docx_layout_fix import fix
-    # Preserve formal templates: the generic hardener can alter their pagination.
+    # Hardening is optional and may fail during save. Write to a separate
+    # file so a failed layout step cannot corrupt the already generated Word.
+    # Preserve formal templates: the generic hardener can alter pagination.
     if not used_template:
-        fix(target)
+        hardened = folder / ".proposal-hardened.docx"
+        try:
+            from utils.docx_layout_fix import fix
+            fix(target, out=hardened)
+            hardened.replace(target)
+        except Exception:
+            warnings.append("排版优化未完成，已保留原始 Word 草稿；请检查格式。")
+        finally:
+            hardened.unlink(missing_ok=True)
     from .tools import ProposalTools
     validation = ProposalTools(store).validate_project(project_id)
+    template_status = ("needs_review" if template_unavailable or template and (not used_template or template_unfilled_fields or not filled
+                                                        or project.get("_template_fact_conflict"))
+                       else "mapped" if used_template else "generic")
+    if template_status == "needs_review":
+        validation = dict(validation)
+        validation["passed"] = False
+        validation["consistency_warnings"] = [*validation.get("consistency_warnings", []),
+            "学校模板尚有未填写内容或无法自动映射，请在 Word 中检查并补齐。"]
     return {"file": "proposal.docx", "warnings": sorted(set(warnings)), "validation": validation,
             "effective_requirements": effective,
-            "template_status": "mapped" if filled or (used_template and replaced) else ("needs_review" if template else "generic"),
+            "template_status": template_status, "template_unfilled_fields": template_unfilled_fields,
             "input_snapshot": view["snapshot"], "layout_profile": STYLE}
 
 

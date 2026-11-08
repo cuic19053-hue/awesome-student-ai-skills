@@ -91,6 +91,20 @@ def test_free_platform_also_disables_thinking_and_rejects_blank_content(tmp_path
     assert bodies[0]["max_tokens"] == 2048
 
 
+def test_free_platform_stream_uses_same_output_limit_as_nonstream(tmp_path, monkeypatch):
+    _store, _meter, agent = make_agent(tmp_path, paid=False)
+    bodies = []
+
+    def upstream(request, **_kwargs):
+        bodies.append(json.loads(request.data))
+        return io.BytesIO('data: {"choices":[{"delta":{"content":"完成"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n'.encode())
+
+    monkeypatch.setattr("proposal.agent.wopally_urlopen", upstream)
+    assert list(agent._stream_post({"messages": []}))[-1]["message"]["content"] == "完成"
+    assert bodies[0]["max_tokens"] == 2048
+    assert bodies[0]["thinking"] == {"type": "disabled"}
+
+
 def test_byok_does_not_force_provider_specific_thinking_configuration(tmp_path, monkeypatch):
     _store, _meter, agent = make_agent(tmp_path, paid=False)
     agent.platform_transport = False

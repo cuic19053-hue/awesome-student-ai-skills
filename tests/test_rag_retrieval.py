@@ -113,6 +113,54 @@ def test_database_failure_falls_back_without_losing_scope(monkeypatch):
     assert result["fallback_reason"]
 
 
+def test_empty_project_skips_embedding_but_not_store_errors(monkeypatch):
+    import pytest
+    monkeypatch.delenv("RAG_DB_SEARCH_ENABLED", raising=False)
+    class UnavailableEmbedding(Embed):
+        def embed(self, texts):
+            pytest.fail("空项目不应调用嵌入模型")
+    result = ProjectRetriever(MemoryStore([]), UnavailableEmbedding()).search("one", "研究背景")
+    assert result["retrieval_mode"] == "empty" and result["results"] == []
+    class BrokenStore(MemoryStore):
+        def chunks_for_project(self, _project_id):
+            raise RuntimeError("数据不可用")
+    with pytest.raises(RuntimeError, match="数据不可用"):
+        ProjectRetriever(BrokenStore([]), UnavailableEmbedding()).search("one", "研究背景")
+
+
+def test_remote_compatibility_retrieval_is_scoped_and_does_not_hide_materials(monkeypatch, tmp_path):
+    from proposal.supabase_store import SupabaseStore
+    monkeypatch.delenv("RAG_DB_SEARCH_ENABLED", raising=False)
+    store = SupabaseStore("https://example.supabase.co", "test-key", tmp_path, service_role_key="")
+    calls = []
+    rows = []
+    def rest(table, **kwargs):
+        calls.append((table, kwargs.get("params")))
+        return rows
+    monkeypatch.setattr(store, "_rest", rest)
+    class NoEmbed(Embed):
+        def embed(self, texts):
+            raise AssertionError("空项目无需嵌入")
+    assert ProjectRetriever(store, NoEmbed()).search("project-a", "研究背景")["retrieval_mode"] == "empty"
+    assert ("project_id", "eq.project-a") in calls[0][1]
+    assert ("documents.confirmation_origin", "eq.user") in calls[0][1]
+    rows.append({**chunk("a", "项目研究背景", [1.0, 0.0]), "embedding_json": [1.0, 0.0], "documents": {}})
+    result = ProjectRetriever(store, Embed()).search("project-a", "研究背景")
+    assert [item["chunk_id"] for item in result["results"]] == ["a"]
+
+
+def test_database_vector_search_does_not_rely_on_compatibility_rows(monkeypatch):
+    monkeypatch.setenv("RAG_DB_SEARCH_ENABLED", "true")
+    class DBStore(MemoryStore):
+        def chunks_for_project(self, _project_id):
+            raise AssertionError("数据库搜索可用时不应先扫描兼容存储")
+        def search_project_chunks(self, project_id, _terms, vector, _model, _revision):
+            assert project_id == "one" and vector == [1.0, 0.0]
+            return [dict(chunk("database", "项目背景", [1.0, 0.0]), lexical_score=1, vector_score=1)]
+    result = ProjectRetriever(DBStore([]), Embed()).search("one", "背景")
+    assert [item["chunk_id"] for item in result["results"]] == ["database"]
+
+
 def test_remote_adapter_refuses_private_data_and_invalid_free_configuration(monkeypatch):
     import urllib.request
     import pytest

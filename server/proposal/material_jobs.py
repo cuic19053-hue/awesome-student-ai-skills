@@ -6,6 +6,7 @@ No user JWT, plaintext model credential, or service-role key is stored in jobs.
 from __future__ import annotations
 
 import json
+import os
 import secrets
 import time
 import uuid
@@ -16,6 +17,20 @@ from .materials import MaterialConflict
 
 PUBLIC = ("id", "project_id", "kind", "target", "status", "step", "result", "error", "created_at", "updated_at")
 TERMINAL = {"completed", "failed", "cancelled", "needs_review"}
+TRUSTED_ACTIONS = frozenset({"submit", "raw", "applied", "cleanup_paths"})
+
+
+class MaterialSecurityUnavailable(RuntimeError):
+    """The cloud material pipeline lacks its server-only capability."""
+
+
+def material_submit_secret() -> str:
+    # Keep the capability out of errors, results, persisted task payloads and
+    # logs. Local SQLite needs no remote capability.
+    secret = os.environ.get("MATERIAL_SUBMIT_SECRET", "")
+    if len(secret) < 32 or secret != secret.strip():
+        raise MaterialSecurityUnavailable("材料服务暂不可用，请稍后重试。")
+    return secret
 
 
 def public_job(job):
@@ -33,9 +48,21 @@ class MaterialJobs:
                     kind TEXT NOT NULL, target TEXT NOT NULL, idempotency TEXT NOT NULL, body TEXT NOT NULL,
                     UNIQUE(project_id, idempotency))""")
 
+    def _trusted_rpc(self, function: str, payload: dict[str, Any]):
+        request = {**payload, "p_secret": material_submit_secret()}
+        try:
+            return self.store._rest(f"rpc/{function}", "POST", payload=request)
+        except Exception:
+            # Upstream diagnostics can echo request bodies. Surface neither
+            # capability nor private material through HTTP errors or logs.
+            raise MaterialSecurityUnavailable("材料服务暂不可用，请稍后重试。") from None
+
     def call(self, action: str, **args):
         if self.cloud:
-            return self.store._rest("rpc/material_jobs_api", "POST", payload={"p_action": action, "p_args": args})
+            payload = {"p_action": action, "p_args": args}
+            if action in TRUSTED_ACTIONS:
+                return self._trusted_rpc("material_jobs_api", payload)
+            return self.store._rest("rpc/material_jobs_api", "POST", payload=payload)
         with self.store.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             now = time.time()
@@ -89,11 +116,7 @@ class MaterialJobs:
 
     def find(self, project_id, idempotency):
         if self.cloud:
-            rows = self.store._rest("material_jobs", params={
-                "project_id": f"eq.{project_id}", "idempotency": f"eq.{idempotency}",
-                "select": ",".join(PUBLIC), "limit": "1",
-            })
-            return rows[0] if rows else None
+            return self.call("find", project_id=project_id, idempotency=idempotency) or None
         with self.store.connect() as db:
             row = db.execute("SELECT body FROM material_jobs WHERE project_id=? AND idempotency=?",
                              (project_id, idempotency)).fetchone()
@@ -123,7 +146,7 @@ class MaterialJobs:
         args = {"id": job["id"], "project_id": job["project_id"],
                 "revision": job["payload"]["base_revision"], "fields": fields}
         if self.cloud:
-            result = self.store._rest("rpc/material_apply", "POST", payload={"p_args": args})
+            result = self._trusted_rpc("material_apply", {"p_args": args})
             return result
         with self.store.connect() as db:
             db.execute("BEGIN IMMEDIATE")

@@ -237,6 +237,7 @@ class WorkflowResult(BaseModel):
     history: List[WorkflowIteration] = Field(default_factory=list)
     user_hints: List[str] = Field(default_factory=list, description="呈现给用户的操作提示与事实补充建议")
     missing_facts: List[str] = Field(default_factory=list)
+    revision_incomplete: bool = False
     evidence: List[Dict[str, Any]] = Field(default_factory=list)
     retrieval_mode: Optional[str] = None
     notice: Optional[str] = None
@@ -390,15 +391,25 @@ class AgenticWorkflowEngine:
         feedback_prompt: Optional[str] = None
         current_draft: Optional[DraftOutput] = None
         current_critic: Optional[CriticReview] = None
+        revision_incomplete = False
 
         # 确保黑板实例存在 (决策 5-A)
-        bb = blackboard or ProjectBlackboard(
-            project_name=project_context.get("project_name", ""),
-            problem_statement=project_context.get("problem", ""),
-            scientific_challenge=project_context.get("goal", ""),
-            technical_approach=project_context.get("method", ""),
-            quantitative_targets=project_context.get("expected_output", ""),
-        )
+        if blackboard is None:
+            from .materials import FACT_KEYS, PLAN_KEYS
+            facts = {k: project_context[k] for k in FACT_KEYS if project_context.get(k) not in (None, "")}
+            plans = {k: project_context[k] for k in PLAN_KEYS if project_context.get(k) not in (None, "")}
+            if isinstance(project_context.get("confirmed_facts"), dict):
+                facts.update(project_context["confirmed_facts"])
+            if isinstance(project_context.get("planned_items"), dict):
+                plans.update(project_context["planned_items"])
+            # Explicitly planned keys stay plans even if also present in the
+            # older confirmed_facts field.
+            facts = {k: str(v) for k, v in facts.items() if k not in plans}
+            bb = ProjectBlackboard(project_name=str(project_context.get("project_name") or ""),
+                                   confirmed_facts=facts,
+                                   planned_items={k: str(v) for k, v in plans.items()})
+        else:
+            bb = blackboard
 
         for iteration in range(1, self.max_retries + 2):
             # 1. Draft 阶段（使用 draft_caller）
@@ -412,7 +423,15 @@ class AgenticWorkflowEngine:
                 previous_feedback=feedback_prompt,
                 iteration=iteration,
             )
-            draft_text = self.draft_caller(draft_messages, {"temperature": 0.3})
+            try:
+                draft_text = self.draft_caller(draft_messages, {"temperature": 0.3})
+            except (RuntimeError, OSError, TimeoutError):
+                if not history:
+                    raise  # No draft exists yet; preserve the original failure.
+                # The paid earlier draft must survive a later revision failure.
+                # Do not retry automatically or expose upstream exception text.
+                revision_incomplete = True
+                break
             current_draft = self.parse_draft(draft_text, section_id, section_title)
             for mf in current_draft.missing_facts:
                 if mf not in all_missing_facts:
@@ -458,6 +477,12 @@ class AgenticWorkflowEngine:
             if current_critic.passed:
                 break
 
+            # A rewrite cannot supply facts that only the student can give.
+            # Keep the draft and ask for the missing material instead of
+            # making further model calls that can only speculate.
+            if current_critic.user_action_required or current_draft.missing_facts:
+                break
+
             if iteration > self.max_retries:
                 break
 
@@ -494,6 +519,8 @@ class AgenticWorkflowEngine:
 
         # 6. 用户提示组装（决策 3-A）
         user_hints: List[str] = []
+        if revision_incomplete:
+            user_hints.append("后续修改未完成，已保留上一版草稿，请核对后继续编辑。")
         if current_critic.review_status == "failed":
             user_hints.append("评审未完成，已保留草稿；本次不提供质量分数，请稍后重试评审。")
         if all_missing_facts:
@@ -538,9 +565,12 @@ class AgenticWorkflowEngine:
             history=history,
             user_hints=user_hints,
             missing_facts=all_missing_facts,
+            revision_incomplete=revision_incomplete,
             evidence=evidence_results,
             retrieval_mode=retrieval_mode,
             notice=(
+                "后续修改未完成，已保留上一版草稿；请核对后继续编辑。"
+                if revision_incomplete else
                 "草稿已保留，但评审未完成；请勿视为已通过质量检查。"
                 if chosen_critic.review_status == "failed" else notice
             ),
@@ -567,8 +597,9 @@ class AgenticWorkflowEngine:
             "【铁律守则】：\n"
             "1. 绝不凭空编造学生经历、未确认的测试数据、合作单位、指导教师姓名或国家级奖项。\n"
             "2. 只要缺少必要硬事实，必须且只能使用【待补充：请在此填入具体xxx】进行合规占位。\n"
-            "3. 严格遵循该赛道 Skill 规范对本章节的核心逻辑结构（如科学问题递进、算法对比、量化指标）。\n"
-            "4. 严格与【项目全局事实黑板】保持事实自洽，绝不可与前序章节的核心结论发生逻辑矛盾。"
+            "3. 按材料类别与学生实际要求组织本章节；写作指南是参考，不要强加不适用的算法、实验或量化指标。\n"
+            "4. 以学生提供的信息和确认的材料为依据；计划写为计划，先前草稿仅供连贯性参考，不能作为事实来源。\n"
+            "5. 引用已确认材料时只使用本轮提供的来源名称和位置；没有证据的文献、政策、数据和成果留待补充。"
         )
 
         budgeter = ContextBudgeter(max_context_chars=7500, extended_grounding=self.extended_grounding)

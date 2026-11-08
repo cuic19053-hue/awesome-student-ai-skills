@@ -346,9 +346,63 @@ def _fuse(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result
 
 
+WRITING_INTENTS = (
+    "怎么写", "如何写", "怎样写", "撰写", "润色", "改写", "修改正文", "写作结构", "章节结构",
+    "帮我写", "我要写", "请写", "写一份", "起草", "生成一份", "设计大纲", "拟定大纲", "拟大纲",
+    "设计申请书大纲", "生成大纲", "写大纲", "整理成文", "撰写申请", "写申请",
+)
+
+
+def has_writing_intent(query: str) -> bool:
+    normalized = re.sub(r"\s+", "", query)
+    return (any(term in normalized for term in WRITING_INTENTS)
+            or bool(re.search(r"(?:写|起草|撰写|生成).{0,24}(?:申请书|申报书|申请材料|申报材料)", normalized))
+            or bool(re.search(r"(?:重新|再|直接)(?:写|起草|撰写|生成)(?:一份|一篇|正文|草稿|申请书|申报书)", normalized)))
+
+
 def is_policy_question(query: str) -> bool:
     """Treat explicit eligibility, deadlines and policy claims as evidence-only."""
     normalized = re.sub(r"\s+", "", query)
+    if has_writing_intent(query):
+        # Do not mistake an incidental mention of a policy for a question
+        # about that policy. Actual factual questions remain evidence-only,
+        # even when the same message also asks for drafting or editing.
+        eligibility_questions = (
+            "是否符合", "符不符合", "是否达标", "是否合格", "能不能申请", "能否申请", "能否申报",
+            "可以申请吗", "能申请吗", "能报名吗", "可以报名吗", "我有资格吗", "有没有资格",
+        )
+        if any(term in normalized for term in eligibility_questions):
+            return True
+        if re.search(r"(?:能否|能不能|可不可以|是否能)(?:申请|申报|报名)", normalized):
+            return True
+        if re.search(r"(?:可以|能)(?:申请|申报|报名)[^。；;！？?]{0,12}[吗么？?]", normalized):
+            return True
+        if re.search(r"(?:奖学金|助学金|补助|资助)[^。；;！？?]{0,8}(?:多少钱|多少元|能拿多少)", normalized):
+            return True
+        if re.search(r"(?:能拿|可拿)[^。；;！？?]{0,4}多少[^。；;！？?]{0,6}(?:奖学金|助学金|补助|资助)", normalized):
+            return True
+        if re.search(r"(?:专业|综测|成绩|排名)[^。；;！？?]{0,5}(?:多少|几|百分之)"
+                     r"[^。；;！？?]{0,10}(?:申请|申报|符合)", normalized):
+            return True
+        policy_topic = (
+            r"(?:官方规定|官方政策|评审规则|申报条件|申请条件|报名条件|资格要求|申请资格|申报资格|"
+            r"报考条件|评选标准|评审标准|截止时间|资助标准|奖学金金额|排名门槛|"
+            r"资格|条件|门槛|排名要求|金额|截止|报名时间|政策|评选办法|"
+            r"绩点|GPA|gpa|学分|分数|年龄|年级|名额|材料清单)"
+        )
+        factual_question = (
+            r"(?:是什么|有哪些|多少|几点|几号|何时|哪天|什么时候|是否|能否|吗|怎么算|"
+            r"如何(?:计算|判定|确定|认定|申请))"
+        )
+        if re.search(policy_topic + r"[^。；;！？?]{0,12}" + factual_question, normalized):
+            return True
+        if re.search(r"(?:查询|查找|查看|查|核实|检索|判断|了解|介绍|说明|告诉我|列出|总结|给出)"
+                     r"[^。；;！？?]{0,16}" + policy_topic, normalized):
+            return True
+        if re.search(r"(?:什么是|什么叫|多少|何时|哪天|什么时候)"
+                     r"[^。；;！？?]{0,8}" + policy_topic, normalized):
+            return True
+        return False
     strong = ("官方规定", "官方政策", "评审规则", "申报条件", "申请条件",
               "报名条件", "资格要求", "申请资格", "申报资格", "报考条件",
               "评选标准", "评审标准", "截止时间", "资助标准", "奖学金金额",
@@ -356,20 +410,47 @@ def is_policy_question(query: str) -> bool:
               "可以报名吗", "我有资格吗")
     if any(term in normalized for term in strong):
         return True
-    if any(term in normalized for term in ("怎么写", "如何写", "撰写", "润色", "写作结构", "章节结构",
-                                            "帮我写", "我要写", "请写", "写一份", "起草", "生成一份")):
-        return False
+    if re.search(r"(?:可以|能|能否|能不能|是否能)(?:申请|申报|报名)[^。；;！？?]{0,20}(?:吗|么)", normalized):
+        return True
     if re.search(r"(?:资格|条件|门槛|排名|金额|截止|报名时间|政策).{0,8}(?:多少|要求|怎样|是什么|如何|能否|哪些|怎么算)", normalized):
         return True
     subject = ("申请", "申报", "评审", "评选", "评优", "报考", "报名", "报奖", "资格", "奖学金", "奖项", "单项奖")
     requirement = ("资格", "条件", "门槛", "标准", "排名", "截止", "多少钱", "金额",
                    "年龄", "年级", "人数", "次数", "材料清单", "绩点", "学分", "比例", "分数", "年限",
-                   "名额", "限制", "是否能", "能否", "最低", "最高", "范围", "对象", "时间", "要求", "材料",
+                   "名额", "限制", "是否能", "能否", "最低", "最高", "范围", "对象", "时间", "要求",
                    "规则", "政策", "办法", "看哪些")
+    # A request to plan or discuss materials is not itself a policy question.
+    # An explicit question about the official list still requires evidence.
+    if (re.search(r"(?:申请|申报|报名).{0,8}材料(?:需要|要求|包括|包含|有哪些|清单)", normalized)
+            or re.search(r"(?:申请|申报|报名).{0,8}(?:需要|须提交).{0,6}(?:哪些|什么)材料", normalized)):
+        return True
     if any(term in normalized for term in subject) and any(term in normalized for term in requirement):
         return True
     return "项目" in normalized and any(term in normalized for term in
                                      ("资格", "门槛", "政策", "名额", "限制", "申报截止"))
+
+
+def mixed_drafting_request(query: str) -> str | None:
+    """Return an isolated writing request only for separable mixed intents.
+
+    Clauses classified as policy questions never enter the drafting model.
+    If no writing clause can safely be isolated the evidence-only path remains.
+    """
+    if not is_policy_question(query):
+        return None
+    parts = re.split(r"[，,。；;！？?\n]|(?:然后|同时|并且|并|再)(?=(?:请|帮|为|给|将|我|写|起草|设计|拟|润色|改写|确认|查询|查|核实|判断|告诉|说明))", query)
+    def policy_clause(part: str) -> bool:
+        if is_policy_question(part):
+            return True
+        return bool(re.search(
+            r"(?:告诉我|查询|查找|查看|检索|确认|核实|判断|了解|说明|介绍|列出|给出|查)"
+            r".{0,16}(?:资格|条件|门槛|要求|标准|政策|规则|金额|多少|截止|时间)",
+            part,
+        ))
+    allowed = [part.strip() for part in parts if part.strip() and not policy_clause(part)]
+    if not any(has_writing_intent(part) for part in allowed):
+        return None
+    return "，".join(allowed)
 
 
 def policy_scope_conflict(query: str, school: str, year: int | None) -> str:

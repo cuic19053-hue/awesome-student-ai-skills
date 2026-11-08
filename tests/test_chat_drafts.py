@@ -8,7 +8,7 @@ from docx import Document
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "server"))
-from proposal.chat_drafts import candidates
+from proposal.chat_drafts import candidates, plain_application_letter, title_key
 from proposal.storage import Store
 from proposal.tools import ProposalTools
 
@@ -45,6 +45,77 @@ def test_latest_complete_block_per_heading_not_reused_id():
     assert [r["title"] for r in result] == ["目的", "预算"]
     assert result[0]["content"] == "修订末版"
     assert len({r["section_id"] for r in result}) == 2
+
+
+@pytest.mark.parametrize(("raw", "expected"), [
+    ("4.1 封面", "封面"), ("1.2.3 项目简介", "项目简介"), ("二、项目摘要", "项目摘要"),
+    ("1. 项目摘要", "项目摘要"), ("2026.11.08 进度安排", "2026.11.08进度安排"),
+])
+def test_heading_numbers_are_removed_without_corrupting_dates(raw, expected):
+    assert title_key(raw) == expected
+
+
+def test_plain_complete_letter_is_reviewable_and_excludes_followup_advice(setup):
+    client, store, pid, _ = setup
+    store.add_message(pid, "user", "请帮我写一份国家励志奖学金申请书。")
+    store.add_message(pid, "assistant", "好的，以下是申请书：\n\n## 国家励志奖学金申请书\n\n尊敬的评审老师：\n\n"
+                      "我叫李明，现就读于信息学院。我申请国家励志奖学金，希望继续认真学习，"
+                      "并根据自己的经历完善相关申请材料。\n\n此致\n敬礼！\n申请人：李明\n"
+                      "日期：待补充\n\n请补充您的实际经历。")
+    url = f"/api/projects/{pid}/chat-drafts"
+    preview = client.get(url).json()
+    item = next(item for item in preview["items"] if item["title"] == "国家励志奖学金申请书")
+    assert "信息学院" in item["content"] and "申请人：李明" in item["content"]
+    assert "请补充您的实际经历" not in item["content"]
+    assert client.post(url + "/confirm", json={"snapshot": preview["snapshot"], "items": [{"id": item["id"]}]}).status_code == 200
+    exported = client.post(f"/api/projects/{pid}/export").json()
+    doc = Document(io.BytesIO(client.get(exported["download_url"]).content))
+    assert "信息学院" in "\n".join(paragraph.text for paragraph in doc.paragraphs)
+
+
+@pytest.mark.parametrize(("user_request", "response"), [
+    ("申请书应该怎么写？", "申请书模板\n尊敬的老师：\n" + "学习表现。" * 20 + "\n此致\n敬礼！"),
+    ("请写一份申请书", "下面是示例：\n转专业申请书\n尊敬的老师：\n" + "学习表现。" * 20 + "\n此致\n敬礼！"),
+    ("请写一份申请书", "转专业申请书\n尊敬的老师：\n" + "学习表现。" * 20),
+    ("请写一份申请书", '<WritingBlock variant="document">\n转专业申请书\n尊敬的老师：\n' + "学习表现。" * 20 + "\n此致\n敬礼！"),
+    ("不要写申请书", "转专业申请书\n尊敬的老师：\n" + "学习表现。" * 20 + "\n此致\n敬礼！"),
+])
+def test_plain_recovery_excludes_advice_examples_and_incomplete_text(user_request, response):
+    assert plain_application_letter(response, user_request) is None
+
+
+@pytest.mark.parametrize("structured", [False, True])
+def test_review_required_response_cannot_bypass_draft_check(structured):
+    from proposal.chat_safety import PERSONAL_NUMBER_REVIEW_PREFIX
+    body = "尊敬的老师：\n\n我的绩点4.5。" + "学习表现。" * 15 + "\n\n此致\n敬礼！"
+    output = block("国家励志奖学金申请书", body) if structured else "国家励志奖学金申请书\n" + body
+    message = PERSONAL_NUMBER_REVIEW_PREFIX + "绩点），请先核对或删改；以下内容暂不能直接整理保存。\n\n" + output
+    project = {"outline": [], "sections": {}, "state": {}}
+    assert candidates(project, [{"role": "user", "content": "请帮我写申请书。"},
+                                {"role": "assistant", "content": message}]) == []
+    assert candidates(project, [{"role": "assistant", "content": block("国家励志奖学金申请书", "旧版正文")},
+                                {"role": "user", "content": "请重新写申请书。"},
+                                {"role": "assistant", "content": message}]) == []
+
+
+def test_project_draft_with_unverified_claims_is_offered_only_for_explicit_review():
+    from proposal.chat_safety import PROJECT_CLAIM_REVIEW_PREFIX
+    raw = PROJECT_CLAIM_REVIEW_PREFIX + "市场规模），请核对并修改。\n\n" + block(
+        "项目简介", "市场规模预计为5000亿元。该项目计划根据学生实际需求进一步讨论方案及实施范围。")
+    project = {"outline": [], "sections": {}, "state": {"skill_id": "internet-plus", "skill_category": "competition"}}
+    items = candidates(project, [{"role": "user", "content": "请直接写一段项目简介。"},
+                                 {"role": "assistant", "content": raw}])
+    assert len(items) == 1 and items[0]["requires_review"]
+    assert "市场规模" in items[0]["warnings"][0] and "5000亿元" in items[0]["content"]
+
+
+def test_project_draft_without_detectable_numbers_still_requires_review():
+    project = {"outline": [], "sections": {}, "state": {"skill_id": "internet-plus", "skill_category": "competition"}}
+    output = block("项目简介", "团队已经开发产品，成员分别负责软件和市场推广。")
+    items = candidates(project, [{"role": "user", "content": "请写项目简介。"},
+                                 {"role": "assistant", "content": output}])
+    assert items[0]["requires_review"]
+    assert "检查项目方案" in items[0]["warnings"][0]
 
 
 def test_confirmation_preserves_chat_and_does_not_confirm_facts(setup, monkeypatch):
@@ -92,6 +163,46 @@ def test_stale_review_or_existing_manual_body_is_never_overwritten(setup):
     request["snapshot"] = current["snapshot"]
     assert client.post(url + "/confirm", json=request).status_code == 409
     assert store.get_project(pid)["sections"][first["section_id"]] == "刚刚保存的手写正文"
+    request["items"][0]["replace_existing"] = True
+    replaced = client.post(url + "/confirm", json=request)
+    assert replaced.status_code == 200, replaced.text
+    assert store.get_project(pid)["sections"][first["section_id"]] == first["content"]
+    versions = store.list_section_versions(pid, first["section_id"])
+    assert any(v["content"] == "刚刚保存的手写正文" for v in versions)
+
+
+def test_draft_review_becomes_stale_when_user_changes_instructions(setup):
+    client, store, pid, _ = setup
+    url = f"/api/projects/{pid}/chat-drafts"
+    preview = client.get(url).json()
+    store.add_message(pid, "user", "请不要使用我的个人资料。")
+    saved = client.post(url + "/confirm", json={"snapshot": preview["snapshot"], "items": [
+        {"id": preview["items"][0]["id"]},
+    ]})
+    assert saved.status_code == 409
+    assert store.get_project(pid)["sections"] == {}
+
+
+@pytest.mark.parametrize("change", ["upload", "text", "confirmation", "delete"])
+def test_draft_review_becomes_stale_when_material_changes(setup, change):
+    client, store, pid, _ = setup
+    doc = store.add_document(pid, "项目资料.txt", "unused", "reference", "text/plain")
+    store.update_document_extraction(doc["id"], "原始材料", "done", confirmed=True, confirmed_by_user=True)
+    url = f"/api/projects/{pid}/chat-drafts"
+    preview = client.get(url).json()
+    if change == "upload":
+        store.add_document(pid, "补充材料.txt", "unused", "reference", "text/plain")
+    elif change == "text":
+        store.update_document_extraction(doc["id"], "修改后的材料", "done", confirmed=True, confirmed_by_user=True)
+    elif change == "confirmation":
+        store.update_document_extraction(doc["id"], "原始材料", "done", confirmed=False)
+    else:
+        store.delete_document(doc["id"])
+    saved = client.post(url + "/confirm", json={"snapshot": preview["snapshot"], "items": [
+        {"id": preview["items"][0]["id"]},
+    ]})
+    assert saved.status_code == 409
+    assert store.get_project(pid)["sections"] == {}
 
 
 def test_foreign_candidate_or_project_is_rejected(setup):
@@ -103,6 +214,22 @@ def test_foreign_candidate_or_project_is_rejected(setup):
     }).status_code == 409
     assert client.get("/api/projects/" + "f" * 32 + "/chat-drafts").status_code == 404
     assert store.get_project(pid)["sections"] == {}
+
+
+def test_conflicting_concurrent_change_never_overwrites_current_section(setup, monkeypatch):
+    client, store, pid, _ = setup
+    from proposal.materials import MaterialConflict
+    url = f"/api/projects/{pid}/chat-drafts"
+    first = client.get(url).json()["items"][0]
+    store.update_project(pid, outline=[{"id": first["section_id"], "title": first["title"]}],
+                         sections={first["section_id"]: "已有正文"})
+    preview = client.get(url).json()
+    monkeypatch.setattr(store, "update_project", lambda *_args, **_kwargs: (_ for _ in ()).throw(MaterialConflict("changed")))
+    result = client.post(url + "/confirm", json={"snapshot": preview["snapshot"], "items": [
+        {"id": preview["items"][0]["id"], "replace_existing": True},
+    ]})
+    assert result.status_code == 409
+    assert store.get_project(pid)["sections"][first["section_id"]] == "已有正文"
 
 
 def test_empty_export_requires_explicit_confirmation_before_enqueuing(setup):

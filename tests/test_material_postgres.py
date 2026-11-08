@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 UID = "00000000-0000-0000-0000-000000000001"
 OTHER = "00000000-0000-0000-0000-000000000002"
 JOB = "a" * 32
+SUBMIT_SECRET = "isolated-test-submission-capability-0123456789"
 
 
 def test_archive_mime_migration_is_private_size_preserving_and_idempotent(sql):
@@ -107,6 +108,27 @@ def worker(sql, action, job=None, **args):
     return json.loads(result) if result else None
 
 
+@pytest.fixture
+def hardened_sql(sql):
+    sql((ROOT / "supabase/migrations/20261108010000_harden_material_job_authority.sql").read_text())
+    sql("insert into material_private.submit_capability values"
+        f"(true,sha256(convert_to('{SUBMIT_SECRET}','UTF8')));")
+    return sql
+
+
+def hardened_call(sql, action, args, *, secret=SUBMIT_SECRET, uid=UID, ok=True):
+    secret_arg = "null" if secret is None else "'" + secret + "'"
+    result = sql(as_user(f"select public.material_jobs_api('{action}','{json.dumps(args)}',{secret_arg});", uid), ok=ok)
+    return json.loads(result) if result else None
+
+
+def hardened_submit(sql, **changes):
+    args = {"id": JOB, "project_id": "p", "kind": "section", "target": "abstract", "idempotency": "click",
+            "payload": {"paid": True, "platform": True, "base_revision": 0}}
+    args.update(changes)
+    return hardened_call(sql, "submit", args)
+
+
 def test_sql_ownership_idempotency_and_cas(sql):
     first = submit(sql)
     assert submit(sql)["id"] == first["id"]
@@ -153,6 +175,110 @@ def test_worker_capability_budget_lease_and_cross_job_metering(sql):
     sql(f"update material_jobs set lease_until=now()-interval '1 second' where id='{JOB}'")
     assert worker(sql,"claim") is None
     assert sql(f"select status from material_jobs where id='{JOB}'") == "needs_review"
+
+
+def test_owner_cannot_directly_requeue_job_or_clear_call_budget(hardened_sql):
+    sql = hardened_sql
+    hardened_submit(sql)
+    job = worker(sql, "claim")
+    worker(sql, "reserve", job, request_id="o2x1_test", model="deepseek-v4-flash", api_key_id=127)
+    # A project owner may observe a job, but execution state and the billing
+    # call list must only be modified by a trusted, lease-checked worker.
+    sql(as_user(f"update public.material_jobs set status='pending', calls='[]'::jsonb, "
+                f"lease=null, lease_until=null where id='{JOB}';"), ok=False)
+
+
+def test_owner_cannot_submit_paid_job_payload_directly_to_rpc(hardened_sql):
+    sql = hardened_sql
+    args = {"id": JOB, "project_id": "p", "kind": "section", "target": "abstract", "idempotency": "direct",
+            "payload": {"paid": True, "platform": True, "base_revision": 0}}
+    # No trusted application-side confirmation or signed snapshot exists here.
+    sql(as_user(f"select public.material_jobs_api('submit','{json.dumps(args)}');"), ok=False)
+
+
+def test_hardened_submit_read_apply_and_revision_permissions(hardened_sql):
+    sql = hardened_sql
+    job = hardened_submit(sql)
+    assert hardened_submit(sql)["id"] == job["id"]
+    assert hardened_call(sql, "find", {"project_id": "p", "idempotency": "click"}, secret=None)["id"] == JOB
+    public = hardened_call(sql, "get", {"project_id": "p", "id": JOB}, secret=None)
+    assert not {"payload", "calls", "lease", "trusted_submission"} & public.keys()
+    assert hardened_call(sql, "list", {"project_id": "p"}, secret=None)[0]["id"] == JOB
+    sql(as_user("select * from public.material_jobs;"), ok=False)
+    sql(as_user(f"select public.material_jobs_api('raw','{{\"project_id\":\"p\",\"id\":\"{JOB}\"}}');"), ok=False)
+    hardened_call(sql, "raw", {"project_id": "p", "id": JOB}, secret="incorrect", ok=False)
+    hardened_call(sql, "raw", {"project_id": "p", "id": JOB}, uid=OTHER, ok=False)
+    assert hardened_call(sql, "raw", {"project_id": "p", "id": JOB})["payload"]["paid"]
+    claimed = worker(sql, "claim")
+    worker(sql, "finish", claimed, status="completed", result={"content": "AI content"})
+    # A user may save their own manual version but cannot preempt a worker job ID.
+    sql(as_user("insert into public.material_revisions(project_id,section_id,content,source) "
+                "values('p','abstract','manual','user_edit');"))
+    sql(as_user("insert into public.material_revisions(project_id,section_id,content,source,job_id) "
+                f"values('p','abstract','forged','ai_generated','{JOB}');"), ok=False)
+    sql(as_user("select public.material_patch('p',0,'{\"sections\":{\"abstract\":\"human edit\"}}');"))
+    args = json.dumps({"project_id": "p", "id": JOB, "fields": {"sections": {"abstract": "AI content"}}})
+    sql(as_user(f"select public.material_apply('{args}');"), ok=False)
+    result = json.loads(sql(as_user(f"select public.material_apply('{args}','{SUBMIT_SECRET}');")))
+    assert result["applied"] is True
+    assert result["conflict_status"] == "user_edit_preserved"
+    assert sql("select sections_json->>'abstract' from public.projects where id='p'") == "human edit"
+    assert sql(f"select count(*) from public.material_revisions where job_id='{JOB}'") == "1"
+    assert sql(f"select source from public.material_revisions where job_id='{JOB}'") == "ai_generated_alternative"
+    sql(as_user(f"select public.material_apply('{args}','{SUBMIT_SECRET}');"))
+    assert sql(f"select count(*) from public.material_revisions where job_id='{JOB}'") == "1"
+    other_job = "c" * 32
+    hardened_submit(sql, id=other_job, idempotency="cancel", target="other", payload={
+        "paid": True, "platform": True, "base_revision": 1})
+    running = worker(sql, "claim")
+    assert running["id"] == other_job
+    assert hardened_call(sql, "cancel", {"project_id": "p", "id": other_job}, secret=None)["status"] == "cancelled"
+    for action, extra in [("finish", {"status": "completed"}),
+                          ("reserve", {"request_id": "cancelled-call", "model": "deepseek-v4-flash"})]:
+        params = {"id": other_job, "lease": running["lease"], **extra}
+        sql(f"set role anon; select public.material_worker_rpc('worker-test-secret','{action}','{json.dumps(params)}');", ok=False)
+
+
+def test_hardened_cleanup_paths_are_scoped_paginated_and_minimal(hardened_sql):
+    sql = hardened_sql
+    prefix = f"{UID}/p/_material/"
+    hardened_submit(sql, payload={"base_revision": 0, "output_path": prefix + JOB + ".zip",
+                                  "image_path": prefix + JOB + "-image.png", "private": "do not expose"})
+    second = "b" * 32
+    hardened_submit(sql, id=second, idempotency="other", target="other", payload={
+        "base_revision": 0, "output_path": f"{OTHER}/p/_material/{second}.zip",
+        "image_path": prefix + "../outside.png"})
+    assert hardened_call(sql, "has_jobs", {"project_id": "p"}, secret=None) is True
+    assert hardened_call(sql, "has_jobs", {"project_id": "other"}, secret=None, uid=OTHER) is False
+    hardened_call(sql, "cleanup_paths", {"project_id": "p"}, secret=None, ok=False)
+    hardened_call(sql, "cleanup_paths", {"project_id": "p"}, uid=OTHER, ok=False)
+    first = hardened_call(sql, "cleanup_paths", {"project_id": "p", "offset": 0, "limit": 1})
+    latter = hardened_call(sql, "cleanup_paths", {"project_id": "p", "offset": 1, "limit": 1})
+    assert first == [{"output_path": prefix + JOB + ".zip", "image_path": prefix + JOB + "-image.png"}]
+    assert latter == [{"output_path": None, "image_path": None}]
+    hardened_call(sql, "cleanup_paths", {"project_id": "p", "limit": 501}, ok=False)
+
+
+def test_hardening_quarantines_legacy_jobs_and_preserves_completed_result(sql):
+    submit(sql)
+    running = worker(sql, "claim")
+    completed_id = "b" * 32
+    sql("insert into public.material_jobs(id,project_id,owner_id,kind,target,idempotency,payload,status,result) "
+        f"values('{completed_id}','p','{UID}','section','other','old',"
+        "'{\"base_revision\":0}','completed','{\"content\":\"preserved old result\"}');")
+    sql((ROOT / "supabase/migrations/20261108010000_harden_material_job_authority.sql").read_text())
+    sql("insert into material_private.submit_capability values"
+        f"(true,sha256(convert_to('{SUBMIT_SECRET}','UTF8')));")
+    assert sql(f"select status||'|'||(lease is null)::text from material_jobs where id='{JOB}'") == "needs_review|true"
+    assert sql(f"select status from material_jobs where id='{completed_id}'") == "completed"
+    assert worker(sql, "claim") is None
+    sql("set role anon; select public.material_worker_rpc('worker-test-secret','finish',"
+        f"'{{\"id\":\"{JOB}\",\"lease\":\"{running['lease']}\",\"status\":\"completed\"}}');", ok=False)
+    item = hardened_call(sql, "get", {"project_id": "p", "id": completed_id}, secret=None)
+    assert item["status"] == "needs_review" and item["result"]["content"] == "preserved old result"
+    hardened_call(sql, "raw", {"project_id": "p", "id": completed_id}, ok=False)
+    args = json.dumps({"project_id": "p", "id": completed_id, "fields": {}})
+    sql(as_user(f"select public.material_apply('{args}','{SUBMIT_SECRET}');"), ok=False)
 
 
 def test_atomic_apply_preserves_clear_and_creates_one_alternative(sql):

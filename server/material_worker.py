@@ -33,6 +33,35 @@ from proposal.retrieval import ProjectRetriever
 
 log = logging.getLogger("material_worker")
 
+# A heartbeat only renews a lease; retrying it cannot restart model inference.
+# Three bounded attempts fit within the current 120-second lease even when
+# each cloud RPC uses its 20-second network timeout.
+HEARTBEAT_INTERVAL_SECONDS = 20
+HEARTBEAT_RETRY_SECONDS = 2
+HEARTBEAT_MAX_ATTEMPTS = 3
+
+
+def _heartbeat_retryable(exc: Exception) -> bool:
+    # HTTP errors carry authority decisions as well as transient failures.
+    # Never retry a rejected or expired lease (usually 401/403).
+    if isinstance(exc, urllib.error.HTTPError):
+        return exc.code in (408, 429) or 500 <= exc.code < 600
+    return isinstance(exc, (urllib.error.URLError, TimeoutError, ConnectionError, OSError))
+
+
+def _maintain_lease(stop, lost, update):
+    while not stop.wait(HEARTBEAT_INTERVAL_SECONDS):
+        for attempt in range(HEARTBEAT_MAX_ATTEMPTS):
+            try:
+                update("heartbeat")
+                break
+            except Exception as exc:
+                if not _heartbeat_retryable(exc) or attempt + 1 >= HEARTBEAT_MAX_ATTEMPTS:
+                    lost.set()
+                    return
+                if stop.wait(HEARTBEAT_RETRY_SECONDS):
+                    return
+
 
 class SnapshotRetriever(ProjectRetriever):
     """Use only the exact, authorized query snapshot captured on submission."""
@@ -464,15 +493,7 @@ def run_one(local_store=None, queue=None):
                 log.warning("observability_gap=WORKER_EVENT_UNAVAILABLE job=%s", job["id"])
         return repository.worker_local(job, action, **args) if repository else queue.call(action, job, **args)
 
-    def heartbeat():
-        while not stop.wait(20):
-            try:
-                update("heartbeat")
-            except Exception:
-                lost.set()
-                return
-
-    thread = threading.Thread(target=heartbeat, daemon=True)
+    thread = threading.Thread(target=_maintain_lease, args=(stop, lost, update), daemon=True)
     thread.start()
     try:
         with tempfile.TemporaryDirectory(prefix="material-job-") as temp:
