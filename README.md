@@ -1,8 +1,8 @@
-# Stardust Agent
+# 大学生申报材料（申报书、申请书、商业计划书、实践报告、个人陈述）一站式工作台
 
 <img align="right" src="./assets/logo.png" width="72" height="72" alt="Stardust Agent">
 
-**面向大学生项目申报的开源 AI Agent 平台。** 学生在网页工作台里整理学校通知和实验记录，让 Agent 查找依据、协助起草，再逐章编辑并导出 Word。后端使用 Python 和 FastAPI，支持 Ollama 本地模型和 OpenAI 兼容接口。
+**Stardust Agent** 是面向大学生申报材料的开源 AI Agent 工作台。学生可以在项目中整理学校通知和实验记录，让 Agent 查找依据、协助起草，再逐章编辑并导出 Word。后端使用 Python 和 FastAPI，支持 Ollama 本地模型和 OpenAI 兼容接口。
 
 [打开在线工作台](https://agent.stardust.website) · [查看大创 Word 样例](./examples/demos/demo_innovation_research.docx) · [Agent 设计说明](./docs/design/AGENT_REFACTOR.md) · [English](./README_EN.md)
 

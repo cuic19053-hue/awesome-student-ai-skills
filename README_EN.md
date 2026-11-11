@@ -1,8 +1,8 @@
-# Stardust Agent
+# Student Application Materials Workbench
 
 <img align="right" src="./assets/logo.png" width="72" height="72" alt="Stardust Agent">
 
-**An open source AI agent platform for university research proposals, competitions and scholarship applications.** Students use the web workbench to organize calls for applications and research notes, ask the agent to find evidence, edit sections and export a Word draft. The Python and FastAPI backend supports local Ollama models and APIs compatible with OpenAI Chat Completions.
+**Stardust Agent** is an open source AI agent workbench for student research proposals, applications, business plans, social practice reports and personal statements. Students organize calls for applications and research notes in a project, ask the agent to find evidence, edit sections and export a Word draft. The Python and FastAPI backend supports local Ollama models and APIs compatible with OpenAI Chat Completions.
 
 [Open the workbench](https://agent.stardust.website) · [Download a sample Word proposal](./examples/demos/demo_innovation_research.docx) · [Agent design notes (Chinese)](./docs/design/AGENT_REFACTOR.md) · [简体中文](./README.md)
 
