@@ -1,10 +1,44 @@
-# 大学生申报材料（申报书、申请书、商业计划书、实践报告、个人陈述）一站式工作台
+# Stardust Agent｜大学生申报材料一站式工作台
 
 <img align="right" src="./assets/logo.png" width="72" height="72" alt="Stardust Agent">
 
-**Stardust Agent** 是面向大学生申报材料的开源 AI Agent 工作台。学生可以在项目中整理学校通知和实验记录，让 Agent 查找依据、协助起草，再逐章编辑并导出 Word。后端使用 Python 和 FastAPI，支持 Ollama 本地模型和 OpenAI 兼容接口。
+**大学生申报材料（申报书、申请书、商业计划书、实践报告、个人陈述）一站式工作台。**
+
+**Stardust Agent** 是面向大学生的开源 AI Agent 工作台，帮助整理大创申报书、挑战杯申报书、中国国际大学生创新大赛商业计划书、奖学金申请书、保研材料和三下乡实践材料。学生可以在项目中整理学校通知和已有资料，让 Agent 检索依据、协助起草，再逐章编辑并导出 Word。
+
+项目提供 35 个领域指南。后端使用 Python 和 FastAPI，支持 Ollama 本地模型和 OpenAI 兼容接口。使用者需要核对生成内容、引用及学校当年的申报要求。
+
+[![GitHub stars](https://img.shields.io/github/stars/cuic19053-hue/stardust-agent?style=social)](https://github.com/cuic19053-hue/stardust-agent/stargazers) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
 
 [打开在线工作台](https://agent.stardust.website) · [查看大创 Word 样例](./examples/demos/demo_innovation_research.docx) · [Agent 设计说明](./docs/design/AGENT_REFACTOR.md) · [English](./README_EN.md)
+
+## 快速上手
+
+1. 打开 [在线工作台](https://agent.stardust.website)，登录后创建项目。
+2. 描述申报目标，上传学校通知、项目记录等材料，并核对确认提取出的信息。
+3. 在对话中查找依据、起草内容，预览并保存章节草稿，逐章编辑后导出 Word。
+
+例如，可以先问：“我想申报大创创新训练项目，课题是校园无人机巡检。请帮我梳理申报书结构，还需要准备哪些材料？”
+
+## 支持哪些大学生申报材料？
+
+| 申报场景 | 可以整理的材料 | 样例与指南 |
+| --- | --- | --- |
+| **大创与科研立项** | 大创创新训练、创业训练和校院级科研立项申报书 | [大创 Word 样例](./examples/demos/demo_innovation_research.docx) · [创新训练指南](./subskills/innovation-research/SKILL.md) |
+| **挑战杯与创新大赛** | 挑战杯申报书、大学生创新大赛（原互联网+）商业计划书 | [挑战杯样例](./examples/demos/demo_challenge_cup.docx) · [商业计划书样例](./examples/demos/demo_internet_plus.docx) |
+| **奖学金与评优** | 国家奖学金、国家励志奖学金、校级奖学金及评优申请材料 | [国家奖学金样例](./examples/demos/demo_national_scholarship.docx) · [申请指南](./subskills/national-scholarship/SKILL.md) |
+| **升学与留学** | 保研推免个人陈述、交流项目和国家公派留学申请材料 | [保研样例](./examples/demos/demo_graduate_recommendation.docx) · [推免指南](./subskills/graduate-recommendation/SKILL.md) |
+| **三下乡与社会实践** | 社会调研、支教、政策宣讲和科技服务等实践申报材料 | [社会调研指南](./subskills/social-survey/SKILL.md) |
+
+样例用于了解材料结构和排版，具体栏目、字数及提交要求请以所在学校的最新通知为准。[查看全部 35 个领域指南](./subskills/README.md) · [查看全部 Word 样例](./examples/demos/)
+
+## 常见问题
+
+**不会编程，可以使用吗？** 可以直接使用在线工作台，按提示创建项目并填写或上传材料。本地部署和 MCP 接入面向需要自行配置环境的用户。
+
+**可以用自己的材料吗？** 可以上传学校通知、项目记录等资料，核对并确认提取结果后，再让 Agent 在项目资料中检索依据。回答中的事实和来源仍需要本人检查。
+
+**需要付费或配置模型吗？** 在线工作台的平台模型使用积分；使用自己的 API Key 时，费用按模型服务商的规则计算。本地也可以配置 Ollama 模型。[模型与服务配置](./server/README.md)
 
 ## 跟着一次工具调用读代码
 
@@ -28,8 +62,8 @@
 需要 Python 3.11 或更高版本，并启动本机 Ollama。在终端运行以下命令。
 
 ```bash
-git clone https://github.com/cuic19053-hue/awesome-student-ai-skills.git
-cd awesome-student-ai-skills
+git clone https://github.com/cuic19053-hue/stardust-agent.git
+cd stardust-agent
 python3 -m venv .venv
 .venv/bin/python -m pip install -r utils/requirements.txt -r server/requirements.txt
 ollama pull qwen2.5:7b

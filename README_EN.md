@@ -28,8 +28,8 @@ The evaluation checks the tool trace as well as the answer. It fails if the mode
 Start Ollama and use Python 3.11 or later.
 
 ```bash
-git clone https://github.com/cuic19053-hue/awesome-student-ai-skills.git
-cd awesome-student-ai-skills
+git clone https://github.com/cuic19053-hue/stardust-agent.git
+cd stardust-agent
 python3 -m venv .venv
 .venv/bin/python -m pip install -r utils/requirements.txt -r server/requirements.txt
 ollama pull qwen2.5:7b
