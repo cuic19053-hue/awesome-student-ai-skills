@@ -69,7 +69,11 @@ def build_request(payload: dict[str, Any], *, default_model: str, stream: bool,
     if "num_predict" in options:
         body["max_tokens"] = options["num_predict"]
     if platform_transport or (stream and metered):
-        body["max_tokens"] = min(int(body.get("max_tokens") or 2048), 2048)
+        # Only the server's dedicated draft path can opt into the larger
+        # budget. User text or an arbitrarily large num_predict never raises
+        # the ordinary conversation limit.
+        cap = 4096 if payload.get("response_profile") == "scholarship_draft" else 2048
+        body["max_tokens"] = max(1, min(int(body.get("max_tokens") or cap), cap))
     # Existing streaming callers do not request structured responses.
     if not stream:
         if isinstance(payload.get("format"), dict):

@@ -111,6 +111,26 @@ def is_scholarship_draft_request(draft_request: str, project: dict[str, Any]) ->
             and _is_personal_draft_request(draft_request, r"(?:国家奖学金|国奖)"))
 
 
+def is_scholarship_placeholder_request(draft_request: str, project: dict[str, Any]) -> bool:
+    """Keep a basic free starter, while honoring requests for actual writing.
+
+    The HTTP entry point uses this same predicate before deciding whether a
+    configured model/usage authorization is required. Do not silently call a
+    model from the evidence-only path, or retry an unsuccessful paid draft.
+    """
+    if not is_scholarship_draft_request(draft_request, project):
+        return False
+    customized = re.search(
+        r"(?:\d{1,5}|[一二三四五六七八九十百千两]{1,8})\s*(?:字|段|页)"
+        r"|长文|长篇|详细版|风格|语气|朴实|平实|真诚|生动|口语化|不(?:要|用)套话|避免套话"
+        r"|语言.{0,12}(?:自然|简洁|正式|具体)|(?:突出|重点|着重|围绕|结合|融入|强调).{0,24}(?:经历|班长|工作|活动|科研|学习|实践|表现|贡献|事例)"
+        r"|(?:我|本人)(?:曾经|曾|已经|已|连续|累计)?(?:担任|组织|参与|参加|完成|负责|获得|获评)"
+        r"|(?:我的|本人的)(?:经历|事迹|活动|学生工作)\s*[：:]",
+        draft_request,
+    )
+    return customized is None
+
+
 def is_grant_draft_request(draft_request: str, project: dict[str, Any]) -> bool:
     return ((project.get("state") or {}).get("skill_id") == "grant-application"
             and _is_personal_draft_request(draft_request, r"(?:国家助学金|助学金)"))
@@ -327,6 +347,7 @@ def current_turn_student_facts(user_text: str, *, include_family_income: bool = 
         "专业": r"[\u4e00-\u9fffA-Za-z0-9·（）() \-]{2,40}",
         "绩点": r"\d{1,3}(?:\.\d{1,3})?(?:\s*/\s*\d{1,3}(?:\.\d{1,3})?)?",
         "排名": r"(?:第\s*\d{1,5}\s*名|\d{1,5}\s*/\s*\d{1,5})",
+        "申请学年": r"\d{4}\s*[-—–/]\s*\d{4}(?:\s*学年)?",
     }
     if include_family_income:
         validators["家庭年收入"] = r"(?:约|大约|近)?\s*\d{1,9}(?:\.\d{1,2})?\s*(?:万元|万|元)"
@@ -352,16 +373,21 @@ def current_turn_student_facts(user_text: str, *, include_family_income: bool = 
         for part in re.split(r"[；;，,。\n]", tail):
             if re.search(r"[\x00-\x1f\x7f]", part):
                 continue
-            labels = "姓名|学院|专业|绩点|GPA|排名" + ("|家庭年收入" if include_family_income else "")
+            labels = "姓名|学院|专业|绩点|GPA|排名|申请学年" + ("|家庭年收入" if include_family_income else "")
             match = re.fullmatch(rf"\s*({labels})\s*[：:=]\s*(.*?)\s*", part, re.IGNORECASE)
             if match:
                 remember(*match.groups())
+            else:
+                year = re.fullmatch(r"\s*(?:申请|申报|参评)(?:的)?学年(?:更正为|改为|改成|更新为|是|为|：|:|=)?\s*(.*?)\s*", part)
+                if year:
+                    remember("申请学年", year.group(1))
         return facts
 
     # A bare “绩点 3.8” is only attached to a first-person statement in the
     # same uninterrupted sentence. Sentences referring to someone else or to a
     # notice/rule are not treated as the student's facts.
     natural_patterns = (
+        ("申请学年", r"(?:申请|申报|参评)(?:的)?学年(?:更正为|改为|改成|更新为|是|为|：|:|=)?\s*(.+)", True),
         ("姓名", r"(?:我叫|我名叫|我的名字(?:叫|是|为)|我的姓名(?:叫|是|为)|本人(?:叫|名叫))(.+)", True),
         ("学院", r"(?:我的|本人的)学院(?:是|为|：|:)(.+)", True),
         ("学院", r"(?:我在|我就读于|本人在)(.+学院)", True),
@@ -543,7 +569,8 @@ def scholarship_student_facts(history: list[dict[str, Any]], user_text: str,
         aliases = {"姓名": r"我叫|我名叫|姓名\s*[：:=]", "学院": r"(?:我的学院(?:是|为)|学院\s*[：:=])",
                    "专业": r"(?:我的专业(?:是|为)|专业\s*[：:=])",
                    "绩点": r"(?:绩点|GPA)\s*(?:是|为|[：:=])?\s*\d",
-                   "排名": r"排名\s*(?:是|为|[：:=])?\s*(?:第\s*)?\d"}
+                   "排名": r"排名\s*(?:是|为|[：:=])?\s*(?:第\s*)?\d",
+                   "申请学年": r"(?:申请|申报|参评)(?:的)?学年\s*(?:是|为|[：:=])?\s*\d{4}"}
         if include_family_income:
             aliases["家庭年收入"] = r"(?:家庭|我家|家里)(?:的)?(?:家庭)?年收入\s*(?:是|为|[：:=])?\s*\d"
         for label, pattern in aliases.items():
@@ -599,6 +626,9 @@ def scholarship_placeholder_draft(user_text: str = "", *, facts: dict[str, str] 
     field = lambda label: facts.get(label, f"【{label}待补充】")
     profile = f"我叫{field('姓名')}，现就读于{field('学院')}，所学专业为{field('专业')}。"
     study = f"我的绩点为{field('绩点')}，排名为{field('排名')}。"
+    application_year = field("申请学年")
+    if facts.get("申请学年") and not application_year.endswith("学年"):
+        application_year += "学年"
     note = "请补充【待补充】的内容，完成后可以在工作台保存草稿。"
     if conflicted:
         note += "部分信息有不同说法，请告诉我应使用哪一项。"
@@ -606,7 +636,7 @@ def scholarship_placeholder_draft(user_text: str = "", *, facts: dict[str, str] 
         "<WritingBlock variant=\"document\">\n"
         "## 国家奖学金申请书\n\n"
         "尊敬的评审老师：\n\n"
-        "我申请【申请学年待补充】国家奖学金，现将有关情况汇报如下。\n\n",
+        f"我申请{application_year}国家奖学金，现将有关情况汇报如下。\n\n",
         f"{profile}\n\n" if facts else "【个人基本情况待补充】\n\n",
         f"{study}\n\n" if facts else "【学习情况待补充】\n\n",
         "目前我暂无科研经历。\n\n" if facts.get("科研经历") == "无" else "",
@@ -646,7 +676,7 @@ def grant_placeholder_draft(*, facts: dict[str, str], conflicted: bool = False) 
 
 def fallback_scholarship_draft(text: str, draft_request: str, project: dict[str, Any]) -> str:
     """Repair one narrowly identifiable failure: a draft request answered only by a checklist."""
-    if not is_scholarship_draft_request(draft_request, project):
+    if not is_scholarship_placeholder_request(draft_request, project):
         return text
     if re.search(r"<WritingBlock\b|(?:^|\n)\s*(?:尊敬的|敬爱的).{0,30}[：:]|(?:本人|我)(?:郑重|现|自愿|特此|拟)?申请", text):
         return text

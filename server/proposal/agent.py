@@ -250,6 +250,8 @@ class OllamaAgent:
                     "latency_ms": latency_ms,
                     "key_fingerprint": "local",
                 }
+                if isinstance(body.get("message"), dict) and body.get("done_reason") is not None:
+                    body["message"]["finish_reason"] = body["done_reason"]
                 return body
         except urllib.error.URLError as exc:
             if _is_local_timeout(exc):
@@ -372,6 +374,7 @@ class OllamaAgent:
                 "role": "assistant",
                 "content": content,
                 "tool_calls": tool_calls,
+                **({"finish_reason": choices[0]["finish_reason"]} if choices[0].get("finish_reason") is not None else {}),
             },
             "usage": {
                 "prompt_tokens": p_tok,
@@ -404,6 +407,7 @@ class OllamaAgent:
                 tool_calls: list[dict[str, Any]] = []
                 usage: dict[str, Any] | None = None
                 stream_complete = False
+                finish_reason = None
                 for line in response:
                     line_str = line.decode("utf-8").strip()
                     if not line_str:
@@ -419,6 +423,7 @@ class OllamaAgent:
                         yield {"type": "delta", "text": content}
                     if body.get("done"):
                         stream_complete = True
+                        finish_reason = body.get("done_reason")
                         prompt_tokens = body.get("prompt_eval_count", 0)
                         completion_tokens = body.get("eval_count", 0)
                         latency_ms = int((time.perf_counter() - start_t) * 1000)
@@ -439,6 +444,7 @@ class OllamaAgent:
                         "role": "assistant",
                         "content": "".join(full_content),
                         "tool_calls": tool_calls,
+                        **({"finish_reason": finish_reason} if finish_reason is not None else {}),
                     },
                     "usage": usage,
                 }
@@ -482,6 +488,7 @@ class OllamaAgent:
         tool_calls_dict: dict[int, dict[str, Any]] = {}
         usage_info: dict[str, Any] = {}
         stream_complete = False
+        finish_reason = None
         attempts = 1 if self.platform_transport or getattr(self, "single_attempt", False) else 3
         for attempt in range(attempts):
             try:
@@ -544,6 +551,7 @@ class OllamaAgent:
                             raise ModelUnavailable("模型流式输出格式无效。")
                         if choices[0].get("finish_reason") is not None:
                             stream_complete = True
+                            finish_reason = choices[0]["finish_reason"]
                         delta = choices[0].get("delta") or {}
                         if not isinstance(delta, dict):
                             raise ModelUnavailable("模型流式输出格式无效。")
@@ -617,6 +625,7 @@ class OllamaAgent:
                 "role": "assistant",
                 "content": "".join(full_content),
                 "tool_calls": tool_calls,
+                **({"finish_reason": finish_reason} if finish_reason is not None else {}),
             },
             "usage": {
                 "prompt_tokens": p_tok,

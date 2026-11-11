@@ -48,6 +48,11 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+from utils.roadmap_image import embed_roadmap_image
+
 
 # ============================================================
 # 字体与格式常量
@@ -822,32 +827,23 @@ class ApplicationDocBuilder:
     def _add_tech_roadmap(self):
         """技术路线图：≥3 张图（研究内容关系图 + 研究方法图 + 技术路线图）"""
         roadmaps = self._get("tech_roadmap", default=[])
-        if not roadmaps:
-            self.add_para("（请填写技术路线图，≥3 张图：研究内容关系图 + "
+        if not isinstance(roadmaps, list) or not roadmaps:
+            self.add_para("【技术路线图待补充：请填写技术路线图，≥3 张图：研究内容关系图 + "
                           "研究方法图 + 技术路线图。每图含图号+标题+自含说明，"
-                          "节点对应章节编号。）")
+                          "并提供图片或节点与关联关系。】")
             return
 
         for rm in roadmaps:
             if not isinstance(rm, dict):
+                self.add_para("【技术路线图待补充：本项缺少图片或有效的节点与关联关系。】")
                 continue
             fig_no = rm.get("figure_no", "")
             title = rm.get("title", "")
             description = rm.get("description", "")
-            image_path = rm.get("image_path", "")
-
-            # 尝试插入图片
-            if image_path and os.path.exists(image_path):
-                try:
-                    p = self.doc.add_paragraph()
-                    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                    run = p.add_run()
-                    run.add_picture(image_path, width=Cm(15))
-                except Exception as e:
-                    self.add_para(f"（图片插入失败：{e}）")
-            else:
-                # 用文字框代替图片
-                add_quote_paragraph(self.doc, f"【{fig_no} {title}】\n{description}")
+            embedded, reason = embed_roadmap_image(self.doc, rm)
+            if not embedded:
+                self.add_para(f"【技术路线图待补充：{reason}】")
+                print(f"⚠️ 技术路线图「{title}」未嵌入图片：{reason}", file=sys.stderr)
 
             # 图注
             add_figure_caption(self.doc, f"{fig_no} {title}")

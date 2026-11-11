@@ -8,8 +8,8 @@
 家庭成员表 5 列 / 勤工助学表 4 列 / 主干课程表 3 列 宋体五号居中；
 "此致"另起一行空两格，"敬礼！"另起一行顶格；落款右对齐。
 
-助学金档次：一等 4400 元/年（特别困难）/ 二等 3300 元/年（困难）/ 三等 2200 元/年（一般困难）
-依据：财教〔2007〕92 号 + 教财函〔2019〕106 号 + 教财〔2024〕8 号（2024.7.1 起新标准）
+助学金金额：以学校当年通知中明确的档次和金额为准，缺金额时不按档次推算。
+依据：财教〔2024〕181 号（2024 年秋季学期起调整平均标准和学校自主分档范围）
 
 使用方式：
     python build.py --data data.json --out output.docx
@@ -22,6 +22,7 @@ import argparse
 import json
 import os
 import sys
+from decimal import Decimal, InvalidOperation
 
 # 统一标准流编码容错（兼容 Windows 默认 GBK 终端，防 UnicodeEncodeError）
 for _stream in (getattr(sys, 'stdout', None), getattr(sys, 'stderr', None)):
@@ -65,20 +66,8 @@ MARGIN_LEFT_RIGHT_CM = 2.5
 
 
 # ============================================================
-# 助学金档次与金额对照（2024 年 7 月 1 日起执行）
+# 常见档次名称；学校当年标准优先，名称不对应全国统一金额。
 # ============================================================
-
-GRANT_LEVEL_AMOUNT = {
-    "一等": 4400,
-    "二等": 3300,
-    "三等": 2200,
-}
-
-GRANT_LEVEL_DIFFICULTY = {
-    "一等": "特别困难",
-    "二等": "困难",
-    "三等": "一般困难",
-}
 
 DIFFICULTY_LEVEL_LINE = {
     "特别困难": 400,
@@ -312,8 +301,22 @@ def add_page_number(doc):
 # ============================================================
 
 def compute_grant_amount(grant_level: str) -> int:
-    """根据 grant_level 推算推荐 grant_amount（一等 4400 / 二等 3300 / 三等 2200），各高校可在 2500-5000 元内自主确定"""
-    return GRANT_LEVEL_AMOUNT.get(grant_level, 0)
+    """Compatibility helper: a level alone cannot establish a school's amount."""
+    return 0  # Unknown; callers must use an explicitly supplied grant_amount.
+
+
+def explicit_grant_amount(data: Dict[str, Any]) -> str:
+    """Format only a finite positive amount explicitly provided in the input."""
+    raw = data.get("grant_amount")
+    if raw is None or isinstance(raw, bool):
+        return ""
+    try:
+        amount = Decimal(str(raw))
+    except (ValueError, InvalidOperation):
+        return ""
+    if not amount.is_finite() or amount <= 0:
+        return ""
+    return format(amount.normalize(), "f")
 
 
 def compute_per_capita(family_income_year: float, family_size: int) -> Tuple[float, float]:
@@ -414,12 +417,10 @@ class ApplicationDocBuilder:
         college = self._get("college")
         major = self._get("major")
         grade = self._get("grade")
-        apply_year = self._get("apply_year", default="2024-2025 学年")
+        apply_year = self._get("apply_year", default="") or "【申请学年待补充】"
         grant_level = self._get("grant_level", default="")
-        grant_amount = self._get("grant_amount", default=0)
-        # 自动推算 grant_amount
-        if not grant_amount and grant_level:
-            grant_amount = compute_grant_amount(grant_level)
+        grant_amount = explicit_grant_amount(self.data)
+        amount_note = f"{grant_amount} 元/年" if grant_amount else "金额待核对学校当年标准"
         difficulty_level = self._get("difficulty_level", default="")
         difficulty_cert_no = self._get("difficulty_cert_no", default="")
         poverty_category = self._get("poverty_category", default="")
@@ -428,9 +429,9 @@ class ApplicationDocBuilder:
         if name and college and major and grade:
             parts.append(f"我是{college}{major}{grade}学生{name}，"
                          f"特申请{apply_year}国家助学金{grant_level}"
-                         f"（{grant_amount} 元/年）。")
+                         f"（{amount_note}）。")
         else:
-            parts.append(f"特申请{apply_year}国家助学金{grant_level}。")
+            parts.append(f"特申请{apply_year}国家助学金{grant_level}（{amount_note}）。")
 
         # 困难认定等级与编号
         cert_parts = []
@@ -475,9 +476,6 @@ class ApplicationDocBuilder:
         family_income_year = self._get_fs("family_income_year", default=0)
         local_min_living = self._get_fs("local_min_living", default=0)
         school_line = self._get_fs("school_line", default=0)
-        if not school_line:
-            difficulty_level = self._get("difficulty_level", default="")
-            school_line = get_school_line(difficulty_level)
         large_expenses = self._get_fs("large_expenses", default="")
         debt_total = self._get_fs("debt_total", default=0)
         debt_relative = self._get_fs("debt_relative", default=0)
@@ -517,8 +515,9 @@ class ApplicationDocBuilder:
                 mother_str += f"，{mother_income_detail}"
             income_parts.append(mother_str)
         if income_parts:
-            self.add_para("；".join(income_parts) + "。"
-                          + (f"家庭主要收入来源为{income_source}。" if income_source else ""))
+            self.add_para("；".join(income_parts) + "。")
+        if income_source:
+            self.add_para(f"家庭主要收入来源为{income_source}。")
 
         # 要素 3 年度总收入与人均
         if family_income_year and family_size:
@@ -529,10 +528,10 @@ class ApplicationDocBuilder:
                              f"人均月收入约 {int(per_capita_month)} 元"]
             if local_min_living:
                 compare_parts.append(
-                    f"低于当地最低生活保障标准 {int(local_min_living)} 元/月")
+                    f"所提供的当地最低生活保障标准为 {int(local_min_living)} 元/月（适用范围待核对）")
             if school_line:
                 compare_parts.append(
-                    f"低于学校家庭经济困难认定线 {int(school_line)} 元/月")
+                    f"所提供的学校家庭经济困难认定线为 {int(school_line)} 元/月（适用范围待核对）")
             self.add_para("，".join(compare_parts) + "。")
 
         # 6 类困难类别 + 编号
@@ -654,10 +653,12 @@ class ApplicationDocBuilder:
         else:
             if course_failed and course_failed != "无":
                 study_parts.append(f"本学年{course_failed}")
-            else:
+            elif course_failed == "无":
                 study_parts.append("本学年必修课全部及格")
+            else:
+                study_parts.append("【实际学习情况待补充】")
         if study_parts:
-            self.add_para("学习上，本人勤奋上进，" + "，".join(study_parts) + "。")
+            self.add_para("学习情况：" + "，".join(study_parts) + "。")
             # 注意：助学金申请书不写 GPA 与排名，避免让评审委员会误以为应改申励志奖学金
 
         # 勤工助学（在段三中以文字描述，详细列表见勤工助学表）
@@ -718,10 +719,8 @@ class ApplicationDocBuilder:
         self.add_heading("四、申请理由")
 
         grant_level = self._get("grant_level", default="")
-        grant_amount = self._get("grant_amount", default=0)
-        if not grant_amount and grant_level:
-            grant_amount = compute_grant_amount(grant_level)
-        apply_year = self._get("apply_year", default="2024-2025 学年")
+        grant_amount = explicit_grant_amount(self.data)
+        apply_year = self._get("apply_year", default="") or "【申请学年待补充】"
         tuition = self._get("tuition", default=0)
         textbook_fee = self._get("textbook_fee", default=0)
         monthly_food = self._get("monthly_food", default=0)
@@ -732,6 +731,8 @@ class ApplicationDocBuilder:
         parts.append(f"鉴于家庭经济困难，本人特申请国家助学金{grant_level}"
                      + (f" {grant_amount} 元" if grant_amount else "")
                      + "，")
+        if not grant_amount:
+            parts.append("具体金额待核对学校当年标准，")
 
         # 用途明细
         usage_parts = []
@@ -758,8 +759,6 @@ class ApplicationDocBuilder:
             parts.append("本人在领取助学金的同时，将继续通过"
                          + "与".join(self_help_parts)
                          + "自筹剩余学费与生活费，努力减轻家庭经济负担。")
-        else:
-            parts.append("本人将继续通过勤工助学努力减轻家庭经济负担。")
 
         self.add_para("".join(parts))
 
@@ -776,7 +775,7 @@ class ApplicationDocBuilder:
         self.add_heading("五、感恩表态")
 
         self.add_para(
-            "国家助学金政策（依据财教〔2007〕92 号与教财〔2024〕8 号）"
+            "国家助学金政策"
             "充分体现了党和政府对家庭经济困难学生的关怀与支持，"
             "本人衷心感谢国家与学校的资助。若获评助学金，"
             "本人将以此为动力，继续勤奋学习、自强不息，"
@@ -854,84 +853,19 @@ class ApplicationDocBuilder:
         grant_level = self._get("grant_level", default="")
         if not grant_level:
             warnings.append("缺少 助学金档次（grant_level）——必填字段")
-        elif grant_level not in GRANT_LEVEL_AMOUNT:
+
+        # A grade cannot establish an amount. The range is a review hint, not
+        # confirmation that the amount or the applicant's eligibility is valid.
+        grant_amount = explicit_grant_amount(self.data)
+        if not grant_amount:
+            warnings.append("未提供有效的学校当年助学金金额（grant_amount）；不按档次推算，请核对学校通知。")
+        elif not (Decimal(2500) <= Decimal(grant_amount) <= Decimal(5000)):
             warnings.append(
-                f"助学金档次 '{grant_level}' 不在 一等/二等/三等 内")
+                f"助学金金额 {grant_amount} 超出财教〔2024〕181号所述本专科生分档范围（2500-5000 元/年），请核对适用年度与学校通知。")
 
-        # grant_amount 自动推算与校验（财教〔2024〕181号：高校在 2500-5000 元范围内自主确定分档）
-        grant_amount = self._get("grant_amount", default=0)
-        if grant_level:
-            expected_amount = compute_grant_amount(grant_level)
-            if grant_amount and not (2500 <= grant_amount <= 5000):
-                warnings.append(
-                    f"助学金金额 {grant_amount} 超出高校自主确定政策范围（2500-5000 元/年）")
-
-        # difficulty_level 校验
-        difficulty_level = self._get("difficulty_level", default="")
-        if not difficulty_level:
-            warnings.append("缺少 困难认定等级（difficulty_level）——必填字段")
-        elif difficulty_level not in DIFFICULTY_LEVEL_LINE:
-            warnings.append(
-                f"困难认定等级 '{difficulty_level}' 不在 特别困难/困难/一般困难 内")
-
-        # grant_level 与 difficulty_level 对应校验
-        if grant_level and difficulty_level:
-            expected_difficulty = GRANT_LEVEL_DIFFICULTY.get(grant_level)
-            if expected_difficulty and difficulty_level != expected_difficulty:
-                warnings.append(
-                    f"助学金档次 {grant_level}（对应 {expected_difficulty}）"
-                    f"与困难等级 {difficulty_level} 不对应，跨档申请")
-
-        # difficulty_cert_no 校验
-        if not self._get("difficulty_cert_no", default=""):
-            warnings.append("缺少 困难认定编号/建档立卡号/低保号（difficulty_cert_no）")
-
-        # poverty_category 校验
-        poverty_category = self._get("poverty_category", default="")
-        if not poverty_category:
-            warnings.append("缺少 家庭困难类别（poverty_category）——6 类之一")
-        elif poverty_category not in POVERTY_CATEGORIES:
-            warnings.append(
-                f"家庭困难类别 '{poverty_category}' 不在 6 类内"
-                f"（建档立卡/低保/重大疾病/单亲/多子女上大学/失业）")
-
-        # 家庭经济子结构校验
-        family_size = self._get_fs("family_size", default=0)
-        if not family_size:
-            warnings.append("缺少 family_situation.family_size（家庭人口数）")
-        family_income_year = self._get_fs("family_income_year", default=0)
-        if not family_income_year:
-            warnings.append("缺少 family_situation.family_income_year（家庭年总收入）")
-        else:
-            try:
-                n = float(str(family_income_year))
-                if n >= 60000:
-                    warnings.append(
-                        f"家庭年总收入 {n:.0f} 元偏高，可能不符合困难认定（建议 < 6 万）")
-            except (ValueError, TypeError):
-                pass
-
-        local_min_living = self._get_fs("local_min_living", default=0)
-        if not local_min_living:
-            warnings.append("缺少 family_situation.local_min_living（当地最低生活保障标准）")
-
-        large_expenses = self._get_fs("large_expenses", default="")
-        if not large_expenses:
-            warnings.append("缺少 family_situation.large_expenses（大额支出）")
-
-        if not self._get_fs("income_source", default=""):
-            warnings.append("缺少 family_situation.income_source（收入来源）")
-
-        # 家庭成员表校验
-        members = self._get_list("family_members")
-        if not members:
-            warnings.append("缺少 家庭成员表（family_members），必备")
-        elif len(members) < 3:
-            warnings.append(f"家庭成员仅 {len(members)} 人，建议至少 3 人（父母+本人）")
-
-        # 勤工助学校验
-        if not self._get_list("work_study"):
-            warnings.append("缺少 勤工助学经历（work_study），建议填 2~3 项")
+        # Financial details, proof identifiers and work-study experience are
+        # optional in a drafting input. The school's actual form determines
+        # required attachments; missing values do not establish ineligibility.
 
         # 字数版本校验
         if self.word_count_version not in ("800", "1200", "1500"):
@@ -968,7 +902,7 @@ DEFAULT_DATA = {
     "apply_year": "2024-2025 学年",
     "apply_date": "2024 年 9 月 20 日",
     "grant_level": "一等",
-    "grant_amount": 4400,
+    "grant_amount": None,  # Demo has no school notice: do not invent an amount.
     "difficulty_level": "特别困难",
     "difficulty_cert_no": "GZ2024-00123",
     "poverty_category": "建档立卡",
@@ -1070,9 +1004,8 @@ def main():
             "  python build.py --data data.json --out output.docx\n"
             "  python build.py --demo --out demo.docx\n"
             "\n"
-            "助学金档次：一等 4400 元（特别困难）/ 二等 3300 元（困难）/ "
-            "三等 2200 元（一般困难）\n"
-            "依据：财教〔2007〕92 号 + 教财函〔2019〕106 号 + 教财〔2024〕8 号\n"
+            "助学金档次与金额：以学校当年通知为准，缺金额时不自动推断。\n"
+            "政策范围参考：财教〔2024〕181 号；不代替学校资格审核。\n"
             "\n"
             "JSON 字段定义详见 SKILL.md 第九章 JSON Schema。"
         ),

@@ -6,6 +6,10 @@
 
 [Open the workbench](https://agent.stardust.website) · [Download a sample Word proposal](./examples/demos/demo_innovation_research.docx) · [Agent design notes (Chinese)](./docs/design/AGENT_REFACTOR.md) · [简体中文](./README.md)
 
+The 35-scenario catalog describes domain guidance. Drafting, templates, charts and export support vary, and not every scenario has completed end-to-end delivery validation. Repository changes do not establish that the live site has been updated.
+
+User confirmation records information the student has supplied or accepted; it is not independent verification. Numerical, source and completeness checks cover selected cases. Models can still omit, misread or invent claims, so applicants must check the facts, citations and current school requirements.
+
 ## Follow a tool call
 
 > Check my confirmed materials. What was the sample size, and what did we measure?
@@ -21,7 +25,7 @@ The evaluation checks the tool trace as well as the answer. It fails if the mode
 | How does a model choose tools and finish a turn? | Streaming and synchronous replies share a loop with up to six iterations and a budget of eight tool calls per turn. The server checks the grant again at invocation and binds tools to the current project. | [Runtime](./server/proposal/chat_runtime.py) · [Tool router](./server/proposal/chat_tools.py) |
 | Where does evidence come from? | User confirmation makes project documents eligible for indexing. The RAG pipeline combines keyword matches with compatible vectors when available and returns the source file and passage location. Official notices use school, year and applicability filters. | [Project retrieval](./server/proposal/retrieval.py) · [Knowledge coverage](./docs/rag-status.md) |
 | How does a conversation become a document? | Students preview candidate sections in the chat, select and edit the text, then save it. Word export reads the saved sections so students can check the draft against the current school template. | [Chat drafts](./server/proposal/chat_drafts.py) · [Word exporter](./server/proposal/exporter.py) |
-| How do long jobs handle interruptions? | When enabled, the material worker queues jobs such as section generation and export. Submissions use idempotency keys and writes check the project revision. A paid job with an expired lease is held for review. | [Job queue](./server/proposal/material_jobs.py) · [Worker](./server/material_worker.py) |
+| How do long jobs handle interruptions? | When enabled, the material worker queues jobs such as section generation and export. Submissions use idempotency keys and writes check the project revision. A paid job with an expired lease is held for review. Ordinary chat remains request-bound; reconnecting and cross-device deduplication are not fully integrated. | [Job queue](./server/proposal/material_jobs.py) · [Worker](./server/material_worker.py) |
 
 ## Run locally
 
@@ -37,7 +41,9 @@ ollama pull bge-m3
 .venv/bin/python -m uvicorn app:app --app-dir server --host 127.0.0.1 --port 8765
 ```
 
-Open the local workbench, choose Ollama in the model settings and start a conversation. Upload a source document and confirm its text before asking the agent to retrieve evidence from it. Local mode uses SQLite and stores data in `.agent-data/`. Cloud mode uses Supabase to scope projects to each account. Hosted model calls use workbench credits. When you bring your own API key, your provider's pricing applies. [Local workbench](http://127.0.0.1:8765) · [Model and storage configuration](./server/README.md)
+Open the local workbench, choose Ollama in the model settings and start a conversation. Upload a source document and confirm its text before asking the agent to retrieve evidence from it. Local mode uses SQLite and stores data in `.agent-data/`. Cloud mode uses Supabase to scope projects to each account. Hosted model calls use trial allowances and workbench credits. When you bring your own API key, your provider's pricing applies. Local Ollama does not consume workbench credits and requires your own runtime. [Local workbench](http://127.0.0.1:8765) · [Model and storage configuration](./server/README.md)
+
+In the current repository, a basic national-scholarship starter can avoid model calls, while explicit length, style or experience-focused requests use the selected model. Live availability depends on the deployed version.
 
 Run the evaluation from the repository root to reproduce the example above. It creates temporary projects and reports tool calls, answer excerpts and results for each case.
 
@@ -47,7 +53,9 @@ Run the evaluation from the repository root to reproduce the example above. It c
 
 ## Domain guides and integrations
 
-The agent loads the relevant guidance for each of 35 application scenarios. For example, `subskills/innovation-research/SKILL.md` describes the structure of an undergraduate innovation proposal. The sample Word files illustrate document layouts. Applicants should check their school's current requirements before submission. [Domain catalog](./subskills/README.md) · [Challenge Cup sample](./examples/demos/demo_challenge_cup.docx) · [Scholarship sample](./examples/demos/demo_national_scholarship.docx) · [All Word examples](./examples/demos/)
+The workbench loads filtered guidance for the selected scenario and can progressively read linked reference files. For example, `subskills/innovation-research/SKILL.md` describes the structure of an undergraduate innovation proposal. These guides are not official rules or student facts. Sample Word files use example data and illustrate layouts; they are not approved real student submissions. Chart generation requires a supported builder, valid image or graph data and rendering dependencies. Missing inputs or failed rendering can leave a placeholder. [Domain catalog](./subskills/README.md) · [Challenge Cup sample](./examples/demos/demo_challenge_cup.docx) · [Scholarship sample](./examples/demos/demo_national_scholarship.docx) · [All Word examples](./examples/demos/)
+
+The repository's public corpus includes **42 formal university notices and one college-level innovation activity report**. Retrieval must match the school, year and applicable audience, and users must check the original source. **Zero real example submissions have completed authorization, de-identification and approval for inclusion.** See [RAG status (Chinese)](./docs/rag-status.md).
 
 Codex, Cursor and other MCP clients can use the local project tools over stdio. Run `.venv/bin/python server/mcp_server.py --transport stdio` to share the workbench's project store. Developers can also load individual Skills in a compatible IDE. [Project MCP server](./server/mcp_server.py) · [Skills entry point](./SKILL.md)
 

@@ -6,7 +6,7 @@
 
 **Stardust Agent** 是面向大学生的开源 AI Agent 工作台，帮助整理大创申报书、挑战杯申报书、中国国际大学生创新大赛商业计划书、奖学金申请书、保研材料和三下乡实践材料。学生可以在项目中整理学校通知和已有资料，让 Agent 检索依据、协助起草，再逐章编辑并导出 Word。
 
-项目提供 35 个领域指南。后端使用 Python 和 FastAPI，支持 Ollama 本地模型和 OpenAI 兼容接口。使用者需要核对生成内容、引用及学校当年的申报要求。
+项目提供 35 个领域指南。后端使用 Python 和 FastAPI，支持 Ollama 本地模型和 OpenAI 兼容接口。这里的覆盖指指南与赛道目录，各赛道的模型写作、模板、图表和导出支持程度不同，尚未完成全部场景的端到端验收。仓库改动不代表已经在线上部署。
 
 [![GitHub stars](https://img.shields.io/github/stars/cuic19053-hue/stardust-agent?style=social)](https://github.com/cuic19053-hue/stardust-agent/stargazers) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
 
@@ -20,6 +20,8 @@
 
 例如，可以先问：“我想申报大创创新训练项目，课题是校园无人机巡检。请帮我梳理申报书结构，还需要准备哪些材料？”
 
+在线入口无需安装 Python 或使用命令行。使用平台模型无需自备 API Key，账号额度、模型可用性与费用以工作台提示为准。未知事实应保留待补充；用户确认只代表其提供或认可了信息，不代表系统完成独立核验。
+
 ## 支持哪些大学生申报材料？
 
 | 申报场景 | 可以整理的材料 | 样例与指南 |
@@ -30,15 +32,17 @@
 | **升学与留学** | 保研推免个人陈述、交流项目和国家公派留学申请材料 | [保研样例](./examples/demos/demo_graduate_recommendation.docx) · [推免指南](./subskills/graduate-recommendation/SKILL.md) |
 | **三下乡与社会实践** | 社会调研、支教、政策宣讲和科技服务等实践申报材料 | [社会调研指南](./subskills/social-survey/SKILL.md) |
 
-样例用于了解材料结构和排版，具体栏目、字数及提交要求请以所在学校的最新通知为准。[查看全部 35 个领域指南](./subskills/README.md) · [查看全部 Word 样例](./examples/demos/)
+样例使用示例数据，供了解材料结构和排版，不是已授权入库的真实学生范文。具体栏目、字数及提交要求请以所在学校的最新通知为准。[查看全部 35 个领域指南](./subskills/README.md) · [查看全部 Word 样例](./examples/demos/)
 
 ## 常见问题
 
 **不会编程，可以使用吗？** 可以直接使用在线工作台，按提示创建项目并填写或上传材料。本地部署和 MCP 接入面向需要自行配置环境的用户。
 
-**可以用自己的材料吗？** 可以上传学校通知、项目记录等资料，核对并确认提取结果后，再让 Agent 在项目资料中检索依据。回答中的事实和来源仍需要本人检查。
+**可以用自己的材料吗？** 可以上传学校通知、项目记录等资料，核对并确认提取结果后，再让 Agent 在项目资料中检索依据。现有数字、来源和完整性检查范围有限，模型仍可能遗漏、误解或编造；回答中的事实、引文及其适用性仍需要本人逐项检查。
 
-**需要付费或配置模型吗？** 在线工作台的平台模型使用积分；使用自己的 API Key 时，费用按模型服务商的规则计算。本地也可以配置 Ollama 模型。[模型与服务配置](./server/README.md)
+**需要付费或配置模型吗？** 代码按 MIT 协议开源。在线平台模型有试用额度与积分计费；使用自己的 API Key 时，费用按模型服务商规则计算。本机 Ollama 不扣工作台积分，但需自行准备运行环境。[模型与服务配置](./server/README.md)
+
+当前仓库实现中，国奖基础起稿可不调用模型；明确要求字数、风格或重点经历时使用所选模型。是否已在线上提供以部署版本为准。
 
 ## 跟着一次工具调用读代码
 
@@ -55,7 +59,7 @@
 | 模型怎样选工具，何时结束？ | 同步答复与 SSE 流式答复共用对话循环。一轮对话最多迭代 6 次，工具调用预算为 8 次。服务端执行前再次检查工具授权，并绑定当前项目。 | [运行时](./server/proposal/chat_runtime.py) · [工具路由](./server/proposal/chat_tools.py) |
 | 回答里的材料从哪里来？ | 项目资料经用户确认后分段索引。RAG 检索结合关键词和可用的同版本向量，返回来源文件和段落位置。官方通知另按学校、年度和适用范围查找。 | [项目检索](./server/proposal/retrieval.py) · [知识来源与覆盖](./docs/rag-status.md) |
 | 聊天怎样变成 Word？ | 学生从对话中预览并选取章节草稿，编辑后保存。导出使用项目里已保存的正文，提交前仍可核对学校模板和引用。 | [对话草稿](./server/proposal/chat_drafts.py) · [Word 导出](./server/proposal/exporter.py) |
-| 长任务中途断开怎么办？ | 启用材料 worker 后，章节生成和导出等任务按项目入队。提交使用幂等键，写回前检查项目版本，付费任务租约中断时保留记录供核对。 | [任务队列](./server/proposal/material_jobs.py) · [执行进程](./server/material_worker.py) |
+| 长任务中途断开怎么办？ | 启用材料 worker 后，章节生成和导出等任务按项目入队。提交使用幂等键，写回前检查项目版本，付费任务租约中断时保留记录供核对。普通聊天仍依赖当前请求，断线续传与跨设备去重尚未完整接通。 | [任务队列](./server/proposal/material_jobs.py) · [执行进程](./server/material_worker.py) |
 
 ## 本地运行与复现
 
@@ -81,12 +85,16 @@ ollama pull bge-m3
 
 ## 场景、样例与扩展
 
-35 个申报场景以 Skills 形式提供领域规范。Agent 识别任务后按需读取对应指南。可以用示例文档查看栏目和排版，各校正式要求以当年通知为准。[全部场景](./subskills/README.md) · [挑战杯样例](./examples/demos/demo_challenge_cup.docx) · [奖学金样例](./examples/demos/demo_national_scholarship.docx) · [全部 Word 样例](./examples/demos/)
+35 个申报场景以 Skills 形式提供领域指南。网页按选定赛道加载经过滤的指南，并支持按需分页读取该 Skill 已链接的参考资料；指南及示例不能当作官方规则或学生事实。Word 输出是供编辑核对的草稿，自动图形需要构建器支持、有效图片或节点数据及绘图依赖；数据不足或渲染失败时可能留下待补充提示，不能据此推定全部赛道图表已接通。[全部场景](./subskills/README.md) · [挑战杯样例](./examples/demos/demo_challenge_cup.docx) · [奖学金样例](./examples/demos/demo_national_scholarship.docx) · [全部 Word 样例](./examples/demos/)
+
+仓库公共语料包含 **42 篇正式高校官方通知及 1 篇院级科创活动报道**，检索需匹配学校、年度与适用对象，并回源核验。**已获授权、脱敏并审核通过的真实范文当前为 0 篇**；详见 [RAG 状态说明](./docs/rag-status.md)。
 
 开发者可以从 Codex、Cursor 或其他 MCP 客户端连接本机项目工具，也可以直接加载某一赛道的 `SKILL.md`。本机项目 MCP 与网页共享项目和材料，使用 stdio 启动的命令为 `.venv/bin/python server/mcp_server.py --transport stdio`。[项目 MCP 实现](./server/mcp_server.py) · [Skills 入口](./SKILL.md)
 
 <details>
 <summary><b>展开 35 个领域指南及文件大小</b></summary>
+
+以下是指南目录与内容量，不表示各赛道已通过相同的写作、排版或线上交付验收。
 
 **🔬 科研与竞赛 · 9 个**
 
@@ -111,7 +119,7 @@ ollama pull bge-m3
 | 12 | 校级奖学金 | `university-scholarship` | 43 KB |
 | 13 | 企业专项奖学金 | `enterprise-scholarship` | 49 KB |
 | 14 | 单项奖学金 | `single-scholarship` | 44 KB |
-| 15 | 国家助学金 | `grant-application` | 68 KB |
+| 15 | 国家助学金 | `grant-application` | 13 KB |
 | 16 | 优秀毕业生 | `outstanding-graduate` | 45 KB |
 | 17 | 优秀学生 / 三好学生 / 优秀团员 | `outstanding-student` | 60 KB |
 | 18 | 优秀学生干部 | `outstanding-cadre` | 71 KB |

@@ -53,6 +53,11 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+from utils.roadmap_image import embed_roadmap_image
+
 
 # ============================================================
 # 字体与格式常量
@@ -966,37 +971,24 @@ class ApplicationDocBuilder:
         self.add_h1("E. 技术路线图（v2.1 必加）")
         roadmaps = self._get_list("tech_roadmap")
         if roadmaps:
-            self.add_para(f"本项目共绘制 {len(roadmaps)} 张技术路线图，分别为研究内容关系图、"
-                         "研究方法图、实施技术路线图。")
+            embedded_count = 0
             for rm in roadmaps:
                 if isinstance(rm, dict):
                     self.add_h2(f"{rm.get('figure_no', '')} {rm.get('title', '')}")
+                    embedded, reason = embed_roadmap_image(self.doc, rm)
+                    if embedded:
+                        embedded_count += 1
+                    else:
+                        self.add_para(f"【技术路线图待补充：{reason}】")
+                        self.warnings.append(f"技术路线图「{rm.get('title', '')}」未嵌入图片：{reason}")
                     if rm.get("description"):
                         self.add_para(rm["description"])
-                    nodes = rm.get("nodes", []) or []
-                    edges = rm.get("edges", []) or []
-                    if nodes:
-                        self.add_h3("（节点列表）")
-                        rows = []
-                        for n in nodes:
-                            if isinstance(n, dict):
-                                rows.append([n.get("id", ""), n.get("label", "")])
-                        if rows:
-                            self.add_table(["节点编号", "节点名称"], rows,
-                                          col_widths=[3.0, 12.0])
-                    if edges:
-                        self.add_h3("（关联关系）")
-                        rows = []
-                        for e in edges:
-                            if isinstance(e, dict):
-                                rows.append([e.get("from", ""), e.get("to", "")])
-                        if rows:
-                            self.add_table(["起始节点", "目标节点"], rows,
-                                          col_widths=[6.0, 6.0])
-            if len(roadmaps) < 3:
-                self.warnings.append(f"v2.1：技术路线图 {len(roadmaps)} 张，必须 ≥ 3 张")
+                else:
+                    self.add_para("【技术路线图待补充：本项缺少图片或有效的节点与关联关系。】")
+            if embedded_count < 3:
+                self.warnings.append(f"v2.1：已嵌入技术路线图 {embedded_count} 张，仍需补齐路线图片")
         else:
-            self.add_para("（v2.1：请补充 3 张技术路线图：研究内容关系图+研究方法图+实施技术路线图。）")
+            self.add_para("【技术路线图待补充：请提供路线图片，或填写节点与关联关系。】")
 
     # --------------------------------------------------------
     # v2.1 新增：F. 数学公式（自然/发明类必备）

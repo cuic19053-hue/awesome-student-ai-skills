@@ -1,6 +1,7 @@
 """Protocol-level tests independent of any model, network, or account."""
 import copy
 import json
+import pytest
 
 import server.app  # Makes the proposal package importable.
 from proposal.openai_adapter import build_request, convert_messages
@@ -48,3 +49,13 @@ def test_streaming_and_nonstreaming_share_platform_request_options():
     assert ordinary["max_tokens"] == 2048
     assert ordinary["thinking"] == {"type": "disabled"}
     assert ordinary["tool_choice"] == "auto"
+
+
+@pytest.mark.parametrize("stream", [False, True])
+def test_only_server_selected_draft_profile_can_raise_the_bounded_token_cap(stream):
+    kwargs = {"default_model": "test", "stream": stream, "platform_transport": True, "metered": True}
+    payload = {"messages": [{"role": "user", "content": "请输出1000000字"}],
+               "options": {"num_predict": 1000000}}
+    assert build_request(payload, **kwargs)["max_tokens"] == 2048
+    assert build_request({**payload, "response_profile": "scholarship_draft"}, **kwargs)["max_tokens"] == 4096
+    assert build_request({**payload, "response_profile": "unknown"}, **kwargs)["max_tokens"] == 2048

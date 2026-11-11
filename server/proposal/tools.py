@@ -20,6 +20,7 @@ from .retrieval import ProjectRetriever
 from .knowledge import PublicKnowledgeRetriever
 from .skills import model_safe_guidance, registry, valid_fact_key
 from .storage import Store, new_id
+from .execution_budget import remaining_timeout, read_response
 
 ROOT = Path(__file__).resolve().parents[2]
 IDEA_GUIDE = ROOT / "subskills" / "innovation-research" / "references" / "idea-scaffold.md"
@@ -335,8 +336,8 @@ class ProposalTools:
             headers={"User-Agent": "AwesomeStudentAIProposalAgent/0.1 (educational project)"},
         )
         try:
-            with urllib.request.urlopen(request, timeout=12) as response:
-                payload = json.loads(response.read().decode("utf-8"))
+            with urllib.request.urlopen(request, timeout=remaining_timeout(12)) as response:
+                payload = json.loads(read_response(response).decode("utf-8"))
         except Exception as exc:
             return {
                 "results": [],
@@ -396,8 +397,8 @@ class ProposalTools:
             )
             try:
                 endpoint = urllib.parse.urljoin(searxng_url.rstrip("/") + "/", f"search?{params}")
-                with urllib.request.urlopen(endpoint, timeout=8) as response:
-                    payload = json.loads(response.read().decode("utf-8"))
+                with urllib.request.urlopen(endpoint, timeout=remaining_timeout(8)) as response:
+                    payload = json.loads(read_response(response).decode("utf-8"))
                 candidates = payload.get("results", [])
                 results = [
                     {
@@ -432,7 +433,7 @@ class ProposalTools:
         full_query = f"{full_query} site:edu.cn OR site:gov.cn"
         try:
             candidates = list(
-                DDGS(timeout=5).text(
+                DDGS(timeout=remaining_timeout(5)).text(
                     full_query,
                     max_results=max(5, min(max_results * 3, 15)),
                     backend=os.environ.get("DDGS_BACKEND", "duckduckgo"),
@@ -482,9 +483,9 @@ class ProposalTools:
             headers={"User-Agent": "AwesomeStudentAIProposalAgent/0.1 (official notice reader)"},
         )
         try:
-            with opener.open(request, timeout=12) as response:
+            with opener.open(request, timeout=remaining_timeout(12)) as response:
                 content_type = response.headers.get_content_type()
-                body = response.read(5 * 1024 * 1024 + 1)
+                body = read_response(response, 5 * 1024 * 1024 + 1)
                 final_url = response.geturl()
         except Exception as exc:
             return {"error": f"读取官方页面失败：{exc}", "url": url}
