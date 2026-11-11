@@ -20,7 +20,7 @@ NATIONAL_APPLICANT = {
 
 
 def test_real_score_below_national_threshold_fails():
-    sim = ReviewSimulator("national_project_eval", applicant_data=NATIONAL_APPLICANT)
+    sim = ReviewSimulator("national_scholarship", applicant_data=NATIONAL_APPLICANT)
 
     result = sim.simulate_review()
 
@@ -43,7 +43,8 @@ def test_real_score_above_transfer_threshold_passes():
     assert result.grade == "C"
     assert not result.veto_triggered
     assert result.passed is True
-    assert "\u53ef\u6b63\u5f0f\u63d0\u4ea4" in result.overall_comment
+    assert "达到模拟检查阈值" in result.overall_comment
+    assert "可正式提交" not in result.overall_comment
     assert "\u5f85\u5b9a" not in result.overall_comment
 
 
@@ -64,7 +65,7 @@ def test_real_score_above_transfer_threshold_passes():
 def test_threshold_boundaries(
     monkeypatch, configured_threshold, score, expected_pass, expected_grade
 ):
-    sim = ReviewSimulator("national_project_eval", applicant_data=NATIONAL_APPLICANT)
+    sim = ReviewSimulator("national_scholarship", applicant_data=NATIONAL_APPLICANT)
     if configured_threshold is None:
         sim.skill_config.pop("threshold_pass")
     else:
@@ -85,7 +86,7 @@ def test_threshold_boundaries(
 
 def test_veto_overrides_score_above_threshold():
     applicant = {**NATIONAL_APPLICANT, "has_discipline_record": True}
-    sim = ReviewSimulator("national_project_eval", applicant_data=applicant)
+    sim = ReviewSimulator("national_scholarship", applicant_data=applicant)
     sim.skill_config["threshold_pass"] = 50
 
     result = sim.simulate_review()
@@ -107,7 +108,7 @@ def test_cli_returns_failure_below_configured_threshold(tmp_path):
             "utf8",
             "utils/review_simulator.py",
             "--skill",
-            "national_project_eval",
+            "national_scholarship",
             "--data",
             str(data_path),
             "--json",
@@ -128,7 +129,7 @@ def test_cli_returns_failure_below_configured_threshold(tmp_path):
 def test_compare_applicants_uses_configured_pass_results():
     comparison = compare_applicants(
         [
-            {"skill_name": "national_project_eval", "applicant_data": NATIONAL_APPLICANT},
+            {"skill_name": "national_scholarship", "applicant_data": NATIONAL_APPLICANT},
             {"skill_name": "major_transfer", "applicant_data": {"gpa_rank_percent": 20}},
         ]
     )
@@ -149,7 +150,7 @@ def test_cli_plain_output_does_not_recommend_pass_below_threshold(tmp_path):
             "utf8",
             "utils/review_simulator.py",
             "--skill",
-            "national_project_eval",
+            "national_scholarship",
             "--data",
             str(data_path),
         ],

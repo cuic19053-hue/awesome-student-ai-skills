@@ -164,3 +164,28 @@ def test_workflow_max_retries_graceful_exit():
     assert result.review_card.grade == "需完善"
     assert len(result.user_hints) >= 1
     assert "核心实验数据" in result.missing_facts[0]
+
+
+@pytest.mark.parametrize("last_review_fails", [False, True])
+def test_best_draft_keeps_its_own_review_card_when_later_revision_is_worse(last_review_fails):
+    drafts = iter(["第一版正文", "第二版正文"])
+    reviews = iter([
+        make_valid_critic_response(75, passed=False, weaknesses=["第一版还需改进"],
+                                  strengths=["第一版结构清楚"]),
+        "无效的检查结果" if last_review_fails else make_valid_critic_response(
+            65, passed=False, weaknesses=["第二版丢失重点"], strengths=["第二版文字简短"]),
+    ])
+    result = AgenticWorkflowEngine(
+        draft_caller=lambda *_: next(drafts), critic_caller=lambda *_: next(reviews), max_retries=1,
+    ).run_workflow({}, "s", "章节", "", [])
+
+    assert result.content == "第一版正文"
+    assert result.final_score == result.review_card.score == 75
+    assert result.review_card.strengths == ["第一版结构清楚"]
+    assert result.review_card.weaknesses == ["第一版还需改进"]
+    assert {item["score"] for item in result.review_card.dimensions} == {75}
+    assert result.review_card.review_status == "completed"
+    assert result.status == "needs_user_attention" and not result.passed
+    assert result.revision_incomplete is last_review_fails
+    if last_review_fails:
+        assert "分数和评语对应保留版本" in result.notice

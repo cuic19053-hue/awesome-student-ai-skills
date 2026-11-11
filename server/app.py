@@ -39,7 +39,7 @@ if str(SERVER_DIR) not in sys.path:
 
 from proposal.agent import DEFINITE_HTTP_REJECTIONS, ModelUnavailable, OllamaAgent
 from proposal.documents import ALLOWED_EXTENSIONS, MAX_UPLOAD_BYTES, Extraction, extract_file
-from proposal.exporter import export_project
+from proposal.exporter import export_project, export_input_fingerprint
 from proposal import observability
 from proposal.ops_api import register_ops_api
 from proposal.chat_drafts import register_chat_drafts, require_export_content
@@ -789,7 +789,7 @@ def delete_user_model_config():
 
 # 发版标记：凡涉及排版/导出行为的改动 +1。部署后用 /api/ping 核对，
 # 不依赖任何环境变量——CLI 直接部署时 Vercel 不会注入 commit sha。
-LAYOUT_REV = 2
+LAYOUT_REV = 3
 
 
 @app.get("/api/ping")
@@ -2193,7 +2193,9 @@ def chat(project_id: str, payload: ChatInput, request: Request) -> dict[str, Any
                                      headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
         return result
     from proposal.knowledge import is_policy_question, mixed_drafting_request
-    from proposal.chat_context import is_grant_draft_request, is_outstanding_draft_request, is_scholarship_draft_request, is_scholarship_preparation_request
+    from proposal.chat_context import (is_grant_draft_request, is_outstanding_draft_request,
+                                       is_scholarship_draft_request, is_scholarship_placeholder_request,
+                                       is_scholarship_preparation_request)
     from proposal.transfer_draft import is_transfer_draft_request
     from proposal.motivation_draft import is_motivation_draft_request
     from proposal.graduate_draft import is_graduate_draft_request
@@ -2209,8 +2211,9 @@ def chat(project_id: str, payload: ChatInput, request: Request) -> dict[str, Any
                    or graduate_local_reply
                    or is_outstanding_draft_request(draft_request or text, {**project, "state": state}, previous_assistant)
                    or is_grant_draft_request(draft_request or text, {**project, "state": state})
-                   or is_scholarship_draft_request(draft_request or text, {**project, "state": state})
-                   or is_scholarship_preparation_request(text, {**project, "state": state}))
+                   or is_scholarship_placeholder_request(draft_request or text, {**project, "state": state})
+                   or (is_scholarship_preparation_request(text, {**project, "state": state})
+                       and not is_scholarship_draft_request(draft_request or text, {**project, "state": state})))
     if local_reply or (is_policy_question(text) and not draft_request):
         # Evidence-only answers neither call a model nor consume a free chat or
         # require a paid-model configuration. The project is already authorized.
@@ -2946,12 +2949,14 @@ def simulate_review(project_id: str) -> dict[str, Any]:
 @app.post("/api/projects/{project_id}/export")
 def export_docx(project_id: str, payload: ExportInput | None = None) -> dict[str, Any]:
     project = _safe_project(project_id)
+    source_fingerprint = export_input_fingerprint(store, project)
+    source_revision = project.get("material_revision", 0)
     try:
         require_export_content(project, bool(payload and payload.allow_empty_draft))
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from None
     preflight = tools.validate_project(project_id)
-    output_path = store.files_dir / project_id / "申报书草稿.docx"
+    output_path = store.files_dir / project_id / f"export-{secrets.token_hex(16)}.docx"
     try:
         result = export_project(store, project_id, output_path)
     except Exception as exc:
@@ -2994,17 +2999,36 @@ def export_docx(project_id: str, payload: ExportInput | None = None) -> dict[str
         logging.getLogger(__name__).warning("排版硬化失败：%s", exc)
         result["layout"] = {"score": None, "error": str(exc)[:200]}
 
+    current = _safe_project(project_id)
+    if (current.get("material_revision", 0) != source_revision
+            or result.get("source_fingerprint") != source_fingerprint
+            or export_input_fingerprint(store, current) != source_fingerprint):
+        output_path.unlink(missing_ok=True)
+        raise HTTPException(409, "导出期间项目内容已更新，请保存最新修改后重新导出。")
+    state_data = dict(current["state"])
+    state_data.update(exported_docx_fingerprint=source_fingerprint,
+                      exported_docx_sha256=hashlib.sha256(output_path.read_bytes()).hexdigest(),
+                      exported_docx_local_name=output_path.name)
     if hasattr(store, "persist_generated_file"):
         storage_path = store.persist_generated_file(
             project_id,
-            "申报书草稿.docx",
+            output_path.name,
             output_path,
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         )
-        project = _safe_project(project_id)
-        state_data = dict(project["state"])
         state_data["exported_docx_storage_path"] = storage_path
-        store.update_project(project_id, state=state_data)
+    store.update_project(project_id, expected_revision=current.get("material_revision", 0), state=state_data)
+    previous_name = current["state"].get("exported_docx_local_name", "")
+    previous_storage = current["state"].get("exported_docx_storage_path", "")
+    try:
+        if re.fullmatch(r"export-[a-f0-9]{32}\.docx", previous_name) and previous_name != output_path.name:
+            (output_path.parent / previous_name).unlink(missing_ok=True)
+        if (previous_storage and previous_storage != state_data.get("exported_docx_storage_path")
+                and hasattr(store, "discard_generated_export")):
+            store.discard_generated_export(project_id, previous_storage)
+    except (OSError, RuntimeError):
+        # Publishing succeeded; old-file cleanup must not hide the new result.
+        logger.warning("Previous Word export cleanup deferred; project_id=%s", project_id)
     result["download_url"] = f"/api/projects/{project_id}/download"
     result["validation"] = preflight
     return result
@@ -3014,7 +3038,8 @@ def export_docx(project_id: str, payload: ExportInput | None = None) -> dict[str
 def download_docx(project_id: str) -> Response:
     project = _safe_project(project_id)
     download_name = f"{project.get('state', {}).get('skill_name') or '申报材料'}草稿.docx"
-    storage_path = project["state"].get("exported_docx_storage_path")
+    state_data = project["state"]
+    storage_path = state_data.get("exported_docx_storage_path")
     from proposal.exporter import ensure_grant_income_artifact_safe
     if storage_path and hasattr(store, "read_generated_file"):
         content = store.read_generated_file(storage_path)
@@ -3022,25 +3047,40 @@ def download_docx(project_id: str) -> Response:
             ensure_grant_income_artifact_safe(store, project, content)
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=f"{exc} 请处理后重新导出。") from None
+        _require_current_export(project, content)
         return Response(
             content=content,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             headers={"Content-Disposition": f"attachment; filename*=UTF-8''{urllib.parse.quote(download_name)}",
                      "Cache-Control": "private, no-store"},
         )
-    path = store.files_dir / project_id / "申报书草稿.docx"
+    name = state_data.get("exported_docx_local_name", "")
+    if name and not re.fullmatch(r"export-[a-f0-9]{32}\.docx", name):
+        raise HTTPException(409, "导出文件版本无法确认，请重新导出。")
+    path = store.files_dir / project_id / (name or "申报书草稿.docx")
     if not path.is_file():
         raise HTTPException(status_code=404, detail="请先导出 Word 草稿")
     try:
         ensure_grant_income_artifact_safe(store, project, path)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=f"{exc} 请处理后重新导出。") from None
-    return FileResponse(
-        path,
+    content = path.read_bytes()
+    _require_current_export(project, content)
+    return Response(
+        content=content,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        filename=download_name,
-        headers={"Cache-Control": "private, no-store"},
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{urllib.parse.quote(download_name)}",
+                 "Cache-Control": "private, no-store"},
     )
+
+
+def _require_current_export(project: dict[str, Any], content: bytes) -> None:
+    state_data = project["state"]
+    current = _safe_project(project["id"])
+    if (not state_data.get("exported_docx_fingerprint")
+            or state_data["exported_docx_fingerprint"] != export_input_fingerprint(store, current)
+            or state_data.get("exported_docx_sha256") != hashlib.sha256(content).hexdigest()):
+        raise HTTPException(409, "项目内容已更新或导出版本无法确认，请保存最新修改后重新导出。")
 
 
 # Compatibility endpoints for the repository's previous service tests/clients.

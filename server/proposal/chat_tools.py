@@ -6,6 +6,7 @@ import re
 from typing import Any
 
 from .skills import discovery_tool_schemas, invoke_discovery_tool
+from .execution_budget import execution_budget
 
 
 # New registered tools do not automatically become available to the model.
@@ -46,11 +47,13 @@ def is_personal_writing_request(user_text: str) -> bool:
 class ChatToolRouter:
     """Provide schemas and enforce the same grant again at invocation time."""
 
-    def __init__(self, tools: Any, project_id: str, project: dict[str, Any], *, user_text: str = ""):
+    def __init__(self, tools: Any, project_id: str, project: dict[str, Any], *, user_text: str = "",
+                 deadline: float | None = None):
         self.tools = tools
         self.project_id = project_id
         self.project = project
         self.user_text = user_text
+        self.deadline = deadline
         self.schemas = [schema for schema in tools.schemas()
                         if schema["function"]["name"] in CHAT_TOOLS]
         self.schemas.extend(discovery_tool_schemas())
@@ -61,6 +64,10 @@ class ChatToolRouter:
         }
 
     def invoke(self, call: dict[str, Any]) -> tuple[str, Any]:
+        with execution_budget(self.deadline):
+            return self._invoke(call)
+
+    def _invoke(self, call: dict[str, Any]) -> tuple[str, Any]:
         function = call.get("function") or {}
         if not isinstance(function, dict):
             return "", {"error": "工具调用格式无效。"}

@@ -513,15 +513,25 @@ class AgenticWorkflowEngine:
 
         chosen_draft = best_it.draft
         chosen_critic = best_it.critic
+        later_review_failed = (
+            current_critic.review_status == "failed" and chosen_critic.review_status != "failed"
+        )
+        if later_review_failed:
+            # The retained draft already has a completed review. A failed
+            # review of a different revision must neither replace that card
+            # nor allow the interrupted revision to overwrite user content.
+            revision_incomplete = True
 
         # 更新项目全局草稿记忆黑板
         bb.record_chapter_conclusion(section_id, section_title, chosen_draft.content)
 
         # 6. 用户提示组装（决策 3-A）
         user_hints: List[str] = []
-        if revision_incomplete:
+        if later_review_failed:
+            user_hints.append("后续版本的检查未完成，已保留较早检查完成的草稿；分数和评语对应保留版本。")
+        elif revision_incomplete:
             user_hints.append("后续修改未完成，已保留上一版草稿，请核对后继续编辑。")
-        if current_critic.review_status == "failed":
+        if chosen_critic.review_status == "failed":
             user_hints.append("评审未完成，已保留草稿；本次不提供质量分数，请稍后重试评审。")
         if all_missing_facts:
             user_hints.append(
@@ -532,25 +542,25 @@ class AgenticWorkflowEngine:
                 user_hints.append(f"📌 评委建议补充：{item}")
 
         status = "passed"
-        if len(history) > 1:
+        if best_it.iteration > 1:
             status = "self_corrected"
-        if user_hints or not current_critic.passed:
+        if user_hints or not chosen_critic.passed:
             status = "needs_user_attention"
-        if current_critic.review_status == "failed":
+        if chosen_critic.review_status == "failed":
             status = "review_failed"
-        passed = current_critic.passed and not all_missing_facts and not all_user_actions
+        passed = chosen_critic.passed and not all_missing_facts and not all_user_actions and not revision_incomplete
 
         # 7. 构建 Review Card（决策 7-A）
         review_card = ReviewCard(
-            score=current_critic.overall_score,
-            grade=_compute_grade(current_critic.overall_score, passed),
-            review_status=current_critic.review_status,
+            score=chosen_critic.overall_score,
+            grade=_compute_grade(chosen_critic.overall_score, passed),
+            review_status=chosen_critic.review_status,
             passed=passed,
             iterations=len(history),
-            strengths=current_critic.strengths,
-            weaknesses=current_critic.weaknesses,
+            strengths=chosen_critic.strengths,
+            weaknesses=chosen_critic.weaknesses,
             user_hints=user_hints,
-            dimensions=[d.model_dump() for d in current_critic.dimensions],
+            dimensions=[d.model_dump() for d in chosen_critic.dimensions],
         )
 
         return WorkflowResult(
@@ -569,6 +579,8 @@ class AgenticWorkflowEngine:
             evidence=evidence_results,
             retrieval_mode=retrieval_mode,
             notice=(
+                "后续版本的检查未完成，已保留较早检查完成的草稿；分数和评语对应保留版本。"
+                if later_review_failed else
                 "后续修改未完成，已保留上一版草稿；请核对后继续编辑。"
                 if revision_incomplete else
                 "草稿已保留，但评审未完成；请勿视为已通过质量检查。"

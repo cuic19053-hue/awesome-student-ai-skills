@@ -3,15 +3,16 @@
 """
 review_simulator.py — 大学生申报书评审模拟器
 
-本模块基于 review_criteria.json 中 30 个子 skill 的评审标准，
+本模块基于 review_criteria.json 中的赛道模拟检查配置，
 对学生填写的申报书进行多维度模拟评审，输出评分、评语、等级与改进建议。
+新增启发式配置只检查文字覆盖情况，不认定事实、资格或正式评审结果。
 
 主要功能：
     1. ReviewSimulator(skill_name, application_text, applicant_data) — 主类
     2. simulate_review() — 模拟评审，返回评分 + 评语
     3. generate_review_report(out_path) — 生成评审报告 docx
     4. compare_applicants(applicant_list) — 多人对比排序
-    5. CLI 接口：python review_simulator.py --skill national_project_eval --data data.json
+    5. CLI 接口：python review_simulator.py --skill national_scholarship --data data.json
 
 依赖：
     - review_criteria.json（评审标准配置）
@@ -87,6 +88,7 @@ class ReviewResult:
     veto_triggered: List[str] = field(default_factory=list)
     plagiarism: Optional[Dict] = None
     ai_flavor: Optional[Dict] = None
+    review_scope: str = "模拟结果仅供写作自查，不代替事实核验、正式评审或资格认定。"
 
     def to_dict(self) -> Dict:
         d = asdict(self)
@@ -105,7 +107,7 @@ class ReviewSimulator:
 
     用法：
         sim = ReviewSimulator(
-            skill_name="national_project_eval",
+            skill_name="national_scholarship",
             application_text="本人自入学以来……",
             applicant_data={
                 "name": "张三",
@@ -248,6 +250,7 @@ class ReviewSimulator:
             skill_label=self.skill_config.get("name", self.skill_name),
             applicant_name=self.applicant_name,
             max_score=self.skill_config.get("max_score", 100),
+            review_scope=self.skill_config.get("assessment_scope", ReviewResult.__dataclass_fields__["review_scope"].default),
         )
 
         # 1. 查重预检
@@ -332,6 +335,7 @@ class ReviewSimulator:
         result.strengths = self._extract_strengths(result)
         result.weaknesses = self._extract_weaknesses(result)
         result.improvements = self._generate_improvements(result)
+        result.improvements.extend(self.skill_config.get("manual_review", []))
 
         return result
 
@@ -425,6 +429,18 @@ class ReviewSimulator:
         data = self.applicant_data
         evidence: List[str] = []
         score = 60.0  # 基础分
+
+        # New advisory profiles declare exactly which text signals they check.
+        # They must not silently receive the legacy fallback's 75 points.
+        if self.skill_config.get("heuristic_only"):
+            groups = dim_cfg.get("text_signals", [])
+            text = self.application_text.casefold()
+            hits = [next((word for word in group if word.casefold() in text), "") for group in groups]
+            score = 100.0 * sum(bool(hit) for hit in hits) / len(groups) if groups else 0.0
+            evidence = [f"出现文本信号：{hit}" for hit in hits if hit]
+            evidence.extend("待补充或人工核对：" + "/".join(group) for group, hit in zip(groups, hits) if not hit)
+            return score, (f"{dim_name}文字覆盖 {sum(bool(hit) for hit in hits)}/{len(groups)}；"
+                           + dim_cfg.get("criteria", "") + "关键词出现不证明内容真实或符合正式要求。"), evidence
 
         # —— 学业表现 ——
         if "学业" in dim_name or "学习" in dim_name:
@@ -709,10 +725,16 @@ class ReviewSimulator:
                 f"最强维度：{best.name}（{best.raw_score:.1f}）；"
                 f"最弱维度：{worst.name}（{worst.raw_score:.1f}）。"
             )
-        if result.passed:
-            parts.append("综合建议：通过预审，可正式提交。")
+        if self.skill_config.get("heuristic_only"):
+            parts.append("写作覆盖检查达到模拟分数线；仍须人工核对。" if result.passed
+                         else "写作覆盖检查未达到模拟分数线，请补充相关说明。")
+            parts.append(result.review_scope)
+        elif result.passed:
+            parts.append("综合建议：达到模拟检查阈值，仍须按学校或项目当年要求核对。")
         else:
-            parts.append("综合建议：未通过预审，需根据改进建议修改后重审。")
+            parts.append("综合建议：未通过预审（模拟检查），需根据改进建议修改后复查。")
+        if not self.skill_config.get("heuristic_only"):
+            parts.append(result.review_scope)
         return " ".join(parts)
 
     def _extract_strengths(self, result: ReviewResult) -> List[str]:
@@ -820,6 +842,7 @@ class ReviewSimulator:
         p.add_run(f"模拟评审总分：{result.total_score}/{result.max_score}\n")
         p.add_run(f"评审等级：{result.grade} - {self.GRADE_LABELS.get(result.grade, '')}\n")
         p.add_run(f"是否通过预审：{'✅ 通过' if result.passed else '❌ 不通过'}\n")
+        p.add_run(result.review_scope + "\n")
         if result.plagiarism and "overall_similarity" in result.plagiarism:
             p.add_run(
                 f"查重相似度：{result.plagiarism['overall_similarity']*100:.1f}%"
@@ -890,6 +913,7 @@ class ReviewSimulator:
         lines.append(f"模拟评审总分  : {result.total_score}/{result.max_score}")
         lines.append(f"评审等级      : {result.grade} - {self.GRADE_LABELS.get(result.grade, '')}")
         lines.append(f"是否通过预审  : {'✅ 通过' if result.passed else '❌ 不通过'}")
+        lines.append(result.review_scope)
         if result.plagiarism and "overall_similarity" in result.plagiarism:
             lines.append(
                 f"查重相似度    : {result.plagiarism['overall_similarity']*100:.1f}%"
@@ -1004,8 +1028,8 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 示例：
-  python review_simulator.py --skill national_project_eval --data data.json
-  python review_simulator.py --skill national_project_eval --data data.json --text-file text.txt --out report.docx
+  python review_simulator.py --skill national_scholarship --data data.json
+  python review_simulator.py --skill national_scholarship --data data.json --text-file text.txt --out report.docx
   python review_simulator.py --compare applicants.json --out ranking.json
   python review_simulator.py --list-skills
 """,

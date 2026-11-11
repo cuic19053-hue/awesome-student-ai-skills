@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 import io
 import zipfile
+import hashlib
+import json
 from copy import deepcopy
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -70,6 +72,34 @@ LETTER_SKILLS = frozenset({
     "national-scholarship", "motivation-scholarship", "university-scholarship",
     "enterprise-scholarship", "single-scholarship", "grant-application",
 })
+
+
+def export_input_fingerprint(store: Store, project: dict[str, Any]) -> str:
+    """Bind a download to its source content, excluding export bookkeeping.
+
+    Chat can change template facts and privacy preferences without changing a
+    section. Document confirmation can do the same, so neither the section
+    revision nor a hash of the body alone is sufficient.
+    """
+    state = {key: value for key, value in project.get("state", {}).items()
+             if not key.startswith("exported_docx_")
+             and key not in {"last_model_config", "_material_tracking", "_material_fact_meta"}}
+    source = {key: project.get(key) for key in (
+        "title", "level", "discipline", "school", "outline", "sections", "diagrams", "template_document_id",
+    )}
+    source["state"] = state
+    source["documents"] = [
+        {key: document.get(key) for key in (
+            "id", "original_name", "kind", "storage_path", "extracted_text", "confirmed",
+            "confirmation_origin", "extraction_status", "low_confidence_count",
+        )}
+        for document in sorted(store.list_documents(project["id"]), key=lambda item: item["id"])
+    ]
+    source["instructions"] = [message.get("content", "")
+                              for message in store.messages(project["id"], limit=200)
+                              if message.get("role") == "user"]
+    encoded = json.dumps(source, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def _income_amounts(store: Store, project: dict[str, Any]) -> set[Decimal]:
@@ -827,6 +857,9 @@ def export_project(store: Store, project_id: str, output_path: str | Path) -> di
     )
     if not project:
         return {"success": False, "error": "找不到这个项目。"}
+    # Report the snapshot actually used by the renderer. The HTTP caller may
+    # have read a different version before attachment materialization began.
+    source_fingerprint = export_input_fingerprint(store, project.pop("_export_source_project", project))
     if not project["outline"]:
         skill_id = str(project.get("state", {}).get("skill_id", "innovation-research"))
         if skill_id == "innovation-research":
@@ -912,6 +945,7 @@ def export_project(store: Store, project_id: str, output_path: str | Path) -> di
     document.save(str(out))
     return {
         "success": True,
+        "source_fingerprint": source_fingerprint,
         "path": str(out),
         "used_original_template": used_template,
         "template_sections_filled": table_count,

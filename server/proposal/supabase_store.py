@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 import hashlib
 import os
 import re
@@ -491,7 +492,8 @@ class SupabaseStore:
         # Keep storage object keys ASCII-only. Supabase Storage rejects some
         # non-ASCII object keys (e.g. the Chinese "申报书草稿.docx") as InvalidKey.
         # The user-facing download name is set separately in download_docx.
-        safe_name = "generated-" + Path(filename).suffix.lower().lstrip(".")
+        safe_name = (filename if re.fullmatch(r"export-[a-f0-9]{32}\.docx", filename)
+                     else "generated-" + Path(filename).suffix.lower().lstrip("."))
         storage_path = f"{identity['user_id']}/{project_id}/_generated/{safe_name}"
         self._storage(
             "POST",
@@ -505,12 +507,22 @@ class SupabaseStore:
     def read_generated_file(self, storage_path: str) -> bytes:
         return self._storage("GET", storage_path)
 
+    def discard_generated_export(self, project_id: str, storage_path: str) -> None:
+        prefix = f"{self._identity()['user_id']}/{project_id}/_generated/"
+        if (storage_path.startswith(prefix)
+                and re.fullmatch(r"export-[a-f0-9]{32}\.docx", storage_path[len(prefix):])):
+            self._delete_storage([storage_path])
+
     def project_for_export(self, project_id: str) -> dict[str, Any] | None:
         project = self.get_project(project_id)
         if not project:
             return None
+        source_project = deepcopy(project)
         missing = self.materialize_project_documents(project_id, template_document_id=project.get("template_document_id"))
         project = dict(project)
+        # Export receipts bind the actual database snapshot, before remote
+        # diagram paths are translated to this instance's temporary files.
+        project["_export_source_project"] = source_project
         project["_missing_export_documents"] = missing
         project["diagrams"] = [dict(item) for item in project.get("diagrams", [])]
         for diagram in project["diagrams"]:
@@ -789,7 +801,7 @@ class SupabaseStore:
             return
 
     def get_token_stats(self, project_id: str | None = None) -> dict[str, Any]:
-        params = [("select", "task_type,prompt_tokens,completion_tokens,total_tokens,latency_ms")]
+        params = [("select", "task_type,model,prompt_tokens,completion_tokens,total_tokens,latency_ms")]
         if project_id:
             params.append(("project_id", f"eq.{project_id}"))
         rows = self._rest("token_usages", params=params)
@@ -810,7 +822,27 @@ class SupabaseStore:
         summary["by_task"] = [
             {"task_type": key, **value} for key, value in by_task.items()
         ]
+        by_model: dict[str, dict[str, int]] = {}
+        for row in rows:
+            item = by_model.setdefault(row.get("model") or "未知", {"count": 0, "tokens": 0})
+            item["count"] += 1
+            item["tokens"] += row["total_tokens"]
+        summary["by_model"] = [{"model": key, **value} for key, value in by_model.items()]
         return summary
+
+    def get_detailed_usage_logs(
+        self, limit: int = 50, offset: int = 0, project_id: str | None = None
+    ) -> list[dict[str, Any]]:
+        # The request JWT and RLS continue to scope the report to visible rows;
+        # an application admin token is not a database privilege escalation.
+        params = [("select", "*,projects(title)"), ("order", "created_at.desc"),
+                  ("limit", str(max(1, min(200, int(limit))))), ("offset", str(max(0, int(offset))))]
+        if project_id:
+            params.append(("project_id", f"eq.{project_id}"))
+        rows = self._rest("token_usages", params=params)
+        return [{**{key: value for key, value in row.items() if key != "projects"},
+                 "project_title": (row.get("projects") or {}).get("title", "")}
+                for row in rows]
 
     def get_workbench_credit_balance(self, user_id: str | None = None) -> dict[str, Any]:
         identity = self._identity()

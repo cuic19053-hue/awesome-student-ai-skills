@@ -9,7 +9,7 @@ from copy import deepcopy
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from .chat_safety import PERSONAL_NUMBER_REVIEW_PREFIX, PROJECT_CLAIM_REVIEW_PREFIX
+from .chat_safety import INCOMPLETE_DRAFT_PREFIX, PERSONAL_NUMBER_REVIEW_PREFIX, PROJECT_CLAIM_REVIEW_PREFIX
 
 OPEN = re.compile(r"<WritingBlock\b[^<>]{0,300}>", re.I)
 CLOSE = re.compile(r"</WritingBlock\s*>", re.I)
@@ -234,7 +234,7 @@ def candidates(project: dict, messages: list[dict]) -> list[dict]:
         raw = message.get("content", "")
         if not isinstance(raw, str):
             continue
-        if raw.startswith(PERSONAL_NUMBER_REVIEW_PREFIX):
+        if raw.startswith((PERSONAL_NUMBER_REVIEW_PREFIX, INCOMPLETE_DRAFT_PREFIX)):
             # Do not fall back to an earlier version after the student asked
             # for a new draft whose personal numbers need manual attention.
             latest.clear()
@@ -280,13 +280,19 @@ def candidates(project: dict, messages: list[dict]) -> list[dict]:
             sid = existing["id"] if existing else "chat_" + fingerprint(key)[:16]
             previous = str(project.get("sections", {}).get(sid) or "")
             identifier = fingerprint([raw, title, body])
-            imported = project.get("state", {}).get("_chat_draft_sources", {}).get(sid, {}).get("candidate") == identifier
+            # Import provenance records a past confirmation, not the presence
+            # of a current chapter. Clearing/removing it must leave a path to
+            # explicitly restore the chat draft rather than disabling it.
+            in_outline = existing is not None
+            imported = bool(in_outline and previous.strip()
+                            and project.get("state", {}).get("_chat_draft_sources", {}).get(sid, {}).get("candidate") == identifier)
             latest[key] = {
                 "id": identifier,
                 "section_id": sid,
                 "title": title,
                 "content": body,
-                "already_saved": previous.strip() == body.strip() or imported,
+                "already_saved": bool(in_outline and previous.strip()
+                                      and (previous.strip() == body.strip() or imported)),
                 "conflict": bool(previous.strip() and previous.strip() != body.strip() and not imported),
                 # A real model test added unprovided team and project claims
                 # without any numbers. Do not preselect generated project

@@ -11,11 +11,12 @@ from .chat_context import (OUTSTANDING_CLARIFICATION, ambiguous_confirmation, co
                            final_text, grant_placeholder_draft, is_grant_draft_request,
                            is_outstanding_draft_request, outstanding_student_category, outstanding_student_draft,
                            outstanding_student_omissions,
-                           is_scholarship_draft_request, is_scholarship_preparation_request,
+                           is_scholarship_draft_request, is_scholarship_placeholder_request,
+                           is_scholarship_preparation_request,
                            scholarship_placeholder_draft, scholarship_preparation_reply,
                            scholarship_student_facts, without_policy_claims)
 from .chat_model import model_events
-from .chat_safety import PERSONAL_NUMBER_REVIEW_PREFIX, PROJECT_CLAIM_REVIEW_PREFIX
+from .chat_safety import INCOMPLETE_DRAFT_PREFIX, PERSONAL_NUMBER_REVIEW_PREFIX, PROJECT_CLAIM_REVIEW_PREFIX
 from .chat_tools import CHAT_TOOLS, TOOL_LABELS, ChatToolRouter
 from .knowledge import has_writing_intent, mixed_drafting_request
 from .transfer_draft import is_transfer_draft_request, transfer_draft, transfer_student_facts
@@ -174,7 +175,9 @@ class ChatRuntime:
             yield from self._answer(text, called, "evidence-only", stream)
             return
         grant_draft = is_grant_draft_request(draft_request or user_text, project)
-        if is_scholarship_draft_request(draft_request or user_text, project) or grant_draft:
+        scholarship_draft = is_scholarship_draft_request(draft_request or user_text, project)
+        scholarship_placeholder = is_scholarship_placeholder_request(draft_request or user_text, project)
+        if scholarship_placeholder or grant_draft:
             # Rebuild only from bounded user messages and confirmed, clearly
             # matching personal materials, never from model-generated history.
             facts, conflicted = scholarship_student_facts(history, user_text, self.store.list_documents(project_id),
@@ -190,7 +193,7 @@ class ChatRuntime:
             self.store.add_message(project_id, "assistant", text)
             yield from self._answer(text, called, "evidence-only", stream)
             return
-        if is_scholarship_preparation_request(user_text, project):
+        if is_scholarship_preparation_request(user_text, project) and not scholarship_draft:
             text = scholarship_preparation_reply()
             called = []
             if policy_reply is not None:
@@ -217,6 +220,12 @@ class ChatRuntime:
             model_project = {**project, "state": model_state}
         messages = conversation_messages(self.agent, model_project, project_id, history, draft_request or user_text,
                                          original_user_text=user_text)
+        if scholarship_draft:
+            from .scholarship_writing import scholarship_writing_context
+            facts, conflicted = scholarship_student_facts(
+                history, user_text, self.store.list_documents(project_id), project_id=project_id,
+            )
+            messages[0]["content"] += scholarship_writing_context(history, user_text, facts, conflicted=conflicted)
         # Personal rewrites and questions about a student's own figures must be
         # checked before display. Other chats continue to stream normally.
         from .section_grounding import is_personal_skill
@@ -246,7 +255,13 @@ class ChatRuntime:
         ))
         if stream and (personal_check or project_check):
             yield {"type": "status", "message": "正在整理答复…"}
-        router = ChatToolRouter(self.tools, project_id, project, user_text=user_text)
+        router = ChatToolRouter(self.tools, project_id, project, user_text=user_text,
+                                deadline=getattr(self.agent, "_execution_deadline", None))
+        if scholarship_draft:
+            # Profile/source filtering was done above. A directly requested
+            # draft needs one authorized model response, not a search loop.
+            router.schemas = []
+            router.allowed.clear()
         called: list[str] = ["search_public_knowledge"] if policy_reply is not None else []
         if project_draft:
             # A direct request to write should not fan out into unrelated
@@ -292,6 +307,9 @@ class ChatRuntime:
             payload = {"model": self.agent.model, "messages": messages,
                        "tools": router.schemas if tool_calls_used < MAX_TOOL_CALLS_PER_TURN else [],
                        "options": {"temperature": 0.2}}
+            if scholarship_draft:
+                payload["response_profile"] = "scholarship_draft"
+                payload["options"]["num_predict"] = 4096
             streamed_text = False
             message = None
             events = model_events(self.agent, project_id, payload, stream=stream)
@@ -345,10 +363,15 @@ class ChatRuntime:
             if message is None:
                 raise ModelUnavailable("模型未能产生有效输出。")
             calls = message.get("tool_calls") or []
+            if scholarship_draft and calls:
+                # This path supplied no tools. Do not buy another model turn
+                # merely to repair an invalid response to a writing request.
+                raise ModelUnavailable("模型未返回完整申请书草稿，本次请求未完成；请先查看结果与费用状态，再决定是否重试。")
             if not calls:
                 text = final_text(message.get("content"), saved_fact=saved_fact)
                 if not text:
                     raise ModelUnavailable("模型未返回可用正文，本次请求未完成。")
+                incomplete = scholarship_draft and message.get("finish_reason") in {"length", "max_tokens", "max_output_tokens"}
                 if draft_request and policy_reply is not None:
                     text = fallback_scholarship_draft(text, draft_request, project)
                     text = without_policy_claims(text) or "写作结果含有未经核对的规则表述，已隐藏；请提供具体写作内容后继续。"
@@ -377,12 +400,17 @@ class ChatRuntime:
                     if issues:
                         text = (PROJECT_CLAIM_REVIEW_PREFIX + "、".join(issues)
                                 + "），请检查并修改后，再选择保存。\n\n" + text)
+                if incomplete:
+                    text = re.sub(r"</?WritingBlock\b[^<>]*>", "", text, flags=re.I).strip()
+                    text = (INCOMPLETE_DRAFT_PREFIX + "模型达到输出长度上限，以下是已收到的草稿片段，整份申请书尚未完成。"
+                            "请先核对并复制内容，再决定是否继续补写；系统没有自动重试。\n\n" + text)
                 self.store.add_message(project_id, "assistant", text)
                 if stream and (draft_request or personal_check or project_check):
                     # Buffer the draft until validation; provisional text must
                     # not expose model-generated eligibility claims.
                     yield {"type": "delta", "text": text}
-                yield {"type": "done", "message": text, "tool_calls": called, "model": self.agent.model}
+                yield {"type": "done", "message": text, "tool_calls": called, "model": self.agent.model,
+                       **({"incomplete": True} if incomplete else {})}
                 return
 
             # A model may emit provisional text before a tool call. Clear it
@@ -410,7 +438,11 @@ class ChatRuntime:
                     if stream:
                         yield {"type": "status", "message": TOOL_LABELS.get(name, "正在处理工具请求…")}
                     tool_calls_used += 1
-                    name, result = router.invoke(call)
+                    from .execution_budget import ExecutionBudgetExceeded
+                    try:
+                        name, result = router.invoke(call)
+                    except ExecutionBudgetExceeded as exc:
+                        raise ModelUnavailable("本轮资料检索时间已用完，回复尚未完成。系统没有自动重试，请缩小检索范围后继续。") from exc
                     if name in READ_ONLY_CACHED_TOOLS and cache_key:
                         tool_cache[cache_key] = result
                 if name == "save_project_fact" and isinstance(result, dict) and result.get("success"):

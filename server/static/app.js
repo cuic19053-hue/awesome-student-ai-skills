@@ -700,7 +700,7 @@
           byModel.forEach((bm) => {
             const tag = document.createElement("span");
             tag.className = "usage-tag";
-            tag.innerHTML = `${bm.model || "未知"} · ${bm.count} 次 <small>(${bm.tokens.toLocaleString()} tokens)</small>`;
+            tag.textContent = `${bm.model || "未知"} · ${bm.count} 次 (${Number(bm.tokens || 0).toLocaleString()} tokens)`;
             tagsContainer.appendChild(tag);
           });
         }
@@ -716,16 +716,14 @@
           logs.forEach((log) => {
             const tr = document.createElement("tr");
             const timeStr = (log.created_at || "").replace("T", " ").slice(5, 19);
-            tr.innerHTML = `
-              <td style="color:var(--text-muted);">${timeStr}</td>
-              <td><strong>${log.project_title || log.project_id || "全局"}</strong></td>
-              <td><span style="background:#f1f5f9;padding:2px 6px;border-radius:4px;">${log.task_type || "chat"}</span></td>
-              <td><span style="font-family:monospace;color:#7e22ce;">${log.model}</span></td>
-              <td>${(log.prompt_tokens || 0).toLocaleString()}</td>
-              <td>${(log.completion_tokens || 0).toLocaleString()}</td>
-              <td><strong>${(log.total_tokens || 0).toLocaleString()}</strong></td>
-              <td style="color:var(--text-muted);">${log.latency_ms || 0} ms</td>
-            `;
+            for (const value of [timeStr, log.project_title || log.project_id || "全局",
+              log.task_type || "chat", log.model || "未知", Number(log.prompt_tokens || 0).toLocaleString(),
+              Number(log.completion_tokens || 0).toLocaleString(), Number(log.total_tokens || 0).toLocaleString(),
+              `${log.latency_ms || 0} ms`]) {
+              const cell = document.createElement("td");
+              cell.textContent = value;
+              tr.append(cell);
+            }
             tbody.appendChild(tr);
           });
         }
@@ -1566,6 +1564,8 @@
   }
 
   async function startGeneralChat() {
+    if (projectCreationInProgress) return;
+    projectCreationInProgress = true;
     const button = $("#newChatBtn");
     button.disabled = true;
     try {
@@ -1576,6 +1576,7 @@
     } catch (error) {
       toast(error.message, true);
     } finally {
+      projectCreationInProgress = false;
       button.disabled = false;
     }
   }
@@ -1654,9 +1655,14 @@
     box.classList.remove("hidden");
   }
 
+  let projectCreationInProgress = false;
   async function completeProjectCreation(payload) {
+    if (projectCreationInProgress) return;
+    projectCreationInProgress = true;
     const submit = $('#createForm button[type="submit"]');
     submit.disabled = true;
+    const choices = [...document.querySelectorAll("#routeCandidates button, #heroRouteCandidates button")];
+    choices.forEach(choice => { choice.disabled = true; });
     try {
       const project = await api("/api/projects", {
         method: "POST",
@@ -1685,7 +1691,9 @@
         openRechargeDialog();
       }
     } finally {
+      projectCreationInProgress = false;
       submit.disabled = false;
+      choices.forEach(choice => { choice.disabled = false; });
     }
   }
 
@@ -2925,12 +2933,13 @@
       mark.textContent = String(index + 1).padStart(2, "0");
       const input = document.createElement("input");
       input.value = section.title;
-      input.addEventListener("input", () => { section.title = input.value; });
+      input.addEventListener("input", () => { clearExportArtifacts(); section.title = input.value; });
       const up = button("↑", "remove-outline");
       up.title = "上移";
       up.disabled = index === 0;
       up.addEventListener("click", () => {
         if (index === 0) return;
+        clearExportArtifacts();
         [state.outline[index - 1], state.outline[index]] = [state.outline[index], state.outline[index - 1]];
         renderOutline();
       });
@@ -2939,12 +2948,14 @@
       down.disabled = index === state.outline.length - 1;
       down.addEventListener("click", () => {
         if (index === state.outline.length - 1) return;
+        clearExportArtifacts();
         [state.outline[index + 1], state.outline[index]] = [state.outline[index], state.outline[index + 1]];
         renderOutline();
       });
       const remove = button("×", "remove-outline");
       remove.title = "删除章节";
       remove.addEventListener("click", () => {
+        clearExportArtifacts();
         state.outline.splice(index, 1);
         renderOutline();
       });
@@ -2953,6 +2964,7 @@
     });
     const add = button("＋ 添加章节", "button button-small button-quiet");
     add.addEventListener("click", () => {
+      clearExportArtifacts();
       const newId = `section_${Date.now()}`;
       state.outline.push({ id: newId, title: "新章节" });
       renderOutline();
@@ -2970,6 +2982,8 @@
   async function saveOutline() {
     const projectId = state.project?.id;
     if (!projectId) return;
+    clearExportArtifacts();
+    window.MaterialPilot?.invalidateArtifacts?.();
     try {
       await flushDraftEdits();
       if (state.project?.id !== projectId) return;
@@ -3117,6 +3131,10 @@
         if (!result || (typeof result.content !== "string" && result.conflict_status !== "user_edit_preserved")) {
           stopped = "未收到完整结果，请先查看当前章节；已停止后续章节，未重复提交";
           break;
+        }
+        if (typeof result.content === "string" && result.conflict_status !== "user_edit_preserved") {
+          clearExportArtifacts();
+          window.MaterialPilot?.invalidateArtifacts?.();
         }
         if (editorsChanged()) {
           // Generation may already be saved on the server. Keep it as the
@@ -3338,6 +3356,8 @@
             if (editor.value !== (state.project?.sections?.[section.id] || "") &&
                 !confirm("当前编辑内容还未保存，确定用这份草稿替换编辑框内容吗？")) return;
             editor.value = content;
+            clearExportArtifacts();
+            window.MaterialPilot?.invalidateArtifacts?.();
             wordBadge.textContent = `${countWords(content)} 字`;
             statusPill.className = "section-status-pill unsaved";
             statusPill.textContent = "● 未保存";
@@ -3373,6 +3393,8 @@
               if (editor.value !== (state.project?.sections?.[section.id] || "") &&
                   !confirm("当前编辑内容还未保存，确定用历史版本替换编辑框内容吗？")) return;
               editor.value = version.content;
+              clearExportArtifacts();
+              window.MaterialPilot?.invalidateArtifacts?.();
               wordBadge.textContent = `${countWords(editor.value)} 字`;
               statusPill.className = "section-status-pill unsaved";
               statusPill.textContent = "● 未保存";
@@ -3425,6 +3447,8 @@
       });
 
       editor.addEventListener("input", () => {
+        clearExportArtifacts();
+        window.MaterialPilot?.invalidateArtifacts?.();
         const words = countWords(editor.value);
         wordBadge.textContent = `${words} 字`;
         statusPill.className = "section-status-pill unsaved";
@@ -3466,6 +3490,8 @@
       generate.addEventListener("click", async () => {
         const generationProjectId = state.project?.id;
         if (!generationProjectId || generationProjectId !== boundProjectId) return;
+        clearExportArtifacts();
+        window.MaterialPilot?.invalidateArtifacts?.();
         const generationEpoch = chatRecoveryEpoch;
         const generationUserId = state.authSession?.user?.id || null;
         const deletionEpoch = deletedProjectEpochs.get(generationProjectId) || 0;
@@ -3552,6 +3578,8 @@
               renderReviewCard(wrapper, result.review_card);
             }
           } else if (result.content) {
+            clearExportArtifacts();
+            window.MaterialPilot?.invalidateArtifacts?.();
             if (result.material_revision !== undefined) state.project.material_revision = result.material_revision;
             editor.value = result.content;
             wordBadge.textContent = `${countWords(result.content)} 字`;
@@ -3595,6 +3623,8 @@
       save.addEventListener("click", async () => {
         const projectId = state.project?.id;
         if (!projectId) return;
+        clearExportArtifacts();
+        window.MaterialPilot?.invalidateArtifacts?.();
         const previousContent = state.project.sections?.[section.id] || "";
         const currentVal = editor.value;
         save.disabled = true;
@@ -3611,6 +3641,8 @@
                 base_content: previousContent } : {}) }),
           });
           if (!chatProjectIsActive(projectId)) return;
+          clearExportArtifacts();
+          window.MaterialPilot?.invalidateArtifacts?.();
           state.project.sections = state.project.sections || {};
           state.project.sections[section.id] = currentVal;
           const drafts = uncertainSectionDrafts.get(uncertainKey) || [];
