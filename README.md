@@ -1,80 +1,60 @@
-<div align="center">
-  <a href="https://agent.stardust.website">
-    <img src="./assets/logo.png" width="96" height="96" alt="Awesome Student AI Skills Logo">
-  </a>
-  <h1>Awesome Student AI Skills</h1>
-  <p><b>35 个高校学科竞赛与立项辅导 AI Skill · 结构化规范申报与模拟评审工作台</b></p>
+# Stardust Agent
 
-  <p>
-    <a href="https://github.com/cuic19053-hue/awesome-student-ai-skills/stargazers"><img src="https://img.shields.io/github/stars/cuic19053-hue/awesome-student-ai-skills?style=social&label=Star" alt="GitHub Stars"></a>
-    <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"></a>
-    <a href="https://agent.stardust.website"><img src="https://img.shields.io/badge/🌐_在线直接用-免安装-brightgreen" alt="Online Demo"></a>
-    <a href="https://agentskills.io/specification"><img src="https://img.shields.io/badge/Agent_Skills-Compatible-6e3bf0" alt="Agent Skills"></a>
-  </p>
-</div>
+<img align="right" src="./assets/logo.png" width="72" height="72" alt="Stardust Agent">
 
-> 大创、挑战杯、互联网+、国奖、励志奖学金、保研推免、三下乡、入团申请书……
->
-> **拒绝学术代写，专注结构规范。** 针对大学生科研立项与竞赛痛点，通过启发式对话引导梳理真实成果，自动排查学术漏洞与政策红线，快速搭建符合高校公文规范的标准 `.docx` 申报初稿。
+**面向大学生项目申报的开源 AI Agent 平台。** 学生在网页工作台里整理学校通知和实验记录，让 Agent 查找依据、协助起草，再逐章编辑并导出 Word。后端使用 Python 和 FastAPI，支持 Ollama 本地模型和 OpenAI 兼容接口。
 
-**覆盖 8 大类 · 35 种申报材料**，源自挑战杯国赛真实打磨，抖音单条视频自然流 **8,000+ 赞 / 6,000+ 收藏**（[看演示](https://www.douyin.com/video/7692700167341985051)）。
+[打开在线工作台](https://agent.stardust.website) · [查看大创 Word 样例](./examples/demos/demo_innovation_research.docx) · [Agent 设计说明](./docs/design/AGENT_REFACTOR.md) · [English](./README_EN.md)
 
-[简体中文](./README.md) | [English](./README_EN.md)
+## 跟着一次工具调用读代码
 
----
+> 请查一下已确认材料，告诉我样本量和记录的观察指标。
 
-## ⚡ 30 秒开始（推荐，什么都不用装）
+测试项目里有一份已确认的观察记录。本机实测中，Qwen2.5 7B 选择了 `search_project_materials`。服务端在当前项目中检索，将命中的段落交还给模型。下面是这次回答的节选。
 
-| 步骤 | 你要做的 |
-|:---:|---|
-| **1** | 打开 👉 **[agent.stardust.website](https://agent.stardust.website)** |
-| **2** | 描述你的课题或意图：「我想申报大创创新训练项目，课题是面向复杂山地的无人机路径规划」 |
-| **3** | 按 AI 导师的启发追问补全真实信息（团队、导师、量化指标……）→ 运行模拟评审与合规自查 → 导出规范 `.docx` 申报初稿 |
+> 根据已确认的观察记录，团队观察了12株番茄苗，并记录了土壤含水量和病斑面积。
 
-就这样。**没有 Python，没有命令行，没有 API Key，没有配置文件。**
+评测会同时核对工具名和答复内容。如果回答引入记录里没有的“准确率达到 92%”，这条用例就会失败。[用例与原始材料](./server/evals/cases.json) · [评测脚本](./server/evals/run.py)
 
-> 🛡️ **学术诚信与合规边界**：本工具仅提供「申报骨架梳理、政策格式校对与模拟评审自查」，绝不代写正文、绝不伪造实验事实。所有核心数据与学术成果均需申报人如实核准。
+| 工程问题 | 实现方式 | 源码 |
+| --- | --- | --- |
+| 模型怎样选工具，何时结束？ | 同步答复与 SSE 流式答复共用对话循环。一轮对话最多迭代 6 次，工具调用预算为 8 次。服务端执行前再次检查工具授权，并绑定当前项目。 | [运行时](./server/proposal/chat_runtime.py) · [工具路由](./server/proposal/chat_tools.py) |
+| 回答里的材料从哪里来？ | 项目资料经用户确认后分段索引。RAG 检索结合关键词和可用的同版本向量，返回来源文件和段落位置。官方通知另按学校、年度和适用范围查找。 | [项目检索](./server/proposal/retrieval.py) · [知识来源与覆盖](./docs/rag-status.md) |
+| 聊天怎样变成 Word？ | 学生从对话中预览并选取章节草稿，编辑后保存。导出使用项目里已保存的正文，提交前仍可核对学校模板和引用。 | [对话草稿](./server/proposal/chat_drafts.py) · [Word 导出](./server/proposal/exporter.py) |
+| 长任务中途断开怎么办？ | 启用材料 worker 后，章节生成和导出等任务按项目入队。提交使用幂等键，写回前检查项目版本，付费任务租约中断时保留记录供核对。 | [任务队列](./server/proposal/material_jobs.py) · [执行进程](./server/material_worker.py) |
 
----
+## 本地运行与复现
 
-## 📄 先看成品长什么样
+需要 Python 3.11 或更高版本，并启动本机 Ollama。在终端运行以下命令。
 
-不信？直接下载 10 份已经排好版的真实 `.docx`，用 Word 打开看结构，再决定要不要用：
+```bash
+git clone https://github.com/cuic19053-hue/awesome-student-ai-skills.git
+cd awesome-student-ai-skills
+python3 -m venv .venv
+.venv/bin/python -m pip install -r utils/requirements.txt -r server/requirements.txt
+ollama pull qwen2.5:7b
+ollama pull bge-m3
+.venv/bin/python -m uvicorn app:app --app-dir server --host 127.0.0.1 --port 8765
+```
 
-| 类别 | 样例下载 |
-|---|---|
-| 国家级科研 | [📄 大创创新训练申报书](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_innovation_research.docx) · 红头公文、三段式科学挑战、算法对比表、3 张技术路线图、经费预算表 |
-| 国赛竞赛 | [📄 挑战杯课外学术作品申报书](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_challenge_cup.docx) · 30+ 篇文献综述、金奖立项逻辑链、三级评审意见栏 |
-| 双创商业 | [📄 互联网+ 商业计划书](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_internet_plus.docx) · 4P+3C+SWOT 闭环、5 年财务三表、股权结构 |
-| 顶级奖学金 | [📄 国家奖学金申请书](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_national_scholarship.docx) · 对齐财教最新评定政策、成绩排名证明、突出贡献 |
-| 升学保研 | [📄 保研推免个人陈述](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_graduate_recommendation.docx) · 表格体+陈述体双结构、亮点量化 |
-| 创客训练 | [📄 大创创业训练申报书](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_entrepreneurship_training.docx) · 商业模式画布、专利壁垒、甘特进度 |
-| 新手科研 | [📄 院级科研立项申请书](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_college_research.docx) · 16 栏目标准公文表格体 |
-| 校级科研 | [📄 校级科研立项申报书](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_university_research.docx) · 22 栏目、15+ 篇文献综述、数学公式规范 |
-| 综合评优 | [📄 优秀毕业生申报书](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_outstanding_graduate.docx) · 四年成长叙事、五维度量化实绩 |
-| 公派留学 | [📄 CSC 公派留学申请书](https://github.com/cuic19053-hue/awesome-student-ai-skills/raw/main/examples/demos/demo_csc_scholarship.docx) · 研修计划可行性、外导对接、归国承诺 |
+打开本机工作台，在「模型配置」中选择 Ollama。点击「开始新对话」描述申报目标，上传并核对资料后即可提问。本机模式使用 SQLite，数据保存在 `.agent-data/`。云端使用 Supabase 按账号管理项目。平台模型使用工作台积分，自带 API Key 时按模型服务商规则计费。[本机工作台](http://127.0.0.1:8765) · [模型、存储和服务配置](./server/README.md)
 
----
+在仓库根目录运行下面的命令，可以用本机模型复现上面的提问。脚本使用临时项目，输出实际调用的工具、答复片段和各用例的通过情况。
 
-## 🎯 它能为你辅导什么（35 大赛道）
+```bash
+.venv/bin/python server/evals/run.py
+```
 
-| 你要交的材料 | 输出物 |
-|---|---|
-| **大创申报书**（创新训练 / 创业训练 / 创业实践） | 含技术路线图、甘特图、算法对比表的完整 Word |
-| **挑战杯申报书**（课外学术科技作品） | 含 30+ 篇文献综述、创新点提炼的 Word |
-| **互联网+ 商业计划书**（主赛道 / 红旅赛道） | 含商业模式闭环、市场分析的 Word |
-| **国家奖学金 / 励志 / 校级 / 企业 / 单项 / 助学金** | 对齐各校评审偏好的 Word |
-| **保研推免 / 选调生 / 优秀毕业生 / 优秀毕业论文** | 含简历式亮点提炼的 Word |
-| **三下乡社会实践报告**（社会调查 / 支教 / 政策宣讲 / 科技服务） | 含数据图表的社会实践报告 |
-| **入团申请书 / 思想汇报 / 转正申请** | 规范格式的政治材料 |
-| 校级院级科研立项、西部计划、公派留学、转专业、应征入伍 | 对应赛道的规范 Word |
+## 场景、样例与扩展
+
+35 个申报场景以 Skills 形式提供领域规范。Agent 识别任务后按需读取对应指南。可以用示例文档查看栏目和排版，各校正式要求以当年通知为准。[全部场景](./subskills/README.md) · [挑战杯样例](./examples/demos/demo_challenge_cup.docx) · [奖学金样例](./examples/demos/demo_national_scholarship.docx) · [全部 Word 样例](./examples/demos/)
+
+开发者可以从 Codex、Cursor 或其他 MCP 客户端连接本机项目工具，也可以直接加载某一赛道的 `SKILL.md`。本机项目 MCP 与网页共享项目和材料，使用 stdio 启动的命令为 `.venv/bin/python server/mcp_server.py --transport stdio`。[项目 MCP 实现](./server/mcp_server.py) · [Skills 入口](./SKILL.md)
 
 <details>
-<summary><b>📚 展开完整 35 个赛道清单（含内容量）</b></summary>
+<summary><b>展开 35 个领域指南及文件大小</b></summary>
 
-> ✅ 已完备（可直接使用）｜ 🔄 持续打磨中
-
-**🔬 项目类（要钱、要立项）· 9 个**
+**🔬 科研与竞赛 · 9 个**
 
 | # | 赛道 | 编码 | 内容量 |
 |---|---|---|---|
@@ -88,7 +68,7 @@
 | 8 | 互联网+ · 红旅赛道 | `internet-plus-red-tour` | 64 KB |
 | 9 | 国家级项目立项逻辑评测 | `national-project-eval` | 43 KB |
 
-**🏆 评优类（要荣誉）· 12 个**
+**🏆 评优与资助· 12 个**
 
 | # | 赛道 | 编码 | 内容量 |
 |---|---|---|---|
@@ -146,193 +126,12 @@
 
 </details>
 
----
+## 项目与社区
 
-## ❓ 你可能担心的三件事
-
-**「AI 会不会替我编造奖项和经历？」**
-不会。这是整个项目的底线设计：AI 先问清你的真实信息再动笔，缺信息必须追问，绝不写「获得多项荣誉」这种空话。写「班级第二」就是「班级第二」，不会给你润色成「名列前茅」。**但提交前请务必自己逐项核对。**
-
-**「要收费吗？要自己配 API Key 吗？」**
-不要。在线版和本地版都免费，也不需要你申请模型 Key。
-
-**「我不会编程，能用吗？」**
-能 —— 就是上面那 3 步。仓库里的 Python 脚本、MCP 配置、私有化部署**全部是给你身边会编程的同学或者开发者看的**，普通使用完全碰不到。
-
-**「和直接问 ChatGPT 有什么区别？」**
-通用大模型不知道各赛道的评审标准和硬性格式（字数、文献数量、栏目顺序、政治表述），而且喜欢编事实。这个项目把 35 个赛道的评审逻辑、字数硬规则、文献要求、格式规范固化成结构化知识，运行时按需加载，并且直接输出排好版的 `.docx` 而不是一堆需要你手动搬的文字。
-
-**「我的个人信息会被上传吗？」**
-在线版：材料保存在你的账号下，自定义模型 Key 按账号加密。本地版：一切保存在本机 `.agent-data/`，用本机 Ollama 推理。注意：你主动触发搜索官方通知时，搜索关键词会发到公开搜索服务。
-
----
-
-## 🔍 为什么可信
-
-- **不是实验室玩具**：团队打挑战杯从校赛一路冲进国赛，申报书磨了十几轮，这套东西是先解决自己的问题长出来的。
-- **经过真实流量验证**：抖音一条视频，**0 推广**，一周内 **8,000+ 赞、6,000+ 收藏、1,400+ 转发**（[原视频](https://www.douyin.com/video/7692700167341985051)）—— 说明「不知道评委想看什么」是普遍真痛点。
-- **不是凭空编的规范**：拆解了上百篇国家级金奖 / 一等奖真实申报书，提炼评审逻辑与格式规范，**不包含任何受版权保护的原文段落**。
-
----
-
-## 💻 进阶用法（开发者向，普通用户可跳过）
-
-以下全部需要一定的命令行基础。只想写申报书的同学，上面的 30 秒路径已经够了。
+项目源自团队参加挑战杯、反复修改申报书的实践。感谢完成了本项目绝大部分编写工作的 [@richyhu](https://github.com/richyhu)。欢迎通过 Issue 提供学校模板的差异、更新的申报要求和能够复现的问题。[项目演示视频](https://www.douyin.com/video/7692700167341985051) · [贡献指南](./CONTRIBUTING.md) · [作者联系方式](./assets/contact_qr.png)
 
 <details>
-<summary><b>① 在本地 Agent IDE 里用（WorkBuddy / Claude Code / Codex / Cursor / Trae）</b></summary>
-
-1. 克隆仓库，安装依赖：`pip install -r utils/requirements.txt`（提供 `python-docx` 等底层依赖）
-2. 把根目录 `SKILL.md`（或具体赛道 `subskills/<赛道>/SKILL.md`）作为**系统提示词**喂给 AI
-3. 直接说：「我想写一份大创申请书」
-
-AI 会做三件事：交互式追问你的真实信息 → 调用 `utils/dispatcher.py` 决策树匹配赛道 → 执行 `subskills/<赛道>/build.py`，把 JSON 数据渲染成带标准字号、表格、签字栏的 `.docx`。
-
-</details>
-
-<details>
-<summary><b>② MCP 服务接入（Claude Desktop / Cursor / Codex）</b></summary>
-
-仓库自带标准 MCP Server（`mcp_server.py`），支持赛道路由、公共知识检索、信息采集、模拟评审和 Word 渲染。公共指南不是官方政策；官方资料按学校、年度及适用对象筛选，真实授权范文与尚缺资料的状态见 [RAG 状态说明](./docs/rag-status.md)。
-
-```json
-{
-  "mcpServers": {
-    "student-skills": {
-      "command": "python3",
-      "args": ["<你的项目绝对路径>/mcp_server.py"]
-    }
-  }
-}
-```
-
-或用 `uv` 免配虚拟环境：
-
-```json
-{
-  "mcpServers": {
-    "student-skills": {
-      "command": "uv",
-      "args": ["--directory", "<你的项目绝对路径>", "run", "mcp_server.py"]
-    }
-  }
-}
-```
-
-</details>
-
-<details>
-<summary><b>③ 指定学校版式（<code>--school</code>）</b></summary>
-
-各校模板在栏目顺序、字号、页边距上有微调。项目按「先出内容、再套版式」两层工作：
-
-```bash
-python subskills/national-scholarship/build.py \
-  --data my_info.json \
-  --school pku \
-  --out 国家奖学金申请书.docx
-```
-
-`--school` 支持英文缩写 / 中文全称 / 简称（`pku` / `北京大学` / `北大` / `THU` 均可）。已收录 `pku`、`tsinghua`、`whu`、`zju`；传入未收录的学校会提示清单并按默认版式输出，**不会静默降级**。
-
-想加自己学校：复制 `utils/schools/template_default.json` 为 `template_<学校id>.json` 改好即可。
-
-</details>
-
-<details>
-<summary><b>④ 私有化本地部署（局域网自建 + Ollama 本地模型）</b></summary>
-
-数据完全不出内网。部署方法、数据库配置、已知限制见 [`server/README.md`](./server/README.md)。
-
-⚠️ 实验版尚不适合未经身份验证和数据隔离审查就作为多人公网服务使用。
-
-</details>
-
-<details>
-<summary><b>⑤ 没有任何工具时的土办法：直接粘网页 AI</b></summary>
-
-1. 打开豆包 / DeepSeek / Claude 等网页版
-2. 在 [`subskills/`](./subskills/README.md) 找到需要的赛道，复制 `SKILL.md` 全文
-3. 粘进对话框：「我要申请 xxx，请按这个 skill 帮我写」
-
-⚠️ 网页 AI 只输出纯文本，没有图片和 Word 排版。
-
-</details>
-
-<details>
-<summary><b>🏗️ 系统架构（为什么长文本不崩）</b></summary>
-
-为了解决大模型写长文档时的「上下文漂移」「幻觉套话」「生成超时」，系统做了分层设计：
-
-<div align="center">
-  <img src="https://cdn.jsdelivr.net/gh/cuic19053-hue/awesome-student-ai-skills@main/assets/architecture.png" alt="系统技术架构图" width="420" />
-</div>
-
-```mermaid
-flowchart TD
-    subgraph ClientLayer["交互与用户层"]
-        WebUI["🌐 Web 在线工作台"]
-        IDE["💻 本地 Agent IDE"]
-    end
-    subgraph GatewayLayer["网关与路由层"]
-        Gateway["🛡️ 轻量 API 网关<br/>多 Key 轮询 / 429 容灾"]
-        Dispatcher["🧭 意图路由引擎<br/>规则 + 向量召回 35 赛道"]
-    end
-    subgraph AgentCore["Agent 协同与质量闭环"]
-        DraftAgent["✍️ 专项撰写 Agent<br/>按国赛金奖结构逐章生成"]
-        ReviewAgent["🧐 模拟评委 Agent<br/>挑刺套话 / 审查数据真实性"]
-        Evals["📊 自动化 Evals<br/>结构完整性 / 防幻觉 / 字数达标"]
-    end
-    subgraph TaskEngine["异步生成与排版引擎"]
-        Queue["⚡ 异步任务队列<br/>Redis 解耦长任务"]
-        DocxEngine["📄 排版渲染引擎<br/>标准公文样式 / 动态图表"]
-    end
-    subgraph Output["交付物"]
-        Word["📄 .docx 规范排版申报书"]
-        PDF["📑 .pdf 电子预览"]
-    end
-    WebUI --> Gateway
-    IDE --> Gateway
-    Gateway --> Dispatcher
-    Dispatcher --> DraftAgent
-    DraftAgent <--> ReviewAgent
-    ReviewAgent --> Evals
-    Evals --> Queue
-    Queue --> DocxEngine
-    DocxEngine --> Word
-    DocxEngine --> PDF
-```
-
-三层加载（Agent Skills 规范）：**元数据层** ~100 tokens 只载 name/description → **指令层** 匹配后才载 SKILL.md 正文 → **资源层** 执行中按需载 `references/`。35 个 skill 不会全塞进上下文。
-
-</details>
-
-<details>
-<summary><b>📁 项目结构</b></summary>
-
-```
-awesome-student-ai-skills/
-├── subskills/               # 35 个赛道 skill（核心资产）
-│   ├── innovation-research/SKILL.md    # 大创 · 创新训练
-│   ├── national-scholarship/SKILL.md   # 国家奖学金
-│   └── ...（共 35 个）
-├── references/              # 共享知识库
-│   ├── writing_guide.md     # 撰写规范
-│   ├── review_criteria.md   # 评审打分维度
-│   └── pitfalls.md          # 常见错误与避坑
-├── examples/demos/          # 10 个成品 .docx（直接下载）
-├── SKILL.md                 # 路由入口：识别类型 → 分流子 skill
-├── index.json               # 机器可读索引
-└── utils/                   # dispatcher / docx_common / schools / pdf_export
-```
-
-根 `SKILL.md` 是**路由器**，不直接生成内容：识别类型 → 不确定时列候选让你确认 → 移交对应子 skill。
-
-</details>
-
----
-
-## 📅 Star 解锁路线图
+<summary>社区路线图</summary>
 
 > 已突破 140 ⭐，「讲莲杯 / 创青春 / 三创赛」已进入开发队列。**点 Star = 催更。**
 
@@ -342,31 +141,10 @@ awesome-student-ai-skills/
 | ⭐ 500 | 服务外包大赛、商业精英挑战赛（商科类） |
 | ⭐ 1000 | 师范生教学技能、英语类竞赛 |
 
----
+</details>
 
-## 🤝 交流 & 合作
-
-- 👥 **大学生科创交流群**：大创 / 挑战杯 / 互联网+ 备赛避坑、AI 辅助立项、格式规范
-- 🤝 **深度合作 / 1v1**：立项逻辑链重构、技术路线图、商业计划书漏洞诊断、赛事辅导
-
-<div align="center">
-  <img src="https://cdn.jsdelivr.net/gh/cuic19053-hue/awesome-student-ai-skills@main/assets/contact_qr.png" width="200" alt="作者微信二维码">
-  <p>👉 扫码加微信（进群备注 <b>进群</b> ｜ 合作私聊 <b>合作+具体需求</b>）</p>
-</div>
-
----
-
-## 🚫 这不是什么东西
-
-- 不是「一键生成完美申报书」的魔法按钮 —— 你得提供真实经历和数据
-- 不是政策咨询工具 —— 不解读各校评审规则的变化
-- 不保证中标 —— 结果取决于你的实际条件和评审偏好
-- 不是学术不端工具 —— 不帮你编造论文、奖项、经历
-- **严禁用于学术代写与造假** —— 本项目是学术脚手架（Scaffolding）与公文规范化工具，课题核心技术、实验数据与实绩必须由学生本人自主完成与负责
-
----
-
-## 免责声明
+<details>
+<summary>使用说明与免责声明</summary>
 
 **本项目按「现状」提供，仅供学习和参考。**
 
@@ -380,41 +158,6 @@ awesome-student-ai-skills/
 
 **使用本项目即表示你已阅读、理解并同意上述声明。**
 
----
+</details>
 
-## 致谢
-
-感谢 [@richyhu](https://github.com/richyhu) 完成了本项目绝大部分编写工作。从每一个栏目到每一条避坑指南，都来自他对高校申报体系的深入理解和大量实践。这不是写 prompt，而是把散落在各高校通知文件里的隐性领域知识系统性编码为 Agent 可执行的指令 —— 在国内 Agent Skills 生态里非常稀缺。
-
-## 贡献
-
-欢迎 Issue 和 PR。特别是：某校模板有特殊要求、某申报类型评审标准更新（如互联网+ 2026 新规）、Skill 输出有事实性错误。
-
-贡献前请读 `references/writing_guide.md`，确保修改符合项目的**诚实底线**。
-
-## 许可
-
-MIT License —— 随便用、随便改，但请保留原作者署名和免责声明。详见 [LICENSE](./LICENSE)。
-
-## 💻 Windows 编码约定
-
-- 推荐启用 UTF-8：Windows 控制台执行 `set PYTHONUTF8=1`，PowerShell 执行 `$env:PYTHONUTF8=1`。
-- 所有子技能的 `build.py` 已内置 GBK 流容错，即使在未开 UTF-8 的原生 GBK 终端下也会安全降级，不会因 Unicode 状态符号抛 `UnicodeEncodeError`。
-
----
-
-## 📈 Star History
-
-<div align="center">
-  <a href="https://star-history.com/#cuic19053-hue/awesome-student-ai-skills&Date">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=cuic19053-hue/awesome-student-ai-skills&type=Date&theme=dark" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=cuic19053-hue/awesome-student-ai-skills&type=Date" />
-      <img src="https://api.star-history.com/svg?repos=cuic19053-hue/awesome-student-ai-skills&type=Date" alt="Star History Chart" style="max-width: 100%; height: auto;" />
-    </picture>
-  </a>
-</div>
-
----
-
-*用这个项目写出了好申报书，或者踩了什么坑，欢迎提 Issue 分享 —— 让后面的人少走弯路。*
+本项目采用 MIT 许可，使用与分发时请保留原作者署名和许可声明。[LICENSE](./LICENSE)
