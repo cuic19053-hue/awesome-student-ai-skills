@@ -81,6 +81,25 @@ class MaterialWorkerBridge:
             },
         )
 
+    def record_model_interaction(
+        self, request_id: str, model: str, input_text: str, output_text: str,
+        status: str, error_code: str | None = None,
+    ) -> Any:
+        return self._post(
+            "material_worker_record_model_interaction",
+            {
+                "p_secret": self.secret,
+                "p_job_id": self.job_id,
+                "p_lease": self.lease,
+                "p_request_id": request_id,
+                "p_model": model,
+                "p_input_text": input_text[:200000],
+                "p_output_text": output_text[:200000],
+                "p_status": status,
+                "p_error_code": error_code,
+            },
+        )
+
     def authorize_byok(self, call_id: str, operation: str) -> Any:
         return self._post(
             "material_worker_authorize_byok",
@@ -112,3 +131,11 @@ class MaterialWorkerMeterStore:
 
     def refund_workbench_usage(self, request_id, reason="provider_error"):
         return self.bridge.worker_rpc("refund", request_id=request_id, reason=reason)
+
+    def record_workbench_interaction(
+        self, user_id, project_id, request_id, model, *, input_text="", output_text="",
+        status="started", error_code=None,
+    ):
+        self.bridge.record_model_interaction(
+            request_id, model, input_text, output_text, status, error_code
+        )

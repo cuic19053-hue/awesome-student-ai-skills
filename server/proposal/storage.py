@@ -194,6 +194,21 @@ class Store:
                     created_at TEXT NOT NULL,
                     UNIQUE(user_id, kind, reference_id)
                 );
+                CREATE TABLE IF NOT EXISTS workbench_model_interactions (
+                    request_id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                    model TEXT NOT NULL,
+                    input_text TEXT NOT NULL DEFAULT '',
+                    output_text TEXT NOT NULL DEFAULT '',
+                    status TEXT NOT NULL DEFAULT 'started'
+                        CHECK (status IN ('started','completed','failed','unknown')),
+                    error_code TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_workbench_model_interactions_project
+                    ON workbench_model_interactions(project_id, created_at DESC);
                 CREATE INDEX IF NOT EXISTS idx_workbench_credit_tx_user
                     ON workbench_credit_transactions(user_id, created_at DESC);
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_workbench_payment_event
@@ -1067,6 +1082,39 @@ class Store:
                 (str(user_id), max(1, min(100, int(limit)))),
             ).fetchall()
             return [dict(row) for row in rows]
+
+    def record_workbench_interaction(
+        self, user_id: str, project_id: str, request_id: str, model: str,
+        *, input_text: str = "", output_text: str = "", status: str = "started",
+        error_code: str | None = None,
+    ) -> None:
+        if status not in {"started", "completed", "failed", "unknown"}:
+            raise ValueError("无效的模型调用状态。")
+        if len(input_text) > 200000 or len(output_text) > 200000:
+            raise ValueError("模型对话记录过长。")
+        now = utc_now()
+        with self.connect() as db:
+            db.execute(
+                """INSERT INTO workbench_model_interactions
+                   (request_id,user_id,project_id,model,input_text,output_text,status,error_code,created_at,updated_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?)
+                   ON CONFLICT(request_id) DO UPDATE SET
+                     input_text=CASE WHEN excluded.input_text<>'' THEN excluded.input_text ELSE input_text END,
+                     output_text=CASE WHEN excluded.output_text<>'' THEN excluded.output_text ELSE output_text END,
+                     status=excluded.status,error_code=excluded.error_code,updated_at=excluded.updated_at
+                   WHERE user_id=excluded.user_id AND project_id=excluded.project_id AND model=excluded.model""",
+                (request_id,user_id,project_id,model,input_text,output_text,status,error_code,now,now),
+            )
+
+    def list_workbench_interactions(self, project_id: str, limit: int = 50) -> list[dict[str, Any]]:
+        with self.connect() as db:
+            rows = db.execute(
+                """SELECT request_id,model,input_text,output_text,status,error_code,created_at,updated_at
+                   FROM workbench_model_interactions WHERE project_id=?
+                   ORDER BY created_at DESC LIMIT ?""",
+                (project_id, max(1, min(int(limit), 100))),
+            ).fetchall()
+        return [dict(row) for row in rows]
 
     def import_workbench_voucher_drafts(
         self, batch_id: str, entries: list[tuple[bytes, int]]

@@ -29,7 +29,9 @@ def generate_image_deferred(
     """
     # Auto quality can select high; reserve enough for the published 1024px
     # high-quality output plus text input at the fixed official-price FX.
-    request_id = meter.reserve("gpt-image-2", 2_000_000)
+    request_id = meter.reserve(
+        "gpt-image-2", 2_000_000, input_text=f"图片生成：{prompt[:2000]}"
+    )
     request = urllib.request.Request(
         os.environ["WOPALLY_MODEL_BASE_URL"].rstrip("/") + "/images/generations",
         data=json.dumps({
@@ -49,11 +51,18 @@ def generate_image_deferred(
     except urllib.error.HTTPError as exc:
         if exc.code in DEFINITE_HTTP_REJECTIONS:
             meter.refund(request_id)
+            meter.fail_interaction(request_id, "gpt-image-2", "UPSTREAM_REJECTED")
             raise ModelUnavailable(f"生图服务返回 HTTP {exc.code}，本次预留已退回。") from exc
+        meter.fail_interaction(
+            request_id, "gpt-image-2", "UPSTREAM_UNCONFIRMED", status="unknown"
+        )
         raise ModelUnavailable(f"生图服务返回 HTTP {exc.code}，结果暂未确认，请稍后重试。") from exc
     except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
         # The provider may have generated an image despite a transport failure.
         # Keep the hold for usage-log reconciliation rather than charging twice.
+        meter.fail_interaction(
+            request_id, "gpt-image-2", "UPSTREAM_UNCONFIRMED", status="unknown"
+        )
         raise ModelUnavailable("生图结果暂未确认，本次积分预留正在核对。") from exc
     try:
         item = body["data"][0]
@@ -61,7 +70,9 @@ def generate_image_deferred(
         if len(image) > 12_000_000 or not image.startswith(b"\x89PNG\r\n\x1a\n"):
             raise ValueError("invalid PNG")
     except (KeyError, IndexError, TypeError, ValueError) as exc:
+        meter.fail_interaction(request_id, "gpt-image-2", "INVALID_PROVIDER_RESPONSE")
         raise ModelUnavailable("模型未返回有效 PNG，积分预留待核对。") from exc
+    meter.complete_interaction(request_id, "gpt-image-2", "图片生成成功，PNG 图像已返回项目。")
     return image, request_id
 
 

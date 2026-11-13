@@ -146,7 +146,17 @@ class SupabaseStore:
             raise RuntimeError("无法连接 Supabase 云端数据库。") from exc
 
     def _service_rpc(self, function: str, payload: dict[str, Any]) -> Any:
-        if self.service_role_key:
+        if function == "workbench_record_model_interaction":
+            if not self.backend_secret:
+                raise RuntimeError("云端对话留存未配置服务端密钥。")
+            headers = self._headers({
+                "Content-Type": "application/json",
+                "Content-Profile": "public",
+                "Accept-Profile": "public",
+            })
+            payload = {**payload, "p_server_secret": self.backend_secret}
+            function = "workbench_backend_record_model_interaction"
+        elif self.service_role_key:
             headers = {
                 "apikey": self.service_role_key,
                 "Authorization": f"Bearer {self.service_role_key}",
@@ -1069,6 +1079,37 @@ class SupabaseStore:
                 },
             )
         )
+
+    def record_workbench_interaction(
+        self, user_id: str, project_id: str, request_id: str, model: str,
+        *, input_text: str = "", output_text: str = "", status: str = "started",
+        error_code: str | None = None,
+    ) -> None:
+        identity = self._identity()
+        if str(user_id) != identity["user_id"]:
+            raise PermissionError("用户身份不匹配。")
+        self._service_rpc(
+            "workbench_record_model_interaction",
+            {
+                "p_user_id": user_id,
+                "p_project_id": project_id,
+                "p_request_id": request_id,
+                "p_model": model,
+                "p_input_text": input_text[:200000],
+                "p_output_text": output_text[:200000],
+                "p_status": status,
+                "p_error_code": error_code,
+            },
+        )
+
+    def list_workbench_interactions(self, project_id: str, limit: int = 50) -> list[dict[str, Any]]:
+        self._identity()
+        return self._rest("workbench_model_interactions", params=[
+            ("select", "request_id,model,input_text,output_text,status,error_code,created_at,updated_at"),
+            ("project_id", f"eq.{project_id}"),
+            ("order", "created_at.desc"),
+            ("limit", str(max(1, min(int(limit), 100)))),
+        ])
 
     def pending_workbench_usage(self, user_id: str, limit: int = 20) -> list[dict[str, Any]]:
         identity = self._identity()
