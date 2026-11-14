@@ -6,6 +6,8 @@
 
 [Open the workbench](https://agent.stardust.website) · [Download a sample Word proposal](./examples/demos/demo_innovation_research.docx) · [Agent design notes (Chinese)](./docs/design/AGENT_REFACTOR.md) · [简体中文](./README.md)
 
+[![GitHub stars](https://img.shields.io/github/stars/cuic19053-hue/stardust-agent?style=social)](https://github.com/cuic19053-hue/stardust-agent/stargazers) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE) [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/) [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/) [![MCP Protocol](https://img.shields.io/badge/MCP-Protocol-blue.svg)](https://modelcontextprotocol.io/) [![Online Platform](https://img.shields.io/badge/Online-agent.stardust.website-7952CC.svg)](https://agent.stardust.website)
+
 The 35-scenario catalog describes domain guidance. Drafting, templates, charts and export support vary, and not every scenario has completed end-to-end delivery validation. Repository changes do not establish that the live site has been updated.
 
 User confirmation records information the student has supplied or accepted; it is not independent verification. Numerical, source and completeness checks cover selected cases. Models can still omit, misread or invent claims, so applicants must check the facts, citations and current school requirements.
