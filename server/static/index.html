@@ -35,13 +35,13 @@
       <div class="brand">
         <div class="brand-mark" aria-hidden="true">✦</div>
         <div class="brand-text">
-      <div class="brand-name">Stardust Agent <span class="brand-badge">35 Skills</span></div>
-      <div class="brand-sub">大学生申报材料 Agent 工作台</div>
+      <div class="brand-name">Stardust Agent <span class="brand-badge">一站式工作台</span></div>
+      <div class="brand-sub">大学生项目与申请工作台</div>
         </div>
       </div>
 
       <button id="newProjectBtn" class="button button-primary new-project">
-        <span class="plus">✦</span> 开始新建材料
+        <span class="plus">✦</span> 新建工作空间
       </button>
       <button id="newChatBtn" type="button" class="button button-secondary new-project">
         💬 开始新对话
@@ -55,7 +55,7 @@
       </div>
 
       <div class="side-label">
-        <span>项目档案库</span>
+        <span>我的工作空间</span>
         <span id="projectCountBadge" class="side-count">0</span>
       </div>
       <div id="projectList" class="project-list"></div>
@@ -121,16 +121,16 @@
       <section id="welcome" class="welcome">
         <div class="welcome-copy">
           <div class="eyebrow"><span class="sparkle">✦</span> STUDENT APPLICATION WORKSPACE</div>
-            <h1>从一个想法开始<br><span>完成你的申报材料</span></h1>
+            <h1>从一个目标开始<br><span>推进到材料交付</span></h1>
           <p class="welcome-desc">
-            自动识别申报赛道，按对应 Skill 收集信息、撰写和检查；支持材料核对、逐章编辑，并导出 Word 草稿。
+            在同一工作空间里梳理目标、整理通知与个人资料、共创和核对草稿，再完成检查与导出。Agent 会按任务调用相关领域规范和工具。
           </p>
 
           <!-- 欢迎页直接输入需求卡片 -->
           <div class="welcome-hero-card" id="welcomeHeroCard">
             <div class="hero-card-header">
-              <span class="hero-chip">AI 意图识别</span>
-              <span>输入你的申报诉求，自动锁定专家规范</span>
+              <span class="hero-chip">告诉 Agent 你想完成什么</span>
+              <span>Agent 会梳理需求并安排接下来的步骤</span>
             </div>
             <div class="hero-input-box">
               <textarea id="heroProjectRequest" rows="2" placeholder="例如：我想申请国家励志奖学金；或者：写一份面向智慧农业的大创创新训练申报书…"></textarea>
@@ -141,7 +141,7 @@
             </div>
             <div id="heroRouteCandidates" class="route-candidates hidden" aria-live="polite"></div>
             <div class="hero-quick-tags">
-              <span class="tags-title">热门赛道推荐：</span>
+              <span class="tags-title">常见申报场景：</span>
               <button type="button" class="quick-tag-btn" data-query="我要申请国家励志奖学金">🎖️ 国家励志奖学金</button>
               <button type="button" class="quick-tag-btn" data-query="大学生创新创业训练计划创新训练项目">🔬 大创·创新训练</button>
               <button type="button" class="quick-tag-btn" data-query="第十九届挑战杯课外学术科技作品申报书">🏆 挑战杯课外科技</button>
@@ -153,8 +153,8 @@
           </div>
 
           <div class="welcome-actions">
-            <button class="button button-primary button-large" id="welcomeCreateBtn">开始准备材料 <span>→</span></button>
-            <button class="button button-secondary button-large" id="welcomeSetupBtn">选择赛道并填写资料</button>
+            <button class="button button-primary button-large" id="welcomeCreateBtn">开始新工作空间 <span>→</span></button>
+            <button class="button button-secondary button-large" id="welcomeSetupBtn">选择材料类型</button>
           </div>
           <div class="welcome-points">
             <div class="point-card">
@@ -186,11 +186,11 @@
           <div class="paper-card">
             <div class="paper-top">
               <span class="paper-dot"></span><span class="paper-dot"></span><span class="paper-dot"></span>
-              <span class="paper-title">35 个赛道 · Agent 工作台</span>
+              <span class="paper-title">项目工作空间 · Agent 工作台</span>
             </div>
-            <div class="paper-heading">从需求识别到材料草稿</div>
+            <div class="paper-heading">从目标到交付，Agent 跟进每一步</div>
             <div class="mini-flow">
-              <div class="mini-node">需求路由</div><i></i><div class="mini-node blue">资料核对</div><i></i><div class="mini-node green">逐章导出</div>
+              <div class="mini-node">明确目标</div><i></i><div class="mini-node blue">整理资料</div><i></i><div class="mini-node green">形成草稿</div>
             </div>
             <div class="paper-lines">
               <span></span><span></span><span class="short"></span>
@@ -198,10 +198,10 @@
             <div class="paper-tag">✓ 支持学校模板参考 · 可编辑 Word</div>
           </div>
           <div class="floating-note">
-            <span class="note-check">✓</span><span>赛道规范与事实来源可核对</span>
+            <span class="note-check">✓</span><span>领域规范与事实来源可核对</span>
           </div>
           <div class="floating-photo">
-            <div class="photo-mark">✦</div><span>上传学校模板与证明材料</span>
+            <div class="photo-mark">✦</div><span>整理通知、模板与证明材料</span>
           </div>
         </div>
       </section>
@@ -211,18 +211,18 @@
         <div class="section-head">
           <div>
             <div class="eyebrow"><span class="sparkle">✦</span> QUICK SETUP</div>
-            <h2>开始准备申报材料</h2>
-            <p>描述你的需求，系统会自动匹配 Skill；也可以手动选择赛道。</p>
+            <h2>新建工作空间</h2>
+            <p>描述想完成的目标，Agent 会梳理流程；需要时也可指定材料类型。</p>
           </div>
           <button id="closeCreateBtn" class="icon-button" aria-label="关闭">×</button>
         </div>
         <form id="createForm" class="create-form">
           <label class="field">
-            <span>你想准备什么材料？</span>
+            <span>这次想完成什么目标？</span>
             <textarea id="projectRequest" rows="3" placeholder="例如：我想申请国家励志奖学金；或者：帮我准备一份三下乡社会调查立项书"></textarea>
           </label>
           <label class="field">
-            <span>申报赛道 <em>自动识别，也可手动选择</em></span>
+            <span>材料类型 <em>Agent 自动识别，也可手动指定</em></span>
             <select id="projectSkill">
               <option value="">自动识别（根据上方描述匹配）</option>
             </select>

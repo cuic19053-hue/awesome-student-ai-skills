@@ -2946,6 +2946,14 @@ def simulate_review(project_id: str) -> dict[str, Any]:
     return tools.simulate_review(project_id)
 
 
+@app.get("/api/projects/{project_id}/model-interactions")
+def list_model_interactions(project_id: str, limit: int = 50) -> dict[str, Any]:
+    _safe_project(project_id)
+    if not hasattr(store, "list_workbench_interactions"):
+        return {"items": []}
+    return {"items": store.list_workbench_interactions(project_id, limit=limit)}
+
+
 @app.post("/api/projects/{project_id}/export")
 def export_docx(project_id: str, payload: ExportInput | None = None) -> dict[str, Any]:
     project = _safe_project(project_id)

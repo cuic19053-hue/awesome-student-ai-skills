@@ -25,6 +25,22 @@ DEFINITE_HTTP_REJECTIONS = {400, 401, 403, 404, 413, 422, 429}
 LOCAL_MODEL_TIMEOUT_MESSAGE = "模型响应超时，暂未收到完整回复。请先查看对话结果，再决定是否手动重试；系统不会自动重复发送。"
 
 
+def _last_user_text(messages: list[dict[str, Any]]) -> str:
+    """Keep only latest user-visible text; never persist system prompts or credentials."""
+    for item in reversed(messages):
+        if not isinstance(item, dict) or item.get("role") != "user":
+            continue
+        content = item.get("content", "")
+        if isinstance(content, str):
+            return content[:12000]
+        if isinstance(content, list):
+            return "\n".join(
+                part.get("text", "") for part in content
+                if isinstance(part, dict) and isinstance(part.get("text"), str)
+            )[:12000]
+    return ""
+
+
 @contextmanager
 def _watch_stream_deadline(response: Any, deadline: float | None):
     """Interrupt a slow or trickling HTTP stream at its absolute deadline.
@@ -279,7 +295,7 @@ class OllamaAgent:
         )
         actual_model = request_body["model"]
 
-        usage_request_id = self.meter.reserve(actual_model) if self.meter is not None else ""
+        usage_request_id = self.meter.reserve(actual_model, input_text=_last_user_text(request_body.get("messages", []))) if self.meter is not None else ""
         request = urllib.request.Request(
             url,
             data=json.dumps(request_body, ensure_ascii=False).encode("utf-8"),
@@ -367,6 +383,7 @@ class OllamaAgent:
         key_fp = ("key_" + hashlib.sha256(self.api_key.encode()).hexdigest()[:8]) if self.api_key else "local"
         latency_ms = int((time.perf_counter() - start_t) * 1000) if "start_t" in locals() else 0
         if usage_request_id:
+            self.meter.complete_interaction(usage_request_id, actual_model, content)
             self.meter.settle(usage_request_id, actual_model)
 
         return {
@@ -473,7 +490,7 @@ class OllamaAgent:
         )
         actual_model = request_body["model"]
 
-        usage_request_id = self.meter.reserve(actual_model) if self.meter is not None else ""
+        usage_request_id = self.meter.reserve(actual_model, input_text=_last_user_text(request_body.get("messages", []))) if self.meter is not None else ""
         request = urllib.request.Request(
             url,
             data=json.dumps(request_body, ensure_ascii=False).encode("utf-8"),
@@ -618,6 +635,7 @@ class OllamaAgent:
         key_fp = ("key_" + hashlib.sha256(self.api_key.encode()).hexdigest()[:8]) if self.api_key else "local"
         latency_ms = int((time.perf_counter() - start_t) * 1000)
         if usage_request_id:
+            self.meter.complete_interaction(usage_request_id, actual_model, "".join(full_content))
             self.meter.settle(usage_request_id, actual_model)
         yield {
             "type": "final",

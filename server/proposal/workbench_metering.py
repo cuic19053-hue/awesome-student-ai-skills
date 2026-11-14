@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import sqlite3
 import time
 import uuid
@@ -12,6 +13,20 @@ from .official_pricing import PRICE_VERSION
 from . import observability as obs
 
 logger = logging.getLogger("proposal_agent.metering")
+
+_SECRET_ASSIGNMENT = re.compile(
+    r"(?i)\b(api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|password)"
+    r"(\s*[:=]\s*)([^\s,;]+)"
+)
+_BEARER_SECRET = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{12,}")
+_OPENAI_SECRET = re.compile(r"\bsk-[A-Za-z0-9_-]{12,}\b")
+
+
+def _safe_interaction_text(value: str) -> str:
+    text = str(value or "")
+    text = _SECRET_ASSIGNMENT.sub(r"\1\2[REDACTED]", text)
+    text = _BEARER_SECRET.sub("Bearer [REDACTED]", text)
+    return _OPENAI_SECRET.sub("[REDACTED]", text)[:200000]
 
 class WorkbenchMeter:
     """Reserve each upstream request independently, including tool-loop requests."""
@@ -33,16 +48,52 @@ class WorkbenchMeter:
             max_pages=1 if self.background_reconciliation else 5,
         )
 
-    def reserve(self, model: str, hold_micro_cny: int | None = None) -> str:
+    def reserve(
+        self, model: str, hold_micro_cny: int | None = None, *, input_text: str = ""
+    ) -> str:
         request_id = f"{PRICE_VERSION}_{uuid.uuid4().hex}"
         self.store.reserve_workbench_usage(
             self.user_id, request_id, model,
             hold_micro_cny or self.TEXT_HOLD_MICRO_CNY, self.api_key_id,
         )
+        if self.project_id and hasattr(self.store, "record_workbench_interaction"):
+            try:
+                self.store.record_workbench_interaction(
+                    self.user_id, self.project_id, request_id, model,
+                    input_text=_safe_interaction_text(input_text), status="started",
+                )
+            except Exception:
+                try:
+                    self.store.refund_workbench_usage(request_id, "interaction_log_unavailable")
+                except Exception:
+                    logger.warning("Could not refund reservation after interaction logging failed; request_id=%s", request_id)
+                raise RuntimeError("本次对话无法安全保存，模型请求未发送。") from None
         obs.bind(owner_id=self.user_id, project_id=self.project_id)
         obs.emit("billing.reserved", stage="reserve_confirmed", status="accepted",
                  usage_request_id=request_id, metadata={"billable": True})
         return request_id
+
+    def complete_interaction(self, request_id: str, model: str, output_text: str) -> None:
+        if self.project_id and hasattr(self.store, "record_workbench_interaction"):
+            try:
+                self.store.record_workbench_interaction(
+                    self.user_id, self.project_id, request_id, model,
+                    output_text=_safe_interaction_text(output_text), status="completed",
+                )
+            except Exception:
+                logger.warning("Model interaction output could not be saved; request_id=%s", request_id)
+
+    def fail_interaction(
+        self, request_id: str, model: str, error_code: str, *, status: str = "failed"
+    ) -> None:
+        if self.project_id and hasattr(self.store, "record_workbench_interaction"):
+            try:
+                self.store.record_workbench_interaction(
+                    self.user_id, self.project_id, request_id, model,
+                    status=status, error_code=error_code,
+                )
+            except Exception:
+                logger.warning("Model interaction status could not be saved; request_id=%s", request_id)
 
     def settle(self, request_id: str, model: str) -> dict[str, Any] | None:
         found = None

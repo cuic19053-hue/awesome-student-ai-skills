@@ -58,6 +58,17 @@ def setup_proxy(monkeypatch, context):
         def authorize_byok(self, call_id, operation):
             calls.append(("authorize_byok", {"call_id": call_id, "operation": operation}))
             return {"ok": True}
+
+        def record_model_interaction(self, request_id, model, input_text, output_text, status, error_code):
+            calls.append(("record_model_interaction", {
+                "request_id": request_id,
+                "model": model,
+                "input_text": input_text,
+                "output_text": output_text,
+                "status": status,
+                "error_code": error_code,
+            }))
+            return {"ok": True}
     monkeypatch.setattr(app, "CLOUD_MODE", True)
     monkeypatch.setenv("MATERIAL_PIPELINE_ENABLED", "true")
     monkeypatch.setenv("MATERIAL_WORKER_READY", "true")
@@ -89,7 +100,7 @@ def test_gateway_failure_does_not_invent_a_refund(api, monkeypatch, status, expe
         "job_id": JOB_ID, "lease": LEASE, "request_body": {"messages": [], "stream": False},
     })
     assert response.status_code == 502
-    assert [action for action, _ in calls] == expected
+    assert [action for action, _ in calls if action in {"reserve", "refund"}] == expected
 
 
 def test_internal_proxy_rejects_missing_capability(api, monkeypatch):
